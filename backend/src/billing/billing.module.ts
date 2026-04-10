@@ -5,9 +5,10 @@ import { BillingController } from './billing.controller';
 import { Billing } from './billing.entity';
 import { PropertyAccount } from '../property/property.entity';
 import { AuthModule } from '../auth/auth.module';
+import { PropertyModule } from '../property/property.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Billing, PropertyAccount]), AuthModule],
+    imports: [TypeOrmModule.forFeature([Billing, PropertyAccount]), AuthModule, PropertyModule],
     providers: [BillingService],
     controllers: [BillingController],
 })

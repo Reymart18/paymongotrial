@@ -22,20 +22,20 @@ export class PropertyAccount {
     @Column()
     memberName?: string;
 
-    @Column('int')
+    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
     propertySizeSqm?: number;
 
     @Column()
     classification?: string;
-
-    @Column()
-    ownerType?: string;
 
     @Column({ unique: true })
     username?: string;
 
     @Column()
     password?: string;
+
+    @Column({ default: false })
+    passwordChanged?: boolean;
 
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     balance?: number;

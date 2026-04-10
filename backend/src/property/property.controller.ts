@@ -25,7 +25,6 @@ export class PropertyController {
             memberName: string;
             propertySizeSqm: number;
             classification: string;
-            ownerType: string;
             username: string;
             password: string;
         },
@@ -50,9 +49,9 @@ export class PropertyController {
         @Param('accountId') accountId: string,
         @Request() req: AuthenticatedRequest,
     ) {
-        // Verify that the user is accessing only their own account
-        if (req.user.role !== 'homeowner') {
-            throw new ForbiddenException('Only homeowners can access this resource');
+        // Allow admins to inspect any account; homeowners can only access their own.
+        if (req.user.role !== 'homeowner' && req.user.role !== 'admin') {
+            throw new ForbiddenException('Only homeowners or admins can access this resource');
         }
 
         const account = await this.propertyService.getByAccountId(accountId);
@@ -60,11 +59,35 @@ export class PropertyController {
             throw new NotFoundException('Account not found');
         }
 
-        if (account.id !== req.user.id) {
+        if (req.user.role === 'homeowner' && account.id !== req.user.id) {
             throw new ForbiddenException('You can only access your own account');
         }
 
         const { password, ...result } = account;
         return result;
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('recalculate-balances')
+    async recalculateBalances(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin') {
+            throw new ForbiddenException('Only admins can recalculate balances');
+        }
+
+        return this.propertyService.recalculateBalances();
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('change-password')
+    async changePassword(
+        @Body() body: { oldPassword: string; newPassword: string },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'homeowner') {
+            throw new ForbiddenException('Only homeowners can change their password');
+        }
+
+        await this.propertyService.changePassword(req.user.id, body.oldPassword, body.newPassword);
+        return { success: true };
     }
 }

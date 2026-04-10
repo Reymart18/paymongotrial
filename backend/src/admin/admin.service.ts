@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Admin } from './admin.entity';
@@ -35,5 +35,52 @@ export class AdminService {
 
     async getAllPropertyAccounts(): Promise<PropertyAccount[]> {
         return this.propertyRepo.find();
+    }
+
+    async updatePropertyAccount(
+        accountId: string,
+        updates: Partial<PropertyAccount>,
+    ): Promise<PropertyAccount> {
+        const account = await this.propertyRepo.findOne({ where: { accountId } });
+        if (!account) {
+            throw new NotFoundException('Account not found');
+        }
+
+        const allowedFields: Array<keyof PropertyAccount> = [
+            'memberName',
+            'propertySizeSqm',
+            'classification',
+            'status',
+            'balance',
+            'username',
+        ];
+
+        for (const field of allowedFields) {
+            if (updates[field] === undefined) {
+                continue;
+            }
+
+            if (field === 'propertySizeSqm' || field === 'balance') {
+                const numericValue = Number(updates[field]);
+                if (Number.isNaN(numericValue)) {
+                    throw new BadRequestException(`Invalid ${field}`);
+                }
+                account[field] = numericValue as any;
+                continue;
+            }
+
+            account[field] = updates[field] as any;
+        }
+
+        return this.propertyRepo.save(account);
+    }
+
+    async deletePropertyAccount(accountId: string): Promise<{ deleted: boolean }> {
+        const result = await this.propertyRepo.delete({ accountId });
+        if (!result.affected) {
+            throw new NotFoundException('Account not found');
+        }
+
+        return { deleted: true };
     }
 }

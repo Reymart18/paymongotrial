@@ -6,11 +6,14 @@ import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import { Billing } from './billing.entity';
 import { PropertyAccount } from '../property/property.entity';
+import { PropertyService } from '../property/property.service';
 
 interface BillingUploadRecord {
     accountId: string;
     billingDate?: string | Date;
     amountDue: number;
+    interest?: number;
+    penalty?: number;
     description?: string;
 }
 
@@ -22,6 +25,7 @@ export class BillingService {
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
         private dataSource: DataSource,
+        private propertyService: PropertyService,
     ) { }
 
     async uploadBillings(file: Express.Multer.File) {
@@ -57,6 +61,20 @@ export class BillingService {
                     continue;
                 }
 
+                const interest = Number(record.interest ?? 0);
+                if (Number.isNaN(interest)) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Invalid interest`);
+                    continue;
+                }
+
+                const penalty = Number(record.penalty ?? 0);
+                if (Number.isNaN(penalty)) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Invalid penalty`);
+                    continue;
+                }
+
                 const account = await propertyRepo.findOne({
                     where: { accountId: record.accountId },
                 });
@@ -82,13 +100,23 @@ export class BillingService {
                     account,
                     billingDate,
                     amountDue,
+                    interest,
+                    penalty,
                     description: record.description || '',
                 });
 
                 await billingRepo.save(billing);
+
+                const currentBalance = Number(account.balance ?? 0);
+                account.balance = currentBalance + amountDue + interest + penalty;
+                await propertyRepo.save(account);
                 result.inserted += 1;
             }
         });
+
+        if (result.inserted > 0) {
+            await this.propertyService.recalculateBalances();
+        }
 
         return result;
     }
@@ -149,6 +177,8 @@ export class BillingService {
             accountId: String(normalized.accountid || '').trim(),
             billingDate: normalized.billingdate as string | Date,
             amountDue: Number(normalized.amountdue ?? 0),
+            interest: Number(normalized.interest ?? 0),
+            penalty: Number(normalized.penalty ?? 0),
             description: normalized.description ? String(normalized.description).trim() : '',
         };
     }

@@ -67,6 +67,8 @@ export class AuthService {
         const payload = { username: homeowner.username, sub: homeowner.id, role: 'homeowner' };
         return {
             access_token: this.jwtService.sign(payload),
+            requirePasswordChange: !homeowner.passwordChanged,
+            accountId: homeowner.accountId,
         };
     }
 }

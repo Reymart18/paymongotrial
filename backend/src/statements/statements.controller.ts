@@ -12,7 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PropertyAccount } from '../property/property.entity';
-import { StatementsService, type MonthlyStatementRow } from './statements.service';
+import { StatementsService, type StatementRow } from './statements.service';
 
 interface AuthenticatedRequest extends ExpressRequest {
     user: {
@@ -35,7 +35,7 @@ export class StatementsController {
     async getStatement(
         @Param('accountId') accountId: string,
         @Request() req: AuthenticatedRequest,
-    ): Promise<MonthlyStatementRow[]> {
+    ): Promise<StatementRow[]> {
         const account = await this.propertyRepo.findOne({ where: { accountId } });
         if (!account) {
             throw new BadRequestException('Account not found');
@@ -49,6 +49,6 @@ export class StatementsController {
             throw new ForbiddenException('You are not allowed to access this resource');
         }
 
-        return this.statementsService.getMonthlyStatement(accountId);
+        return this.statementsService.getStatement(accountId);
     }
 }

@@ -6,6 +6,7 @@ import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import { Payment } from './payment.entity';
 import { PropertyAccount } from '../property/property.entity';
+import { PropertyService } from '../property/property.service';
 
 interface PaymentUploadRecord {
     accountId: string;
@@ -23,6 +24,7 @@ export class PaymentsService {
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
         private dataSource: DataSource,
+        private propertyService: PropertyService,
     ) { }
 
     async getPaymentsByAccountId(accountId: string): Promise<Payment[]> {
@@ -113,6 +115,10 @@ export class PaymentsService {
                 result.inserted += 1;
             }
         });
+
+        if (result.inserted > 0) {
+            await this.propertyService.recalculateBalances();
+        }
 
         return result;
     }

@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import HomeownerDashboard from './pages/HomeownerDashboard';
-import './App.css';
+import ChangePassword from './pages/ChangePassword';
+import SOAPreview from './pages/SOAPreview';
 
 /**
  * Protected Route Component
@@ -28,6 +30,7 @@ function App() {
     <Router>
       <Routes>
         {/* Public route */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Protected routes */}
@@ -49,9 +52,26 @@ function App() {
           }
         />
 
+        <Route
+          path="/homeowner/change-password"
+          element={
+            <ProtectedRoute requiredRole="homeowner">
+              <ChangePassword />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/soa-preview/:accountId"
+          element={
+            <ProtectedRoute>
+              <SOAPreview />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

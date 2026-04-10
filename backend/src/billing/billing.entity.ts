@@ -21,6 +21,12 @@ export class Billing {
     @Column({ type: 'decimal', precision: 10, scale: 2 })
     amountDue?: number;
 
+    @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+    interest?: number;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+    penalty?: number;
+
     @Column({ type: 'varchar', length: 255, nullable: true })
     description?: string;
 }
