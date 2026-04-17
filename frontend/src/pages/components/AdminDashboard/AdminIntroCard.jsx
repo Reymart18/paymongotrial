@@ -1,8 +1,11 @@
 export default function AdminIntroCard() {
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-800">Homeowner Accounts</h2>
-            <p className="mt-2 text-sm text-slate-500">Manage all property accounts</p>
+        <div className="rounded-lg bg-white p-6 shadow-md">
+            <h2 className="text-2xl font-bold text-gray-800">Welcome to Admin Dashboard</h2>
+            <p className="mt-2 text-gray-600">
+                Manage billing accounts, payments, and generate reports from here.
+            </p>
         </div>
     );
 }
+

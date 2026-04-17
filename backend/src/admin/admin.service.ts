@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Admin } from './admin.entity';
 import { PropertyAccount } from '../property/property.entity';
+import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
+import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -12,6 +14,10 @@ export class AdminService {
         private adminRepo: Repository<Admin>,
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
+        @InjectRepository(FoxproBilling)
+        private billingRepo: Repository<FoxproBilling>,
+        @InjectRepository(FoxproPayment)
+        private paymentRepo: Repository<FoxproPayment>,
     ) { }
 
     async createAdmin(username: string, password: string, fullName: string, role: string = 'admin'): Promise<Admin> {
@@ -82,5 +88,131 @@ export class AdminService {
         }
 
         return { deleted: true };
+    }
+
+    async resetPropertyAccountPassword(accountId: string, newPassword: string): Promise<PropertyAccount> {
+        const account = await this.propertyRepo.findOne({ where: { accountId } });
+        if (!account) {
+            throw new NotFoundException('Account not found');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        account.password = hashedPassword;
+        account.passwordChanged = false;
+
+        return this.propertyRepo.save(account);
+    }
+
+    async getDashboardSummary(): Promise<{
+        currentBillingLabel: string;
+        unpaidAccountsCount: number;
+        overpaidAccountsCount: number;
+        totalCollectedPayments: number;
+    }> {
+        const [billings, payments] = await Promise.all([
+            this.billingRepo.find({ order: { dueDate: 'DESC' } }),
+            this.paymentRepo.find(),
+        ]);
+
+        const parseDate = (value: unknown) => {
+            if (!value) {
+                return null;
+            }
+            const date = new Date(value as string);
+            return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const dateKey = (value: unknown) => {
+            const parsed = parseDate(value);
+            return parsed ? parsed.toISOString().slice(0, 10) : null;
+        };
+
+        const toCents = (value: unknown) => Math.round(Number(value || 0) * 100);
+
+        let latestPeriod: { fromKey: string | null; toKey: string } | null = null;
+        for (const row of billings) {
+            const toKey = dateKey(row?.dateTo) || dateKey(row?.dateFrom);
+            if (!toKey) {
+                continue;
+            }
+
+            latestPeriod = {
+                fromKey: dateKey(row?.dateFrom) || toKey,
+                toKey,
+            };
+            break;
+        }
+
+        const formatDate = (value: unknown) => {
+            const date = value instanceof Date ? value : parseDate(value);
+            return date ? date.toLocaleDateString() : '-';
+        };
+
+        const formatKey = (key: string | null) => {
+            if (!key) {
+                return '-';
+            }
+            const date = new Date(`${key}T00:00:00.000Z`);
+            return formatDate(date);
+        };
+
+        const currentBillingLabel = latestPeriod?.fromKey && latestPeriod?.toKey
+            ? `${formatKey(latestPeriod.fromKey)} - ${formatKey(latestPeriod.toKey)}`
+            : latestPeriod?.toKey
+                ? formatKey(latestPeriod.toKey)
+                : '-';
+
+        let unpaidAccountsCount = 0;
+        let overpaidAccountsCount = 0;
+
+        const billingsByAccount = new Map<string, FoxproBilling[]>();
+        for (const billing of billings) {
+            if (!billing.accountId) {
+                continue;
+            }
+            if (!billingsByAccount.has(billing.accountId)) {
+                billingsByAccount.set(billing.accountId, []);
+            }
+            billingsByAccount.get(billing.accountId)?.push(billing);
+        }
+
+        for (const [, accountBillings] of billingsByAccount) {
+            if (accountBillings.length === 0) {
+                continue;
+            }
+
+            const latestBilling = accountBillings[0];
+            const carryingBalance = Number(latestBilling?.prinBal || 0)
+                + Number(latestBilling?.intBal || 0)
+                + Number(latestBilling?.penBal || 0);
+            const carryingBalanceCents = toCents(carryingBalance);
+
+            if (carryingBalanceCents > 0) {
+                unpaidAccountsCount += 1;
+            } else if (carryingBalanceCents < 0) {
+                overpaidAccountsCount += 1;
+            }
+        }
+
+        let totalCollectedPayments = 0;
+        if (latestPeriod?.fromKey && latestPeriod?.toKey) {
+            for (const payment of payments) {
+                const paymentKey = dateKey(payment?.paymentDate);
+                if (!paymentKey) {
+                    continue;
+                }
+
+                if (paymentKey >= latestPeriod.fromKey && paymentKey <= latestPeriod.toKey) {
+                    totalCollectedPayments += Number(payment?.amountPaid || 0);
+                }
+            }
+        }
+
+        return {
+            currentBillingLabel,
+            unpaidAccountsCount,
+            overpaidAccountsCount,
+            totalCollectedPayments,
+        };
     }
 }

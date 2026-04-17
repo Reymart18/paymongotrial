@@ -53,6 +53,9 @@ export class FoxproBilling {
     @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
     penCurr?: number;
 
+    @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+    duesRate?: number;
+
     @CreateDateColumn({ type: 'datetime' })
     created_at?: Date;
 

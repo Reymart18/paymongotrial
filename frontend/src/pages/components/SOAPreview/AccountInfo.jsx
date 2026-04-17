@@ -2,57 +2,94 @@ export default function AccountInfo({
     account,
     accountId,
     lotSizeLabel,
+    soaPrefix,
+    soaValueLabel,
     billingDate,
+    dueDate,
+    duesRate,
     formatDate,
     onExportPdf,
     isExporting,
 }) {
     return (
-        <div className="mx-auto mt-6 max-w-[1060px] space-y-1 text-[10px] text-slate-900">
-            <div className="flex items-baseline gap-2">
-                <span className="w-28 uppercase tracking-[0.18em] text-[9px] text-slate-500">
-                    Name:
-                </span>
-                <span className="min-w-[240px] border-b border-slate-900 pb-0.5 text-[12px] font-semibold">
-                    {account?.memberName || ''}
-                </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-                <span className="w-28 uppercase tracking-[0.18em] text-[9px] text-slate-500">
-                    Lot No/HOA ID:
-                </span>
-                <span className="min-w-[240px] border-b border-slate-900 pb-0.5 text-[12px] font-semibold">
-                    {accountId || ''}
-                </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-                <span className="w-28 uppercase tracking-[0.18em] text-[9px] text-slate-500">
-                    Lot Size:
-                </span>
-                <span className="min-w-[240px] border-b border-slate-900 pb-0.5 text-[12px] font-semibold">
-                    {lotSizeLabel}
-                </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-                <span className="w-28 uppercase tracking-[0.18em] text-[9px] text-slate-500">
-                    Billing Date:
-                </span>
-                <div className="flex flex-1 items-center justify-between gap-4">
-                    <span className="min-w-[240px] border-b border-slate-900 pb-0.5 text-[12px] font-semibold">
-                        {formatDate(billingDate)}
+        <div className="mx-auto mt-3 md:mt-6 max-w-[1060px] px-3 md:px-0 text-[9px] md:text-[10px] text-slate-900">
+            <div className="flex items-baseline justify-between gap-4 mb-3">
+                <div className="flex-1" />
+                <div className="flex items-baseline gap-1">
+                    <span className="text-xs md:text-sm font-medium text-slate-500">
+                        {soaPrefix}
                     </span>
-                    {onExportPdf && (
-                        <button
-                            type="button"
-                            onClick={onExportPdf}
-                            disabled={isExporting}
-                            className="no-print rounded-md border border-slate-200 px-3 py-1 text-[13px] font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isExporting ? 'Exporting...' : 'Export PDF'}
-                        </button>
-                    )}
+                    <span className="text-sm md:text-base font-extrabold text-slate-900">
+                        {soaValueLabel}
+                    </span>
                 </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div className="flex items-baseline gap-1 md:gap-2">
+                    <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
+                        Name:
+                    </span>
+                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                        {account?.memberName || ''}
+                    </span>
+                </div>
+                <div className="flex items-baseline gap-1 md:gap-2">
+                    <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
+                        Lot No/HOA ID:
+                    </span>
+                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                        {accountId || ''}
+                    </span>
+                </div>
+
+                <div className="flex items-baseline gap-1 md:gap-2">
+                    <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
+                        Lot Size:
+                    </span>
+                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                        {lotSizeLabel}
+                    </span>
+                </div>
+                <div className="flex items-baseline gap-1 md:gap-2">
+                    <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
+                        Billing Date:
+                    </span>
+                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                        {formatDate(billingDate)}
+                    </span>
+                </div>
+
+                <div className="flex items-baseline gap-1 md:gap-2">
+                    <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
+                        Due Date:
+                    </span>
+                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                        {formatDate(dueDate)}
+                    </span>
+                </div>
+                <div className="flex items-baseline gap-1 md:gap-2">
+                    <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
+                        Dues Rate:
+                    </span>
+                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                        {Number.isFinite(duesRate) ? duesRate.toFixed(2) : '-'}
+                    </span>
+                </div>
+            </div>
+
+            {onExportPdf && (
+                <div className="mt-3 flex justify-start">
+                    <button
+                        type="button"
+                        onClick={onExportPdf}
+                        disabled={isExporting}
+                        className="no-print rounded-md border border-slate-200 px-2 py-0.5 md:px-3 md:py-1 text-[11px] md:text-[13px] font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isExporting ? 'Exporting...' : 'Export PDF'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

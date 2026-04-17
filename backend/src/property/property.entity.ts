@@ -28,6 +28,9 @@ export class PropertyAccount {
     @Column()
     classification?: string;
 
+    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+    soa?: number;
+
     @Column({ unique: true })
     username?: string;
 

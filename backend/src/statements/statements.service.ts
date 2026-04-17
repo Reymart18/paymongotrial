@@ -12,7 +12,15 @@ export interface StatementRow {
     dateTo?: string | null;
     billDate?: string | null;
     BILLDATE?: string | null;
+    dueDate?: string | null;
     referenceNumber?: string | null;
+    prinBal?: number;
+    intBal?: number;
+    penBal?: number;
+    prinCurr?: number;
+    intCurr?: number;
+    penCurr?: number;
+    duesRate?: number;
     previousBalance: number;
     amountDue: number;
     interest: number;
@@ -51,8 +59,16 @@ export class StatementsService {
             dateFromValue?: Date | null;
             dateToValue?: Date | null;
             billDateValue?: Date | null;
+            dueDateValue?: Date | null;
             referenceNumber?: string | null;
+            prinBal?: number;
+            intBal?: number;
+            penBal?: number;
             previousBalance?: number;
+            prinCurr?: number;
+            intCurr?: number;
+            penCurr?: number;
+            duesRate?: number;
             amountDue: number;
             interest: number;
             penalty: number;
@@ -67,16 +83,25 @@ export class StatementsService {
             const dateFromValue = this.toDate(billing.dateFrom);
             const dateToValue = this.toDate(billing.dateTo);
             const billDateValue = this.toDate(billing.billDate);
+            const dueDateValue = this.toDate(billing.dueDate);
             rows.push({
                 dateValue: new Date(billing.dueDate),
                 type: 'billing',
                 dateFromValue,
                 dateToValue,
                 billDateValue,
+                dueDateValue,
+                prinBal: Number(billing.prinBal || 0),
+                intBal: Number(billing.intBal || 0),
+                penBal: Number(billing.penBal || 0),
                 previousBalance:
                     Number(billing.prinBal || 0) +
                     Number(billing.intBal || 0) +
                     Number(billing.penBal || 0),
+                prinCurr: Number(billing.prinCurr || 0),
+                intCurr: Number(billing.intCurr || 0),
+                penCurr: Number(billing.penCurr || 0),
+                duesRate: Number(billing.duesRate || 0),
                 amountDue: Number(billing.prinCurr || 0),
                 interest: Number(billing.intCurr || 0),
                 penalty: Number(billing.penCurr || 0),
@@ -128,7 +153,18 @@ export class StatementsService {
                     row.type === 'billing' && row.billDateValue
                         ? row.billDateValue.toISOString()
                         : null,
+                dueDate:
+                    row.type === 'billing' && row.dueDateValue
+                        ? row.dueDateValue.toISOString()
+                        : null,
                 referenceNumber: row.referenceNumber ?? null,
+                prinBal: row.type === 'billing' ? row.prinBal ?? 0 : 0,
+                intBal: row.type === 'billing' ? row.intBal ?? 0 : 0,
+                penBal: row.type === 'billing' ? row.penBal ?? 0 : 0,
+                prinCurr: row.type === 'billing' ? row.prinCurr ?? 0 : 0,
+                intCurr: row.type === 'billing' ? row.intCurr ?? 0 : 0,
+                penCurr: row.type === 'billing' ? row.penCurr ?? 0 : 0,
+                duesRate: row.type === 'billing' ? row.duesRate ?? 0 : 0,
                 previousBalance,
                 amountDue: row.amountDue,
                 interest: row.interest,

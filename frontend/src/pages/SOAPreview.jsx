@@ -122,16 +122,6 @@ export default function SOAPreview() {
         return parsed.getFullYear();
     };
 
-    const getEffectiveRowDate = (row) => {
-        const dateValue = row?.dateTo || row?.dateFrom || row?.date;
-        const parsed = dateValue ? new Date(dateValue) : null;
-        if (!parsed || Number.isNaN(parsed.getTime())) {
-            return null;
-        }
-
-        return parsed;
-    };
-
     const billingRows = useMemo(
         () => statementRows.filter((row) => row.type === 'billing'),
         [statementRows],
@@ -176,41 +166,6 @@ export default function SOAPreview() {
         }, null);
     }, [billingRows, latestDate]);
 
-    const previousUnpaidBalance = useMemo(() => {
-        if (!selectedBillingYear) {
-            return 0;
-        }
-
-        const previousYear = selectedBillingYear - 1;
-        const rowsInPreviousYear = statementRows.filter((row) => {
-            const rowYear = getRowYear(row);
-            return rowYear === previousYear;
-        });
-
-        if (rowsInPreviousYear.length === 0) {
-            return 0;
-        }
-
-        const sortedRows = [...rowsInPreviousYear].sort((a, b) => {
-            const dateA = getEffectiveRowDate(a)?.getTime() ?? 0;
-            const dateB = getEffectiveRowDate(b)?.getTime() ?? 0;
-
-            if (dateA !== dateB) {
-                return dateA - dateB;
-            }
-
-            if (a.type === b.type) {
-                return 0;
-            }
-
-            return a.type === 'payment' ? 1 : -1;
-        });
-
-        const latestRow = sortedRows[sortedRows.length - 1] || null;
-
-        return latestRow ? Number(latestRow.totalBalance || 0) : 0;
-    }, [selectedBillingYear, statementRows]);
-
     const billingRowsForYear = useMemo(() => {
         if (!selectedBillingYear) {
             return [];
@@ -225,26 +180,21 @@ export default function SOAPreview() {
             });
     }, [billingRows, selectedBillingYear]);
 
-    const currentBillingLabel = useMemo(() => {
-        if (billingRowsForYear.length === 0) {
-            return selectedBillingYear ? String(selectedBillingYear) : '';
-        }
-
-        const latestBilling = billingRowsForYear[billingRowsForYear.length - 1];
-        const billingDate = getEffectiveRowDate(latestBilling);
-        return billingDate ? formatDate(billingDate) : String(selectedBillingYear ?? '');
-    }, [billingRowsForYear, selectedBillingYear]);
-
-    const billingYearTotal = useMemo(
-        () => billingRowsForYear.reduce(
-            (sum, row) => sum
-                + Number(row.amountDue || 0)
-                + Number(row.interest || 0)
-                + Number(row.penalty || 0),
-            Number(previousUnpaidBalance || 0),
-        ),
-        [billingRowsForYear, previousUnpaidBalance],
+    const latestBillingRow = useMemo(
+        () => (billingRowsForYear.length > 0
+            ? billingRowsForYear[billingRowsForYear.length - 1]
+            : null),
+        [billingRowsForYear],
     );
+
+    const balanceBillingRow = useMemo(
+        () => (billingRowsForYear.length > 1
+            ? billingRowsForYear[billingRowsForYear.length - 2]
+            : latestBillingRow),
+        [billingRowsForYear, latestBillingRow],
+    );
+
+    const hasPreviousBillingRow = billingRowsForYear.length > 1;
 
     const paymentRows = useMemo(
         () => statementRows
@@ -263,9 +213,38 @@ export default function SOAPreview() {
         [paymentRowsForYear],
     );
 
-    const netBalance = useMemo(
-        () => billingYearTotal - totalPayments,
-        [billingYearTotal, totalPayments],
+    const balanceBreakdown = useMemo(() => {
+        const principal = Number(balanceBillingRow?.prinBal ?? 0);
+        const interest = Number(balanceBillingRow?.intBal ?? 0);
+        const penalties = Number(balanceBillingRow?.penBal ?? 0);
+        const hasParts = [balanceBillingRow?.prinBal, balanceBillingRow?.intBal, balanceBillingRow?.penBal]
+            .some((value) => value !== undefined && value !== null);
+        const total = hasParts
+            ? principal + interest + penalties
+            : Number(balanceBillingRow?.previousBalance ?? 0);
+        return {
+            principal,
+            interest,
+            penalties,
+            total,
+        };
+    }, [balanceBillingRow]);
+
+    const currentChargesBreakdown = useMemo(() => {
+        const principal = Number(latestBillingRow?.prinCurr ?? latestBillingRow?.amountDue ?? 0);
+        const interest = Number(latestBillingRow?.intCurr ?? latestBillingRow?.interest ?? 0);
+        const penalties = Number(latestBillingRow?.penCurr ?? latestBillingRow?.penalty ?? 0);
+        return {
+            principal,
+            interest,
+            penalties,
+            total: principal + interest + penalties,
+        };
+    }, [latestBillingRow]);
+
+    const amountDue = useMemo(
+        () => balanceBreakdown.total + currentChargesBreakdown.total - totalPayments,
+        [balanceBreakdown.total, currentChargesBreakdown.total, totalPayments],
     );
 
     function formatDate(value) {
@@ -295,25 +274,41 @@ export default function SOAPreview() {
         return amount < 0 ? `-${formatted}` : formatted;
     };
 
-    const getMonthSpan = (fromValue, toValue) => {
-        if (!fromValue || !toValue) {
-            return '-';
-        }
+    const balanceAsOfLabel = hasPreviousBillingRow && balanceBillingRow?.dateTo
+        ? formatDate(balanceBillingRow.dateTo)
+        : latestBillingRow?.dateFrom
+            ? (() => {
+                const dateBeforeCurrent = new Date(latestBillingRow.dateFrom);
+                dateBeforeCurrent.setDate(dateBeforeCurrent.getDate() - 1);
+                return formatDate(dateBeforeCurrent);
+            })()
+            : '-';
 
-        const fromDate = new Date(fromValue);
-        const toDate = new Date(toValue);
-        if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-            return '-';
-        }
+    const currentChargesLabel = latestBillingRow?.dateFrom && latestBillingRow?.dateTo
+        ? `${formatDate(latestBillingRow.dateFrom)} - ${formatDate(latestBillingRow.dateTo)}`
+        : selectedBillingYear
+            ? String(selectedBillingYear)
+            : '-';
 
-        const yearDiff = toDate.getFullYear() - fromDate.getFullYear();
-        const monthDiff = toDate.getMonth() - fromDate.getMonth();
-        return Math.max(1, yearDiff * 12 + monthDiff + 1);
-    };
+    const amountDueAsOfLabel = latestBillingRow?.dateTo
+        ? formatDate(latestBillingRow.dateTo)
+        : selectedBillingYear
+            ? String(selectedBillingYear)
+            : '-';
 
     const lotSizeLabel = account?.propertySizeSqm
         ? `${Number(account.propertySizeSqm).toFixed(2)} sqm`
         : '-';
+
+    const formatSoa = (value) => new Intl.NumberFormat('en-PH', {
+        maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+
+    const soaPrefix = 'for 2025 reference -';
+    const soaValueLabel =
+        account?.soa !== undefined && account?.soa !== null
+            ? `SOA ${formatSoa(account.soa)}`
+            : 'SOA -';
 
     const handleExportPdf = async () => {
         if (!pdfRef.current || isExporting) {
@@ -419,7 +414,7 @@ export default function SOAPreview() {
 
     return (
         <div className="min-h-screen w-full bg-white text-slate-900">
-            <div className="no-print flex items-center gap-2 px-4 pt-4">
+            <div className="no-print flex items-center gap-2 px-4 py-3 md:px-4 md:pt-4">
                 <button
                     type="button"
                     onClick={() => navigate(-1)}
@@ -437,11 +432,11 @@ export default function SOAPreview() {
                     src={headerImage}
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-1/2 top-[70%] h-[450px] w-auto -translate-x-1/2 -translate-y-1/2 opacity-10"
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] md:h-[450px] w-auto -translate-x-1/2 -translate-y-1/2 opacity-10 hidden md:block"
                 />
 
                 <SoaHeader />
-                <div className="soa-divider mx-auto mt-3 h-px w-4/5 bg-black" />
+                <div className="soa-divider mx-auto mt-3 h-px w-11/12 md:w-4/5 bg-black" />
 
                 {loading && <StatusMessage variant="loading" message="Loading SOA preview..." />}
                 {error && <StatusMessage variant="error" message={error} />}
@@ -452,25 +447,51 @@ export default function SOAPreview() {
                             account={account}
                             accountId={accountId}
                             lotSizeLabel={lotSizeLabel}
+                            soaPrefix={soaPrefix}
+                            soaValueLabel={soaValueLabel}
                             billingDate={latestBillDate}
+                            dueDate={latestBillingRow?.dueDate}
+                            duesRate={latestBillingRow?.duesRate}
                             formatDate={formatDate}
                             onExportPdf={handleExportPdf}
                             isExporting={isExporting}
                         />
                         <SummaryCard
-                            previousUnpaidBalance={previousUnpaidBalance}
                             selectedBillingYear={selectedBillingYear}
-                            billingRowsForYear={billingRowsForYear}
                             formatDate={formatDate}
-                            getMonthSpan={getMonthSpan}
                             formatMoney={formatMoney}
-                            billingYearTotal={billingYearTotal}
+                            balanceAsOfLabel={balanceAsOfLabel}
+                            currentChargesLabel={currentChargesLabel}
+                            balanceBreakdown={balanceBreakdown}
+                            currentChargesBreakdown={currentChargesBreakdown}
                             paymentRows={paymentRows}
                             totalPayments={totalPayments}
-                            currentBillingLabel={currentBillingLabel}
-                            netBalance={netBalance}
+                            amountDue={amountDue}
+                            amountDueAsOfLabel={amountDueAsOfLabel}
                             formatSignedMoney={formatSignedMoney}
                         />
+                        <div className="mx-auto mt-6 max-w-[1060px] text-[11px] md:text-xs text-slate-900">
+                            <div className="font-semibold">
+                                You may send your payment thru bank account:
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-[140px,1fr] gap-y-1">
+                                <div className="text-slate-500">Bank:</div>
+                                <div>BPI Anabu II Branch, Imus City, Cavite</div>
+                                <div className="text-slate-500">Account Name:</div>
+                                <div>The Parkplace Village Homeowners' Assosciation Inc.</div>
+                                <div className="text-slate-500">Account Type:</div>
+                                <div>Current</div>
+                                <div className="text-slate-500">Account Number:</div>
+                                <div>0951-8890-67</div>
+                            </div>
+                            <div className="mt-4 text-slate-600">
+                                For more inquiries, please contact the PVHAI landline and email at
+                            </div>
+                            <div className="mt-1">
+                                (046) 484-2107 or (046-) 8754674
+                            </div>
+                            <div className="mt-1">theparkplacevillagehoa@gmail.com</div>
+                        </div>
                     </>
                 )}
             </div>

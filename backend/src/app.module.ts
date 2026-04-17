@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { StatementsModule } from './statements/statements.module';
 import { BillingModule } from './billing/billing.module';
 import { FoxproModule } from './foxpro/foxpro.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { FoxproModule } from './foxpro/foxpro.module';
     StatementsModule,
     BillingModule,
     FoxproModule,
+    ReportsModule,
   ],
 })
 export class AppModule { }

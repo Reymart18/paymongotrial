@@ -28,6 +28,7 @@ interface MasterlistRecord {
     memberName: string;
     propertySizeSqm?: number | null;
     classification: string;
+    soa?: number | null;
 }
 
 @Injectable()
@@ -116,9 +117,20 @@ export class PropertyService {
                         ? Number(record.propertySizeSqm)
                         : null;
 
+                const soaValue =
+                    record.soa !== undefined && record.soa !== null
+                        ? Number(record.soa)
+                        : null;
+
                 if (propertySize !== null && Number.isNaN(propertySize)) {
                     result.skipped += 1;
                     result.errors.push(`Row ${row}: Invalid propertySizeSqm`);
+                    continue;
+                }
+
+                if (soaValue !== null && Number.isNaN(soaValue)) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Invalid soa`);
                     continue;
                 }
 
@@ -130,6 +142,7 @@ export class PropertyService {
                     memberName: record.memberName,
                     propertySizeSqm: propertySize ?? undefined,
                     classification: normalizedClass,
+                    soa: soaValue ?? undefined,
                     username: record.accountId,
                     password: hashedPassword,
                     passwordChanged: false,
@@ -333,6 +346,10 @@ export class PropertyService {
                     ? Number(normalized.propertysizesqm)
                     : null,
             classification: String(normalized.classification || '').trim(),
+            soa:
+                normalized.soa !== undefined && normalized.soa !== ''
+                    ? Number(normalized.soa)
+                    : null,
         };
     }
 

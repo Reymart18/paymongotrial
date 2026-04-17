@@ -4,11 +4,13 @@ import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
 import { Admin } from './admin.entity';
 import { PropertyAccount } from '../property/property.entity';
+import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
+import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
 import { AuthModule } from '../auth/auth.module';
 import { PropertyModule } from '../property/property.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Admin, PropertyAccount]), AuthModule, PropertyModule],
+  imports: [TypeOrmModule.forFeature([Admin, PropertyAccount, FoxproBilling, FoxproPayment]), AuthModule, PropertyModule],
   providers: [AdminService],
   controllers: [AdminController],
   exports: [AdminService],

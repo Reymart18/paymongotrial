@@ -70,6 +70,16 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('dashboard-summary')
+    async getDashboardSummary(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getDashboardSummary();
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Patch('property-accounts/:accountId')
     async updatePropertyAccount(
         @Param('accountId') accountId: string,
@@ -96,6 +106,20 @@ export class AdminController {
         }
 
         return this.adminService.deletePropertyAccount(accountId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('property-accounts/:accountId/reset-password')
+    async resetPropertyAccountPassword(
+        @Param('accountId') accountId: string,
+        @Body() body: { newPassword: string },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'admin') {
+            throw new ForbiddenException('Only admins can reset passwords');
+        }
+
+        return this.adminService.resetPropertyAccountPassword(accountId, body.newPassword);
     }
 
     @UseGuards(JwtAuthGuard)

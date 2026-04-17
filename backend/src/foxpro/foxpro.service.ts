@@ -21,6 +21,7 @@ interface FoxproBillingRecord {
     prinCurr: number;
     intCurr: number;
     penCurr: number;
+    duesRate: number;
 }
 
 interface FoxproPaymentRecord {
@@ -88,6 +89,7 @@ export class FoxproService {
                     prinCurr: record.prinCurr,
                     intCurr: record.intCurr,
                     penCurr: record.penCurr,
+                    duesRate: record.duesRate,
                 };
 
                 const existing = await billingRepo.findOne({
@@ -276,6 +278,7 @@ export class FoxproService {
             prinCurr: this.toNumber(normalized.princurr),
             intCurr: this.toNumber(normalized.intcurr),
             penCurr: this.toNumber(normalized.pencurr),
+            duesRate: this.toNumber(normalized.duesrate),
         };
     }
 

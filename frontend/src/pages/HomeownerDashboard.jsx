@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AccountHeaderCard from './components/HomeownerDashboard/AccountHeaderCard';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
+import DashboardCards from './components/HomeownerDashboard/DashboardCards';
+import Sidebar from './components/HomeownerDashboard/Sidebar';
 import HomeownerStatusMessage from './components/HomeownerDashboard/HomeownerStatusMessage';
 import MustChangePasswordModal from './components/HomeownerDashboard/MustChangePasswordModal';
-import PropertyDetailsCard from './components/HomeownerDashboard/PropertyDetailsCard';
 import StatementSection from './components/HomeownerDashboard/StatementSection';
 
 export default function HomeownerDashboard() {
@@ -136,37 +137,57 @@ export default function HomeownerDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900">
-            <DashboardNav onLogout={handleLogout} />
+        <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+            {/* Sidebar */}
+            <div className="hidden md:block">
+                <Sidebar />
+            </div>
 
-            <div className="space-y-6 px-6 py-8">
-                <AccountHeaderCard accountId={accountId} />
+            {/* Header Navigation */}
+            <DashboardNav
+                onLogout={handleLogout}
+                accountId={accountId}
+                classification={account?.classification || 'Loading...'}
+            />
 
-                {loading && (
-                    <HomeownerStatusMessage variant="loading" message="Loading account details..." />
-                )}
+            {/* Main Layout Container */}
+            <div className="flex flex-1 md:ml-64">
+                {/* Main Content */}
+                <main className="flex-1 overflow-auto">
+                    <div className="space-y-6 px-4 md:px-6 py-6 md:py-8">
+                        {/* Dashboard Summary Cards */}
+                        {!loading && !error && account && (
+                            <DashboardCards account={account} statementRows={statementRows} />
+                        )}
 
-                {error && (
-                    <HomeownerStatusMessage variant="error" message={error} />
-                )}
+                        {loading && (
+                            <HomeownerStatusMessage variant="loading" message="Loading account details..." />
+                        )}
 
-                {!loading && !error && account && (
-                    <PropertyDetailsCard account={account} />
-                )}
+                        {error && (
+                            <HomeownerStatusMessage variant="error" message={error} />
+                        )}
 
-                {mustChangePassword && (
-                    <MustChangePasswordModal
-                        onChangePassword={() => navigate('/homeowner/change-password')}
-                    />
-                )}
+                        {!loading && !error && account && (
+                            <>
+                                {mustChangePassword && (
+                                    <MustChangePasswordModal
+                                        onChangePassword={() => navigate('/homeowner/change-password')}
+                                    />
+                                )}
 
-                <StatementSection
-                    accountId={accountId}
-                    statementLoading={statementLoading}
-                    statementError={statementError}
-                    statementRows={statementRows}
-                    onPreview={() => navigate(`/soa-preview/${accountId}`)}
-                />
+                                <StatementSection
+                                    accountId={accountId}
+                                    statementLoading={statementLoading}
+                                    statementError={statementError}
+                                    statementRows={statementRows}
+                                    onPreview={() => navigate(`/soa-preview/${accountId}`)}
+                                    className="mt-8"
+                                />
+                            </>
+                        )}
+                    </div>
+                </main>
             </div>
         </div>
     );

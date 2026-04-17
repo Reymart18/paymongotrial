@@ -2,9 +2,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
+import ReportsPage from './pages/ReportsPage';
+import MembersPage from './pages/MembersPage';
 import HomeownerDashboard from './pages/HomeownerDashboard';
 import ChangePassword from './pages/ChangePassword';
 import SOAPreview from './pages/SOAPreview';
+import ProfilePage from './pages/ProfilePage';
 
 /**
  * Protected Route Component
@@ -44,6 +47,24 @@ function App() {
         />
 
         <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/members"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <MembersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/homeowner/dashboard"
           element={
             <ProtectedRoute requiredRole="homeowner">
@@ -57,6 +78,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="homeowner">
               <ChangePassword />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/homeowner/profile"
+          element={
+            <ProtectedRoute requiredRole="homeowner">
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

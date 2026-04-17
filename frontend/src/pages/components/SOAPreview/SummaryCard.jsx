@@ -1,18 +1,17 @@
-import BillingTable from './BillingTable';
 import PaymentsTable from './PaymentsTable';
 
 export default function SummaryCard({
-    previousUnpaidBalance,
     selectedBillingYear,
-    billingRowsForYear,
     formatDate,
-    getMonthSpan,
     formatMoney,
-    billingYearTotal,
+    balanceAsOfLabel,
+    currentChargesLabel,
+    balanceBreakdown,
+    currentChargesBreakdown,
     paymentRows,
     totalPayments,
-    currentBillingLabel,
-    netBalance,
+    amountDue,
+    amountDueAsOfLabel,
     formatSignedMoney,
 }) {
     const getAlertClass = (value) => (
@@ -20,33 +19,77 @@ export default function SummaryCard({
     );
 
     return (
-        <div className="mx-auto mt-5 max-w-[1060px] rounded-lg border border-slate-200 bg-slate-50/40 p-5 text-sm shadow-sm">
-            <div className="flex items-baseline justify-between border-b border-slate-200 pb-3">
-                <span className="uppercase tracking-[0.18em] text-xs text-slate-500">
-                    Previous Unpaid Balance / Excess Balance:
-                </span>
-                <span className={`text-base font-semibold ${getAlertClass(previousUnpaidBalance)}`}>
-                    {formatMoney(previousUnpaidBalance)}
-                </span>
+        <div className="mx-auto mt-5 max-w-[1060px] rounded-lg border border-slate-200 bg-slate-50/40 p-4 md:p-5 px-4 md:px-5 text-sm shadow-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                Balance (as of {balanceAsOfLabel})
+            </div>
+            <div className="mt-2 overflow-x-auto rounded-md border border-slate-200 bg-white">
+                <table className="w-full border-collapse text-xs md:text-sm">
+                    <tbody className="text-slate-900">
+                        <tr className="border-b border-slate-100">
+                            <td className="px-3 py-2 text-left">Principal</td>
+                            <td className="px-3 py-2 text-right font-semibold">
+                                {formatMoney(balanceBreakdown.principal)}
+                            </td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                            <td className="px-3 py-2 text-left">Interest</td>
+                            <td className="px-3 py-2 text-right font-semibold">
+                                {formatMoney(balanceBreakdown.interest)}
+                            </td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                            <td className="px-3 py-2 text-left">Penalties</td>
+                            <td className="px-3 py-2 text-right font-semibold">
+                                {formatMoney(balanceBreakdown.penalties)}
+                            </td>
+                        </tr>
+                        <tr className="bg-slate-50">
+                            <td className="px-3 py-2 text-left uppercase tracking-[0.18em] text-xs text-slate-500">
+                                Total Balance
+                            </td>
+                            <td className={`px-3 py-2 text-right text-sm font-semibold ${getAlertClass(balanceBreakdown.total)}`}>
+                                {formatMoney(balanceBreakdown.total)}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <div className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">
-                Billing ({selectedBillingYear})
+            <div className="mt-5 text-xs uppercase tracking-[0.2em] text-slate-500">
+                Current Charges ({currentChargesLabel})
             </div>
-            <BillingTable
-                billingRowsForYear={billingRowsForYear}
-                selectedBillingYear={selectedBillingYear}
-                formatDate={formatDate}
-                getMonthSpan={getMonthSpan}
-                formatMoney={formatMoney}
-            />
-            <div className="mt-3 flex items-baseline gap-2 text-sm">
-                <span className="uppercase tracking-[0.18em] text-xs text-slate-500">
-                    Total Balance:
-                </span>
-                <span className={`text-base font-semibold ${getAlertClass(billingYearTotal)}`}>
-                    {formatMoney(billingYearTotal)}
-                </span>
+            <div className="mt-2 overflow-x-auto rounded-md border border-slate-200 bg-white">
+                <table className="w-full border-collapse text-xs md:text-sm">
+                    <tbody className="text-slate-900">
+                        <tr className="border-b border-slate-100">
+                            <td className="px-3 py-2 text-left">Principal</td>
+                            <td className="px-3 py-2 text-right font-semibold">
+                                {formatMoney(currentChargesBreakdown.principal)}
+                            </td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                            <td className="px-3 py-2 text-left">Interest</td>
+                            <td className="px-3 py-2 text-right font-semibold">
+                                {formatMoney(currentChargesBreakdown.interest)}
+                            </td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                            <td className="px-3 py-2 text-left">Penalties</td>
+                            <td className="px-3 py-2 text-right font-semibold">
+                                {formatMoney(currentChargesBreakdown.penalties)}
+                            </td>
+                        </tr>
+                        <tr className="bg-slate-50">
+                            <td className="px-3 py-2 text-left uppercase tracking-[0.18em] text-xs text-slate-500">
+                                Total Current Charges
+                            </td>
+                            <td className={`px-3 py-2 text-right text-sm font-semibold ${getAlertClass(currentChargesBreakdown.total)}`}>
+                                {formatMoney(currentChargesBreakdown.total)}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <div className="mt-6 text-xs uppercase tracking-[0.2em] text-slate-500">
@@ -57,7 +100,7 @@ export default function SummaryCard({
                 formatDate={formatDate}
                 formatMoney={formatMoney}
             />
-            <div className="mt-3 flex items-baseline gap-2 text-sm">
+            <div className="mt-3 flex flex-col md:flex-row md:items-baseline gap-2 text-sm">
                 <span className="uppercase tracking-[0.18em] text-xs text-slate-500">
                     Total Payments ({selectedBillingYear}):
                 </span>
@@ -65,12 +108,12 @@ export default function SummaryCard({
                     {formatMoney(totalPayments)}
                 </span>
             </div>
-            <div className="mt-2 flex items-baseline gap-2 text-sm">
+            <div className="mt-2 flex flex-col md:flex-row md:items-baseline gap-2 text-sm">
                 <span className="uppercase tracking-[0.18em] text-xs text-slate-500">
-                    Amount Due / Excess as of {currentBillingLabel}:
+                    Amount Due / Excess as of {amountDueAsOfLabel}:
                 </span>
-                <span className={`text-base font-semibold ${getAlertClass(netBalance)}`}>
-                    {formatSignedMoney(netBalance)}
+                <span className={`text-base font-semibold ${getAlertClass(amountDue)}`}>
+                    {formatSignedMoney(amountDue)}
                 </span>
             </div>
         </div>
