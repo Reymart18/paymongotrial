@@ -9,6 +9,7 @@ import {
     Request,
     Patch,
     Param,
+    Query,
     Delete,
     UploadedFile,
     UseInterceptors,
@@ -80,6 +81,22 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('activities')
+    async getRecentActivities(
+        @Request() req: AuthenticatedRequest,
+        @Query('limit') limit?: string,
+    ) {
+        if (req.user.role !== 'admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        const parsedLimit = limit ? Number(limit) : undefined;
+        return this.adminService.getRecentActivities(
+            Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+        );
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Patch('property-accounts/:accountId')
     async updatePropertyAccount(
         @Param('accountId') accountId: string,
@@ -91,6 +108,14 @@ export class AdminController {
         }
 
         const account = await this.adminService.updatePropertyAccount(accountId, updates);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'update_member',
+            targetType: 'property_account',
+            targetId: accountId,
+            details: 'Updated member profile details.',
+        });
         const { password, ...result } = account;
         return result;
     }
@@ -105,7 +130,16 @@ export class AdminController {
             throw new ForbiddenException('Only admins can access this resource');
         }
 
-        return this.adminService.deletePropertyAccount(accountId);
+        const result = await this.adminService.deletePropertyAccount(accountId);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'delete_member',
+            targetType: 'property_account',
+            targetId: accountId,
+            details: 'Deleted member account.',
+        });
+        return result;
     }
 
     @UseGuards(JwtAuthGuard)
@@ -119,7 +153,16 @@ export class AdminController {
             throw new ForbiddenException('Only admins can reset passwords');
         }
 
-        return this.adminService.resetPropertyAccountPassword(accountId, body.newPassword);
+        const result = await this.adminService.resetPropertyAccountPassword(accountId, body.newPassword);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'reset_password',
+            targetType: 'property_account',
+            targetId: accountId,
+            details: 'Reset member password.',
+        });
+        return result;
     }
 
     @UseGuards(JwtAuthGuard)
@@ -149,6 +192,15 @@ export class AdminController {
             throw new ForbiddenException('Only admins can upload masterlists');
         }
 
-        return this.propertyService.uploadMasterlist(file);
+        const result = await this.propertyService.uploadMasterlist(file);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'upload_masterlist',
+            targetType: 'masterlist',
+            targetId: file?.originalname ?? null,
+            details: `Inserted ${result.inserted}, skipped ${result.skipped}.`,
+        });
+        return result;
     }
 }

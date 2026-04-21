@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Admin } from './admin.entity';
+import { AdminActivity } from './admin-activity.entity';
 import { PropertyAccount } from '../property/property.entity';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
@@ -12,6 +13,8 @@ export class AdminService {
     constructor(
         @InjectRepository(Admin)
         private adminRepo: Repository<Admin>,
+        @InjectRepository(AdminActivity)
+        private activityRepo: Repository<AdminActivity>,
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
         @InjectRepository(FoxproBilling)
@@ -19,6 +22,34 @@ export class AdminService {
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
     ) { }
+
+    async logActivity(input: {
+        actorId?: number;
+        actorUsername?: string;
+        action: string;
+        targetType?: string | null;
+        targetId?: string | null;
+        details?: string | null;
+    }): Promise<AdminActivity> {
+        const activity = this.activityRepo.create({
+            actorId: input.actorId ?? null,
+            actorUsername: input.actorUsername ?? null,
+            action: input.action,
+            targetType: input.targetType ?? null,
+            targetId: input.targetId ?? null,
+            details: input.details ?? null,
+        });
+
+        return this.activityRepo.save(activity);
+    }
+
+    async getRecentActivities(limit?: number): Promise<AdminActivity[]> {
+        const resolvedLimit = Number.isFinite(limit) ? (limit as number) : 10;
+        return this.activityRepo.find({
+            order: { createdAt: 'DESC' },
+            take: resolvedLimit,
+        });
+    }
 
     async createAdmin(username: string, password: string, fullName: string, role: string = 'admin'): Promise<Admin> {
         const hashedPassword = await bcrypt.hash(password, 10);

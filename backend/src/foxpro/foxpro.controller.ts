@@ -12,6 +12,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { FoxproService } from './foxpro.service';
+import { AdminService } from '../admin/admin.service';
 
 interface AuthenticatedRequest extends ExpressRequest {
     user: {
@@ -23,7 +24,10 @@ interface AuthenticatedRequest extends ExpressRequest {
 
 @Controller('foxpro')
 export class FoxproController {
-    constructor(private foxproService: FoxproService) { }
+    constructor(
+        private foxproService: FoxproService,
+        private adminService: AdminService,
+    ) { }
 
     @UseGuards(JwtAuthGuard)
     @Post('billings/upload')
@@ -52,7 +56,16 @@ export class FoxproController {
             throw new ForbiddenException('Only admins can upload FoxPro billings');
         }
 
-        return this.foxproService.uploadBillings(file);
+        const result = await this.foxproService.uploadBillings(file);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'upload_billings',
+            targetType: 'foxpro_billings',
+            targetId: file?.originalname ?? null,
+            details: `Inserted ${result.inserted}, updated ${result.updated}, skipped ${result.skipped}.`,
+        });
+        return result;
     }
 
     @UseGuards(JwtAuthGuard)
@@ -82,6 +95,15 @@ export class FoxproController {
             throw new ForbiddenException('Only admins can upload FoxPro payments');
         }
 
-        return this.foxproService.uploadPayments(file);
+        const result = await this.foxproService.uploadPayments(file);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'upload_payments',
+            targetType: 'foxpro_payments',
+            targetId: file?.originalname ?? null,
+            details: `Inserted ${result.inserted}, updated ${result.updated}, skipped ${result.skipped}.`,
+        });
+        return result;
     }
 }

@@ -2,19 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminDashboardCards from './components/AdminDashboard/AdminDashboardCards';
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
-import UploadCard from './components/AdminDashboard/UploadCard';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 
 export default function AdminDashboard() {
-    const [uploadFile, setUploadFile] = useState(null);
-    const [uploadStatus, setUploadStatus] = useState('');
-    const [uploadError, setUploadError] = useState('');
-    const [uploadLoading, setUploadLoading] = useState(false);
-    const [billingFile, setBillingFile] = useState(null);
-    const [billingStatus, setBillingStatus] = useState('');
-    const [billingError, setBillingError] = useState('');
-    const [billingLoading, setBillingLoading] = useState(false);
     const [summary, setSummary] = useState({
         currentBillingLabel: '-',
         unpaidAccountsCount: 0,
@@ -23,6 +14,9 @@ export default function AdminDashboard() {
     });
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState('');
+    const [activityItems, setActivityItems] = useState([]);
+    const [activityLoading, setActivityLoading] = useState(false);
+    const [activityError, setActivityError] = useState('');
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -87,6 +81,91 @@ export default function AdminDashboard() {
         return () => controller.abort();
     }, [API_URL, navigate]);
 
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('userRole');
+
+        if (!token || role !== 'admin') {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const fetchActivities = async () => {
+            setActivityLoading(true);
+            setActivityError('');
+
+            try {
+                const response = await fetch(`${API_URL}/admin/activities?limit=6`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    signal: controller.signal,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        setActivityError('Session expired. Please log in again.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('userRole');
+                        return;
+                    }
+                    setActivityError(data.message || 'Failed to load recent activity.');
+                    return;
+                }
+
+                setActivityItems(Array.isArray(data) ? data : []);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Fetch activity error:', err);
+                    setActivityError('Failed to load recent activity. Please try again.');
+                }
+            } finally {
+                setActivityLoading(false);
+            }
+        };
+
+        fetchActivities();
+
+        return () => controller.abort();
+    }, [API_URL]);
+
+    const formatTimestamp = (value) => {
+        if (!value) {
+            return '';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
+        return date.toLocaleString();
+    };
+
+    const activityTitle = (activity) => {
+        switch (activity?.action) {
+            case 'upload_payments':
+                return 'Payments upload completed';
+            case 'upload_billings':
+                return 'Billings upload completed';
+            case 'upload_masterlist':
+                return 'Masterlist updated';
+            case 'update_member':
+                return 'Member updated';
+            case 'delete_member':
+                return 'Member deleted';
+            case 'reset_password':
+                return 'Password reset';
+            default:
+                return 'Admin activity';
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
@@ -94,101 +173,6 @@ export default function AdminDashboard() {
         navigate('/login');
     };
 
-    const handleUploadPayments = async (event) => {
-        event.preventDefault();
-        setUploadStatus('');
-        setUploadError('');
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setUploadError('Session expired. Please log in again.');
-            return;
-        }
-
-        if (!uploadFile) {
-            setUploadError('Please choose a CSV or XLSX file first.');
-            return;
-        }
-
-        setUploadLoading(true);
-
-        try {
-            const formData = new FormData();
-            formData.append('file', uploadFile);
-
-            const response = await fetch(`${API_URL}/foxpro/payments/upload`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                setUploadError(data.message || 'Upload failed. Please try again.');
-                return;
-            }
-
-            setUploadStatus(
-                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
-            );
-        } catch (err) {
-            console.error('Upload error:', err);
-            setUploadError('Upload failed. Please try again.');
-        } finally {
-            setUploadLoading(false);
-        }
-    };
-
-    const handleUploadBillings = async (event) => {
-        event.preventDefault();
-        setBillingStatus('');
-        setBillingError('');
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setBillingError('Session expired. Please log in again.');
-            return;
-        }
-
-        if (!billingFile) {
-            setBillingError('Please choose a CSV or XLSX file first.');
-            return;
-        }
-
-        setBillingLoading(true);
-
-        try {
-            const formData = new FormData();
-            formData.append('file', billingFile);
-
-            const response = await fetch(`${API_URL}/foxpro/billings/upload`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                setBillingError(data.message || 'Upload failed. Please try again.');
-                return;
-            }
-
-            setBillingStatus(
-                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
-            );
-        } catch (err) {
-            console.error('Billing upload error:', err);
-            setBillingError('Upload failed. Please try again.');
-        } finally {
-            setBillingLoading(false);
-        }
-    };
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -220,27 +204,46 @@ export default function AdminDashboard() {
                             />
                         )}
 
-                        <UploadCard
-                            title="Upload FoxPro Payments (CSV/XLSX)"
-                            description="Required headers: PAYDATE, AMTPAID, ORNO, PAYCAT, KEYSEARCH, APPLICABLE"
-                            onSubmit={handleUploadPayments}
-                            onFileChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                            loading={uploadLoading}
-                            buttonLabel="Upload Payments"
-                            status={uploadStatus}
-                            error={uploadError}
-                        />
+                        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-900">Recent admin activity</h2>
+                                    <p className="text-sm text-slate-500">Latest updates from admin actions.</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 space-y-3">
+                                {activityLoading && (
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                        Loading recent activity...
+                                    </div>
+                                )}
+                                {!activityLoading && activityError && (
+                                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                        {activityError}
+                                    </div>
+                                )}
+                                {!activityLoading && !activityError && activityItems.length === 0 && (
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                        No recent activity yet.
+                                    </div>
+                                )}
+                                {!activityLoading && !activityError && activityItems.map((activity) => (
+                                    <div
+                                        key={activity.id}
+                                        className="flex flex-col gap-1 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-semibold text-slate-900">{activityTitle(activity)}</p>
+                                            <span className="text-xs text-slate-500">
+                                                {formatTimestamp(activity.createdAt)}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-slate-600">{activity.details || 'No details provided.'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
 
-                        <UploadCard
-                            title="Upload FoxPro Billings (CSV/XLSX)"
-                            description="Required headers: BILLDATE, DATEFROM, DATETO, DUEDATE, PRINBAL, INTBAL, PENBAL, PRINCURR, INTCURR, PENCURR, KEYSEARCH"
-                            onSubmit={handleUploadBillings}
-                            onFileChange={(e) => setBillingFile(e.target.files?.[0] || null)}
-                            loading={billingLoading}
-                            buttonLabel="Upload Billings"
-                            status={billingStatus}
-                            error={billingError}
-                        />
                     </div>
                 </main>
             </div>

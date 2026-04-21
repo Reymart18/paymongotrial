@@ -7,12 +7,14 @@ import { FoxproController } from './foxpro.controller';
 import { PropertyAccount } from '../property/property.entity';
 import { AuthModule } from '../auth/auth.module';
 import { PropertyModule } from '../property/property.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([FoxproBilling, FoxproPayment, PropertyAccount]),
         AuthModule,
         PropertyModule,
+        AdminModule,
     ],
     providers: [FoxproService],
     controllers: [FoxproController],

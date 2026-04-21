@@ -22,7 +22,7 @@ export default function LandingPage() {
                         <span>Home</span>
                         <span>About</span>
                     </div>
-                    <div className="relative w-[120px] sm:w-[200px] md:w-[250px]">
+                    <div className="relative w-[120px] sm:w-[200px] md:w-[240px] top-[-18px]">
                         <img
                             src={rectangleImage}
                             alt=""

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
+import UploadCard from './components/AdminDashboard/UploadCard';
 
 const quarterOptions = [
     { value: 1, label: 'Q1 (Jan - Mar)' },
@@ -23,6 +24,14 @@ export default function ReportsPage() {
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadStatus, setUploadStatus] = useState('');
+    const [uploadError, setUploadError] = useState('');
+    const [uploadLoading, setUploadLoading] = useState(false);
+    const [billingFile, setBillingFile] = useState(null);
+    const [billingStatus, setBillingStatus] = useState('');
+    const [billingError, setBillingError] = useState('');
+    const [billingLoading, setBillingLoading] = useState(false);
 
     const formatMoney = (value) => new Intl.NumberFormat('en-PH', {
         minimumFractionDigits: 2,
@@ -41,6 +50,102 @@ export default function ReportsPage() {
 
     const comparison = useMemo(() => report?.comparison || {}, [report]);
     const totals = useMemo(() => report?.totals || {}, [report]);
+
+    const handleUploadPayments = async (event) => {
+        event.preventDefault();
+        setUploadStatus('');
+        setUploadError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setUploadError('Session expired. Please log in again.');
+            return;
+        }
+
+        if (!uploadFile) {
+            setUploadError('Please choose a CSV or XLSX file first.');
+            return;
+        }
+
+        setUploadLoading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', uploadFile);
+
+            const response = await fetch(`${API_URL}/foxpro/payments/upload`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setUploadError(data.message || 'Upload failed. Please try again.');
+                return;
+            }
+
+            setUploadStatus(
+                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
+            );
+        } catch (err) {
+            console.error('Upload error:', err);
+            setUploadError('Upload failed. Please try again.');
+        } finally {
+            setUploadLoading(false);
+        }
+    };
+
+    const handleUploadBillings = async (event) => {
+        event.preventDefault();
+        setBillingStatus('');
+        setBillingError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setBillingError('Session expired. Please log in again.');
+            return;
+        }
+
+        if (!billingFile) {
+            setBillingError('Please choose a CSV or XLSX file first.');
+            return;
+        }
+
+        setBillingLoading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', billingFile);
+
+            const response = await fetch(`${API_URL}/foxpro/billings/upload`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setBillingError(data.message || 'Upload failed. Please try again.');
+                return;
+            }
+
+            setBillingStatus(
+                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
+            );
+        } catch (err) {
+            console.error('Billing upload error:', err);
+            setBillingError('Upload failed. Please try again.');
+        } finally {
+            setBillingLoading(false);
+        }
+    };
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -173,6 +278,28 @@ export default function ReportsPage() {
                                 {error}
                             </div>
                         )}
+
+                        <UploadCard
+                            title="Upload FoxPro Payments (CSV/XLSX)"
+                            description="Required headers: PAYDATE, AMTPAID, ORNO, PAYCAT, KEYSEARCH, APPLICABLE"
+                            onSubmit={handleUploadPayments}
+                            onFileChange={(event) => setUploadFile(event.target.files?.[0] || null)}
+                            loading={uploadLoading}
+                            buttonLabel="Upload Payments"
+                            status={uploadStatus}
+                            error={uploadError}
+                        />
+
+                        <UploadCard
+                            title="Upload FoxPro Billings (CSV/XLSX)"
+                            description="Required headers: BILLDATE, DATEFROM, DATETO, DUEDATE, PRINBAL, INTBAL, PENBAL, PRINCURR, INTCURR, PENCURR, KEYSEARCH"
+                            onSubmit={handleUploadBillings}
+                            onFileChange={(event) => setBillingFile(event.target.files?.[0] || null)}
+                            loading={billingLoading}
+                            buttonLabel="Upload Billings"
+                            status={billingStatus}
+                            error={billingError}
+                        />
                     </div>
                 </main>
             </div>
