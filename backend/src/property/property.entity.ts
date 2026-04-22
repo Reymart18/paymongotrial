@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { Payment } from '../payments/payment.entity';
+import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
 import { Billing } from '../billing/billing.entity';
 
 @Entity()
@@ -46,8 +46,8 @@ export class PropertyAccount {
     @Column({ default: 'active' })
     status?: string;
 
-    @OneToMany(() => Payment, (payment) => payment.account)
-    payments?: Payment[];
+    @OneToMany(() => FoxproPayment, (payment) => payment.account)
+    payments?: FoxproPayment[];
 
     @OneToMany(() => Billing, (billing) => billing.account)
     billings?: Billing[];

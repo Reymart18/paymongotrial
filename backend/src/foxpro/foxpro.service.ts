@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, IsNull } from 'typeorm';
+import { DataSource, Repository, IsNull, In } from 'typeorm';
 import { Readable } from 'stream';
+import { DBFFile } from 'dbffile';
+import * as fs from 'fs';
+import * as path from 'path';
 import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import { FoxproBilling } from './foxpro-billing.entity';
@@ -119,68 +122,17 @@ export class FoxproService {
         }
 
         const records = await this.parsePaymentFile(file);
-        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
+        return this.savePaymentRecords(records);
+    }
 
-        await this.dataSource.transaction(async (manager) => {
-            const paymentRepo = manager.getRepository(FoxproPayment);
-            const propertyRepo = manager.getRepository(PropertyAccount);
-
-            for (let index = 0; index < records.length; index += 1) {
-                const record = records[index];
-                const row = index + 1;
-
-                if (!record.accountId || !record.paymentDate) {
-                    result.skipped += 1;
-                    result.errors.push(`Row ${row}: Missing accountId or paymentDate`);
-                    continue;
-                }
-
-                const account = await propertyRepo.findOne({
-                    where: { accountId: record.accountId },
-                });
-
-                if (!account) {
-                    result.skipped += 1;
-                    result.errors.push(`Row ${row}: accountId not found (${record.accountId})`);
-                    continue;
-                }
-
-                const payload = paymentRepo.create({
-                    accountId: record.accountId,
-                    account,
-                    paymentDate: record.paymentDate,
-                    amountPaid: record.amountPaid,
-                    description: record.description || '',
-                    referenceNumber: record.referenceNumber ?? null,
-                });
-
-                const existing = await paymentRepo.findOne({
-                    where: {
-                        accountId: record.accountId,
-                        paymentDate: record.paymentDate,
-                        amountPaid: record.amountPaid,
-                        referenceNumber:
-                            record.referenceNumber === null
-                                ? IsNull()
-                                : record.referenceNumber,
-                    },
-                });
-
-                if (existing?.id) {
-                    await paymentRepo.update({ id: existing.id }, payload);
-                    result.updated += 1;
-                } else {
-                    await paymentRepo.insert(payload);
-                    result.inserted += 1;
-                }
-            }
-        });
-
-        if (result.inserted + result.updated > 0) {
-            await this.propertyService.recalculateBalances();
+    async syncPaymentsFromDbf(filePath?: string) {
+        const dbfPath = filePath ?? this.getPaymentsDbfPath();
+        if (!fs.existsSync(dbfPath)) {
+            throw new BadRequestException(`payments.dbf not found at ${dbfPath}`);
         }
 
-        return result;
+        const records = await this.parsePaymentDbf(dbfPath);
+        return this.savePaymentRecords(records);
     }
 
     private async parseBillingFile(file: Express.Multer.File): Promise<FoxproBillingRecord[]> {
@@ -209,6 +161,21 @@ export class FoxproService {
         }
 
         throw new BadRequestException('Unsupported file type. Use CSV or XLSX.');
+    }
+
+    private async parsePaymentDbf(filePath: string): Promise<FoxproPaymentRecord[]> {
+        const dbf = await DBFFile.open(filePath, { encoding: 'latin1' });
+        const rows: FoxproPaymentRecord[] = [];
+        let records = await dbf.readRecords(500);
+
+        while (records.length > 0) {
+            records.forEach((row) => {
+                rows.push(this.normalizePaymentRecord(row as Record<string, unknown>));
+            });
+            records = await dbf.readRecords(500);
+        }
+
+        return rows;
     }
 
     private async parseBillingCsv(buffer: Buffer): Promise<FoxproBillingRecord[]> {
@@ -284,14 +251,216 @@ export class FoxproService {
 
     private normalizePaymentRecord(raw: Record<string, unknown>): FoxproPaymentRecord {
         const normalized = this.normalizeKeys(raw);
+        const referenceNumber = normalized.orno ? String(normalized.orno).trim() : '';
 
         return {
             accountId: String(normalized.keysearch || '').trim(),
             paymentDate: this.parseFoxProDate(normalized.paydate),
             amountPaid: this.toNumber(normalized.amtpaid),
             description: normalized.applicable ? String(normalized.applicable).trim() : '',
-            referenceNumber: normalized.orno ? String(normalized.orno).trim() : '',
+            referenceNumber: referenceNumber ? referenceNumber : null,
         };
+    }
+
+    private async savePaymentRecords(records: FoxproPaymentRecord[]) {
+        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
+        const paymentCutoff = this.getPaymentsCutoffDate();
+        const batchSize = 500;
+
+        await this.dataSource.transaction(async (manager) => {
+            const paymentRepo = manager.getRepository(FoxproPayment);
+            const propertyRepo = manager.getRepository(PropertyAccount);
+            const prepared: Array<{ record: FoxproPaymentRecord; row: number }> = [];
+            const accountIds = new Set<string>();
+
+            for (let index = 0; index < records.length; index += 1) {
+                const record = records[index];
+                const row = index + 1;
+
+                if (!record.accountId || !record.paymentDate) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Missing accountId or paymentDate`);
+                    continue;
+                }
+
+                if (record.paymentDate < paymentCutoff) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                prepared.push({ record, row });
+                accountIds.add(record.accountId);
+            }
+
+            const accountIdList = Array.from(accountIds);
+            const accounts = accountIdList.length
+                ? await propertyRepo.find({ where: { accountId: In(accountIdList) } })
+                : [];
+            const accountMap = new Map(accounts.map((account) => [account.accountId ?? '', account]));
+
+            const withRef: Array<{ record: FoxproPaymentRecord; row: number }> = [];
+            const withoutRef: Array<{ record: FoxproPaymentRecord; row: number }> = [];
+
+            for (const entry of prepared) {
+                if (!accountMap.has(entry.record.accountId)) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${entry.row}: accountId not found (${entry.record.accountId})`);
+                    continue;
+                }
+
+                if (entry.record.referenceNumber) {
+                    withRef.push(entry);
+                } else {
+                    withoutRef.push(entry);
+                }
+            }
+
+            for (let start = 0; start < withRef.length; start += batchSize) {
+                const batch = withRef.slice(start, start + batchSize);
+                const referenceNumbers = batch
+                    .map((entry) => entry.record.referenceNumber)
+                    .filter((value): value is string => Boolean(value));
+
+                const existingRows = referenceNumbers.length
+                    ? await paymentRepo.find({ where: { referenceNumber: In(referenceNumbers) } })
+                    : [];
+                const existingByRef = new Map(
+                    existingRows.map((row) => [row.referenceNumber ?? '', row]),
+                );
+                const inserts: Array<Partial<FoxproPayment>> = [];
+
+                for (const entry of batch) {
+                    const record = entry.record;
+                    if (!record.paymentDate) {
+                        result.skipped += 1;
+                        continue;
+                    }
+                    const payload = {
+                        accountId: record.accountId,
+                        paymentDate: record.paymentDate,
+                        amountPaid: record.amountPaid,
+                        description: record.description || '',
+                        referenceNumber: record.referenceNumber ?? null,
+                    };
+                    const existing = existingByRef.get(record.referenceNumber ?? '') ?? null;
+
+                    if (!existing) {
+                        inserts.push(payload);
+                        result.inserted += 1;
+                        continue;
+                    }
+
+                    if (this.isPaymentChanged(existing, payload)) {
+                        await paymentRepo.update({ id: existing.id }, payload);
+                        result.updated += 1;
+                    } else {
+                        result.skipped += 1;
+                    }
+                }
+
+                if (inserts.length) {
+                    await paymentRepo.insert(inserts);
+                }
+            }
+
+            for (const entry of withoutRef) {
+                const record = entry.record;
+                if (!record.paymentDate) {
+                    result.skipped += 1;
+                    continue;
+                }
+                const payload = {
+                    accountId: record.accountId,
+                    paymentDate: record.paymentDate,
+                    amountPaid: record.amountPaid,
+                    description: record.description || '',
+                    referenceNumber: null,
+                };
+
+                const existing = await paymentRepo.findOne({
+                    where: {
+                        accountId: record.accountId,
+                        paymentDate: record.paymentDate,
+                        amountPaid: record.amountPaid,
+                        referenceNumber: IsNull(),
+                    },
+                });
+
+                if (existing?.id) {
+                    if (this.isPaymentChanged(existing, payload)) {
+                        await paymentRepo.update({ id: existing.id }, payload);
+                        result.updated += 1;
+                    } else {
+                        result.skipped += 1;
+                    }
+                    continue;
+                }
+
+                await paymentRepo.insert(payload);
+                result.inserted += 1;
+            }
+        });
+
+        if (result.inserted + result.updated > 0) {
+            await this.propertyService.recalculateBalances();
+        }
+
+        return result;
+    }
+
+    private getPaymentsDbfPath(): string {
+        if (process.env.FOXPRO_PAYMENTS_DBF_PATH) {
+            return process.env.FOXPRO_PAYMENTS_DBF_PATH;
+        }
+
+        return path.resolve('C:/parkplacevillagesystemPayments/payments.dbf');
+    }
+
+    private getPaymentsCutoffDate(): Date {
+        const configured = process.env.FOXPRO_PAYMENTS_CUTOFF_DATE;
+        if (configured) {
+            const parsed = new Date(`${configured}T00:00:00.000Z`);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+
+        return new Date(Date.UTC(2025, 9, 1));
+    }
+
+    private isPaymentChanged(
+        existing: FoxproPayment,
+        payload: {
+            accountId: string;
+            paymentDate: Date;
+            amountPaid: number;
+            description: string;
+            referenceNumber: string | null;
+        },
+    ): boolean {
+        const existingDateKey = this.toDateKey(existing.paymentDate);
+        const payloadDateKey = this.toDateKey(payload.paymentDate);
+
+        return (
+            String(existing.accountId || '') !== payload.accountId ||
+            existingDateKey !== payloadDateKey ||
+            Number(existing.amountPaid || 0) !== Number(payload.amountPaid || 0) ||
+            (existing.description || '') !== (payload.description || '') ||
+            (existing.referenceNumber ?? null) !== payload.referenceNumber
+        );
+    }
+
+    private toDateKey(value: Date | string | null | undefined): string | null {
+        if (!value) {
+            return null;
+        }
+
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
+
+        return date.toISOString().slice(0, 10);
     }
 
     private normalizeKeys(raw: Record<string, unknown>): Record<string, unknown> {

@@ -11,7 +11,8 @@ import {
 import { PropertyAccount } from '../property/property.entity';
 
 @Entity({ name: 'foxpro_payments' })
-@Index(['accountId', 'paymentDate', 'amountPaid', 'referenceNumber'], { unique: true })
+@Index(['accountId'])
+@Index(['referenceNumber'], { unique: true })
 export class FoxproPayment {
     @PrimaryGeneratedColumn()
     id?: number;
@@ -32,7 +33,7 @@ export class FoxproPayment {
     @Column({ type: 'varchar', length: 255, nullable: true })
     description?: string;
 
-    @Column({ type: 'varchar', length: 50, nullable: true, default: '' })
+    @Column({ type: 'varchar', length: 50, nullable: true, default: null })
     referenceNumber?: string | null;
 
     @CreateDateColumn({ type: 'datetime' })

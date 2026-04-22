@@ -8,6 +8,7 @@ import HomeownerDashboard from './pages/HomeownerDashboard';
 import ChangePassword from './pages/ChangePassword';
 import SOAPreview from './pages/SOAPreview';
 import ProfilePage from './pages/ProfilePage';
+import AnnouncementsPage from './pages/AnnouncementsPage';
 
 /**
  * Protected Route Component
@@ -60,6 +61,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <MembersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/announcements"
+          element={
+            <ProtectedRoute>
+              <AnnouncementsPage />
             </ProtectedRoute>
           }
         />

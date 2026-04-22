@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
@@ -24,10 +24,9 @@ export default function ReportsPage() {
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [uploadFile, setUploadFile] = useState(null);
-    const [uploadStatus, setUploadStatus] = useState('');
-    const [uploadError, setUploadError] = useState('');
-    const [uploadLoading, setUploadLoading] = useState(false);
+    const [syncStatus, setSyncStatus] = useState('');
+    const [syncError, setSyncError] = useState('');
+    const [syncLoading, setSyncLoading] = useState(false);
     const [billingFile, setBillingFile] = useState(null);
     const [billingStatus, setBillingStatus] = useState('');
     const [billingError, setBillingError] = useState('');
@@ -51,52 +50,58 @@ export default function ReportsPage() {
     const comparison = useMemo(() => report?.comparison || {}, [report]);
     const totals = useMemo(() => report?.totals || {}, [report]);
 
-    const handleUploadPayments = async (event) => {
-        event.preventDefault();
-        setUploadStatus('');
-        setUploadError('');
+    const syncPayments = useCallback(async (isAuto = false) => {
+        if (syncLoading) {
+            return;
+        }
+
+        if (!isAuto) {
+            setSyncStatus('');
+        }
+        setSyncError('');
 
         const token = localStorage.getItem('token');
         if (!token) {
-            setUploadError('Session expired. Please log in again.');
+            setSyncError('Session expired. Please log in again.');
             return;
         }
 
-        if (!uploadFile) {
-            setUploadError('Please choose a CSV or XLSX file first.');
-            return;
-        }
-
-        setUploadLoading(true);
+        setSyncLoading(true);
 
         try {
-            const formData = new FormData();
-            formData.append('file', uploadFile);
-
-            const response = await fetch(`${API_URL}/foxpro/payments/upload`, {
+            const response = await fetch(`${API_URL}/foxpro/payments/sync`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
-                body: formData,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                setUploadError(data.message || 'Upload failed. Please try again.');
+                setSyncError(data.message || 'Sync failed. Please try again.');
                 return;
             }
 
-            setUploadStatus(
-                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
+            const timestamp = new Date().toLocaleTimeString('en-PH', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            setSyncStatus(
+                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`,
             );
         } catch (err) {
-            console.error('Upload error:', err);
-            setUploadError('Upload failed. Please try again.');
+            console.error('Sync error:', err);
+            setSyncError('Sync failed. Please try again.');
         } finally {
-            setUploadLoading(false);
+            setSyncLoading(false);
         }
+    }, [API_URL, syncLoading]);
+
+    const handleSyncPayments = async (event) => {
+        event.preventDefault();
+        await syncPayments(false);
     };
 
     const handleUploadBillings = async (event) => {
@@ -190,6 +195,7 @@ export default function ReportsPage() {
         fetchReport();
     }, [API_URL, navigate, quarter, year]);
 
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
             <div className="hidden md:block">
@@ -280,14 +286,15 @@ export default function ReportsPage() {
                         )}
 
                         <UploadCard
-                            title="Upload FoxPro Payments (CSV/XLSX)"
-                            description="Required headers: PAYDATE, AMTPAID, ORNO, PAYCAT, KEYSEARCH, APPLICABLE"
-                            onSubmit={handleUploadPayments}
-                            onFileChange={(event) => setUploadFile(event.target.files?.[0] || null)}
-                            loading={uploadLoading}
-                            buttonLabel="Upload Payments"
-                            status={uploadStatus}
-                            error={uploadError}
+                            title="Sync FoxPro Payments (DBF)"
+                            description="Manual sync from payments.DBF. Uses ORNO to prevent duplicates."
+                            onSubmit={handleSyncPayments}
+                            loading={syncLoading}
+                            loadingLabel="Syncing..."
+                            buttonLabel="Sync Payments"
+                            status={syncStatus}
+                            error={syncError}
+                            showFileInput={false}
                         />
 
                         <UploadCard

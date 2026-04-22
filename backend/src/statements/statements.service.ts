@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
 import { PropertyAccount } from '../property/property.entity';
@@ -42,13 +42,17 @@ export class StatementsService {
     ) { }
 
     async getStatement(accountId: string): Promise<StatementRow[]> {
+        const paymentCutoff = this.getPaymentsCutoffDate();
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({
                 where: { accountId },
                 order: { dueDate: 'ASC' },
             }),
             this.paymentRepo.find({
-                where: { accountId },
+                where: {
+                    accountId,
+                    paymentDate: MoreThanOrEqual(paymentCutoff),
+                },
                 order: { paymentDate: 'ASC' },
             }),
         ]);
@@ -219,5 +223,17 @@ export class StatementsService {
         const month = String(value.getMonth() + 1).padStart(2, '0');
         const day = String(value.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    }
+
+    private getPaymentsCutoffDate(): Date {
+        const configured = process.env.FOXPRO_PAYMENTS_CUTOFF_DATE;
+        if (configured) {
+            const parsed = new Date(`${configured}T00:00:00.000Z`);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+
+        return new Date(Date.UTC(2025, 9, 1));
     }
 }

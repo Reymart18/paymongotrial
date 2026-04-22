@@ -128,4 +128,6 @@ That percent was wrong because the previous quarter was negative (overpayment), 
 
 I changed the logic so any previous value <= 0 returns N/A for the comparison. That matches your rule: negative means overpayment and should not be used for percent comparison.
 
-Not yet. For now, keep the SOA starting from 0 for testing mode. We will add support for imported beginning balance / carry-over later when we work on the FoxPro import and real data migration.
+Auto-syncs from payments.DBF every 60 seconds. Uses ORNO to prevent duplicates.
+
+Use toast message

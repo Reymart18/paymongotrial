@@ -85,7 +85,10 @@ export default function Sidebar() {
 
                     <a
                         href="#"
-                        onClick={() => setActiveItem('announcements')}
+                        onClick={() => {
+                            setActiveItem('announcements');
+                            navigate('/announcements');
+                        }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'announcements'
                             ? 'bg-white text-[#8C4100] rounded-l-[40px] -mr-7 pr-20'
                             : 'text-white/70 hover:bg-white/10 hover:text-white'
