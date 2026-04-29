@@ -190,11 +190,14 @@ export default function SOAPreview() {
     const balanceBillingRow = useMemo(
         () => (billingRowsForYear.length > 1
             ? billingRowsForYear[billingRowsForYear.length - 2]
-            : latestBillingRow),
-        [billingRowsForYear, latestBillingRow],
+            : null),
+        [billingRowsForYear],
     );
 
-    const hasPreviousBillingRow = billingRowsForYear.length > 1;
+    const balanceSourceRow = useMemo(
+        () => latestBillingRow || balanceBillingRow,
+        [latestBillingRow, balanceBillingRow],
+    );
 
     const paymentRows = useMemo(
         () => statementRows
@@ -208,27 +211,53 @@ export default function SOAPreview() {
         [paymentRows, selectedBillingYear],
     );
 
+    const currentPeriodPayments = useMemo(() => {
+        if (!latestBillingRow?.dateFrom || !latestBillingRow?.dateTo) {
+            return [];
+        }
+
+        const start = new Date(latestBillingRow.dateFrom);
+        const end = new Date(latestBillingRow.dateTo);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return [];
+        }
+
+        return paymentRows.filter((row) => {
+            const paymentDate = new Date(row.date);
+            if (Number.isNaN(paymentDate.getTime())) {
+                return false;
+            }
+
+            return paymentDate >= start && paymentDate <= end;
+        });
+    }, [latestBillingRow, paymentRows]);
+
+    const currentPeriodPaymentsTotal = useMemo(
+        () => currentPeriodPayments.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
+        [currentPeriodPayments],
+    );
+
     const totalPayments = useMemo(
         () => paymentRowsForYear.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
         [paymentRowsForYear],
     );
 
     const balanceBreakdown = useMemo(() => {
-        const principal = Number(balanceBillingRow?.prinBal ?? 0);
-        const interest = Number(balanceBillingRow?.intBal ?? 0);
-        const penalties = Number(balanceBillingRow?.penBal ?? 0);
-        const hasParts = [balanceBillingRow?.prinBal, balanceBillingRow?.intBal, balanceBillingRow?.penBal]
+        const principal = Number(balanceSourceRow?.prinBal ?? 0);
+        const interest = Number(balanceSourceRow?.intBal ?? 0);
+        const penalties = Number(balanceSourceRow?.penBal ?? 0);
+        const hasParts = [balanceSourceRow?.prinBal, balanceSourceRow?.intBal, balanceSourceRow?.penBal]
             .some((value) => value !== undefined && value !== null);
         const total = hasParts
             ? principal + interest + penalties
-            : Number(balanceBillingRow?.previousBalance ?? 0);
+            : Number(balanceSourceRow?.previousBalance ?? 0);
         return {
             principal,
             interest,
             penalties,
             total,
         };
-    }, [balanceBillingRow]);
+    }, [balanceSourceRow]);
 
     const currentChargesBreakdown = useMemo(() => {
         const principal = Number(latestBillingRow?.prinCurr ?? latestBillingRow?.amountDue ?? 0);
@@ -243,8 +272,8 @@ export default function SOAPreview() {
     }, [latestBillingRow]);
 
     const amountDue = useMemo(
-        () => balanceBreakdown.total + currentChargesBreakdown.total - totalPayments,
-        [balanceBreakdown.total, currentChargesBreakdown.total, totalPayments],
+        () => balanceBreakdown.total + currentChargesBreakdown.total - currentPeriodPaymentsTotal,
+        [balanceBreakdown.total, currentChargesBreakdown.total, currentPeriodPaymentsTotal],
     );
 
     function formatDate(value) {
@@ -274,14 +303,14 @@ export default function SOAPreview() {
         return amount < 0 ? `-${formatted}` : formatted;
     };
 
-    const balanceAsOfLabel = hasPreviousBillingRow && balanceBillingRow?.dateTo
-        ? formatDate(balanceBillingRow.dateTo)
-        : latestBillingRow?.dateFrom
-            ? (() => {
-                const dateBeforeCurrent = new Date(latestBillingRow.dateFrom);
-                dateBeforeCurrent.setDate(dateBeforeCurrent.getDate() - 1);
-                return formatDate(dateBeforeCurrent);
-            })()
+    const balanceAsOfLabel = latestBillingRow?.dateFrom
+        ? (() => {
+            const dateBeforeCurrent = new Date(latestBillingRow.dateFrom);
+            dateBeforeCurrent.setDate(dateBeforeCurrent.getDate() - 1);
+            return formatDate(dateBeforeCurrent);
+        })()
+        : balanceBillingRow?.dateTo
+            ? formatDate(balanceBillingRow.dateTo)
             : '-';
 
     const currentChargesLabel = latestBillingRow?.dateFrom && latestBillingRow?.dateTo
@@ -432,7 +461,7 @@ export default function SOAPreview() {
                     src={headerImage}
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] md:h-[450px] w-auto -translate-x-1/2 -translate-y-1/2 opacity-10 hidden md:block"
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-75 md:h-112.5 w-auto -translate-x-1/2 -translate-y-1/2 opacity-10 hidden md:block"
                 />
 
                 <SoaHeader />
@@ -470,7 +499,7 @@ export default function SOAPreview() {
                             amountDueAsOfLabel={amountDueAsOfLabel}
                             formatSignedMoney={formatSignedMoney}
                         />
-                        <div className="mx-auto mt-6 max-w-[1060px] text-[11px] md:text-xs text-slate-900">
+                        <div className="mx-auto mt-6 max-w-265 text-[11px] md:text-xs text-slate-900">
                             <div className="font-semibold">
                                 You may send your payment thru bank account:
                             </div>

@@ -19,6 +19,7 @@ export default function HomeownerDashboard() {
     const [mustChangePassword, setMustChangePassword] = useState(
         localStorage.getItem('mustChangePassword') === 'true',
     );
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -139,19 +140,26 @@ export default function HomeownerDashboard() {
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
             {/* Sidebar */}
-            <div className="hidden md:block">
-                <Sidebar />
-            </div>
+            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+            {/* Overlay for mobile when sidebar is open */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
             {/* Header Navigation */}
             <DashboardNav
                 onLogout={handleLogout}
                 accountId={accountId}
                 classification={account?.classification || 'Loading...'}
+                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
 
             {/* Main Layout Container */}
-            <div className="flex flex-1 md:ml-64">
+            <div className={`flex flex-1 transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-64'}`}>
                 {/* Main Content */}
                 <main className="flex-1 overflow-auto">
                     <div className="space-y-6 px-4 md:px-6 py-6 md:py-8">

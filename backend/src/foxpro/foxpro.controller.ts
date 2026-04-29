@@ -125,4 +125,23 @@ export class FoxproController {
         });
         return result;
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('billings/sync')
+    async syncBillings(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin') {
+            throw new ForbiddenException('Only admins can sync FoxPro billings');
+        }
+
+        const result = await this.foxproService.syncBillingsFromDbf();
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'sync_billings_dbf',
+            targetType: 'foxpro_billings',
+            targetId: 'BILLING.DBF',
+            details: `Inserted ${result.inserted}, updated ${result.updated}, skipped ${result.skipped}.`,
+        });
+        return result;
+    }
 }

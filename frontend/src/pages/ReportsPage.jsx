@@ -27,10 +27,14 @@ export default function ReportsPage() {
     const [syncStatus, setSyncStatus] = useState('');
     const [syncError, setSyncError] = useState('');
     const [syncLoading, setSyncLoading] = useState(false);
+    const [billingSyncStatus, setBillingSyncStatus] = useState('');
+    const [billingSyncError, setBillingSyncError] = useState('');
+    const [billingSyncLoading, setBillingSyncLoading] = useState(false);
     const [billingFile, setBillingFile] = useState(null);
     const [billingStatus, setBillingStatus] = useState('');
     const [billingError, setBillingError] = useState('');
     const [billingLoading, setBillingLoading] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const formatMoney = (value) => new Intl.NumberFormat('en-PH', {
         minimumFractionDigits: 2,
@@ -102,6 +106,58 @@ export default function ReportsPage() {
     const handleSyncPayments = async (event) => {
         event.preventDefault();
         await syncPayments(false);
+    };
+
+    const syncBillings = useCallback(async () => {
+        if (billingSyncLoading) {
+            return;
+        }
+
+        setBillingSyncStatus('');
+        setBillingSyncError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setBillingSyncError('Session expired. Please log in again.');
+            return;
+        }
+
+        setBillingSyncLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/foxpro/billings/sync`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setBillingSyncError(data.message || 'Sync failed. Please try again.');
+                return;
+            }
+
+            const timestamp = new Date().toLocaleTimeString('en-PH', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            setBillingSyncStatus(
+                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`,
+            );
+        } catch (err) {
+            console.error('Billing sync error:', err);
+            setBillingSyncError('Sync failed. Please try again.');
+        } finally {
+            setBillingSyncLoading(false);
+        }
+    }, [API_URL, billingSyncLoading]);
+
+    const handleSyncBillings = async (event) => {
+        event.preventDefault();
+        await syncBillings();
     };
 
     const handleUploadBillings = async (event) => {
@@ -198,9 +254,15 @@ export default function ReportsPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-            <div className="hidden md:block">
-                <Sidebar />
-            </div>
+            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+            {/* Overlay for mobile when sidebar is open */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
             <DashboardNav
                 onLogout={() => {
@@ -211,6 +273,7 @@ export default function ReportsPage() {
                 }}
                 accountId="ADMIN"
                 classification="ADMIN"
+                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
 
             <div className="flex flex-1 md:ml-64">
@@ -294,6 +357,18 @@ export default function ReportsPage() {
                             buttonLabel="Sync Payments"
                             status={syncStatus}
                             error={syncError}
+                            showFileInput={false}
+                        />
+
+                        <UploadCard
+                            title="Sync FoxPro Billings (DBF)"
+                            description="Manual sync from BILLING.DBF. Uses latest DATETO per account to accept new rows."
+                            onSubmit={handleSyncBillings}
+                            loading={billingSyncLoading}
+                            loadingLabel="Syncing..."
+                            buttonLabel="Sync Billings"
+                            status={billingSyncStatus}
+                            error={billingSyncError}
                             showFileInput={false}
                         />
 

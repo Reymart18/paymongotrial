@@ -17,6 +17,7 @@ export default function AdminDashboard() {
     const [activityItems, setActivityItems] = useState([]);
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityError, setActivityError] = useState('');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -176,14 +177,21 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-            <div className="hidden md:block">
-                <Sidebar />
-            </div>
+            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+            {/* Overlay for mobile when sidebar is open */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
             <DashboardNav
                 onLogout={handleLogout}
                 accountId="ADMIN"
                 classification="ADMIN"
+                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
 
             <div className="flex flex-1 md:ml-64">

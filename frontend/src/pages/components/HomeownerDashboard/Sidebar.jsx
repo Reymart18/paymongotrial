@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logoImg from '../../../images/pvhai.png';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onToggle }) {
     const [activeItem, setActiveItem] = useState('dashboard');
     const navigate = useNavigate();
     const location = useLocation();
@@ -21,9 +21,22 @@ export default function Sidebar() {
     }, [location.pathname]);
 
     return (
-        <aside className="fixed left-0 top-0 h-screen w-64 z-40 rounded-r-[40px]"
+        <aside className={`fixed left-0 top-0 h-screen w-64 z-40 rounded-r-[40px] transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
             style={{ backgroundColor: 'rgba(232, 155, 88, 0.97)' }}>
             <div className="p-6">
+                {/* Close button for mobile */}
+                {onToggle && (
+                    <button
+                        onClick={onToggle}
+                        className="md:hidden absolute top-4 right-4 text-white hover:bg-white/10 p-2 rounded-lg transition"
+                        aria-label="Close sidebar"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                )}
+
                 <div className="mb-8">
                     <img src={logoImg} alt="PV Hai" className="h-20 w-auto" />
                 </div>
@@ -36,7 +49,7 @@ export default function Sidebar() {
                             navigate(role === 'admin' ? '/admin/dashboard' : '/homeowner/dashboard');
                         }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'dashboard'
-                            ? 'bg-white text-[#8C4100] rounded-l-[40px] -mr-7 pr-20'
+                            ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
                             : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                     >
@@ -63,7 +76,7 @@ export default function Sidebar() {
                                 navigate('/admin/members');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'members'
-                                ? 'bg-white text-[#8C4100] rounded-l-[40px] -mr-7 pr-20'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
                                 : 'text-white/70 hover:bg-white/10 hover:text-white'
                                 }`}
                         >
@@ -90,7 +103,7 @@ export default function Sidebar() {
                             navigate('/announcements');
                         }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'announcements'
-                            ? 'bg-white text-[#8C4100] rounded-l-[40px] -mr-7 pr-20'
+                            ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
                             : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                     >
@@ -117,7 +130,7 @@ export default function Sidebar() {
                                 navigate('/admin/reports');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'reports'
-                                ? 'bg-white text-[#8C4100] rounded-l-[40px] -mr-7 pr-20'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
                                 : 'text-white/70 hover:bg-white/10 hover:text-white'
                                 }`}
                         >

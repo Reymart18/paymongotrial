@@ -188,8 +188,16 @@ export default function DashboardCards({ account, statementRows }) {
         : 0;
     const recentPaymentDescription = latestPaymentRow?.description || '';
 
+    const paymentRowsForYear = paymentRows.filter(
+        (row) => getRowYear(row) === selectedBillingYear,
+    );
+    const totalPayments = paymentRowsForYear.reduce(
+        (sum, row) => sum + Number(row.amountPaid || 0),
+        0,
+    );
+
     // Calculate total outstanding (all unpaid charges)
-    const totalOutstanding = currentBillingCharges + carryingBalanceTotal;
+    const totalOutstanding = currentBillingCharges + carryingBalanceTotal - totalPayments;
 
     const cards = [
         {

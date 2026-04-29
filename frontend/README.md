@@ -131,3 +131,10 @@ I changed the logic so any previous value <= 0 returns N/A for the comparison. T
 Auto-syncs from payments.DBF every 60 seconds. Uses ORNO to prevent duplicates.
 
 Use toast message
+
+##autosync billing
+It still applies. The interval controls how often the autosync checks the DBF’s last modified time. If the file hasn’t changed, it skips the actual sync, but the check still runs every 60 seconds. If you want fewer checks, increase the interval value. Very minimal. It only does a filesystem stat check every 60 seconds, not a DBF parse or DB write unless the file’s modified time changed. If you want to reduce even that small check, increase FOXPRO_BILLINGS_SYNC_INTERVAL_MS (e.g., 300000 for 5 minutes).
+
+fix the tsconfig.json baseUrl error
+
+break them into components

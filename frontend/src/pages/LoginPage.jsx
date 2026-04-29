@@ -120,14 +120,23 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="h-screen w-full bg-[#E89B58] flex">
+        <div className="h-screen w-full bg-[#E89B58] flex relative">
+            {/* Home Button */}
+            <button
+                onClick={() => navigate('/')}
+                className="fixed top-0 right-0 rounded-bl-2xl bg-[#FFFAFA]/70 px-6 py-3 text-sm font-semibold text-[#363232] shadow-lg transition hover:py-5 hover:shadow-xl z-50"
+                aria-label="Go back to home"
+            >
+                Home
+            </button>
+
             <div className="flex w-full h-screen">
                 {/* Left Panel - Image */}
-                <div className="hidden w-1/2 lg:flex overflow-hidden h-screen">
+                <div className="hidden w-1/2 lg:flex overflow-hidden h-screen -mt-[0.5%]">
                     <img
                         src={login1Image}
                         alt="Login"
-                        className="w-full h-full object-fill"
+                        className="w-full h-[105%] object-fill"
                     />
                 </div>
 

@@ -37,6 +37,7 @@ export default function MembersPage() {
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const getRowYear = (row) => {
         const dateValue = row?.dateTo || row?.dateFrom || row?.date;
@@ -645,15 +646,22 @@ export default function MembersPage() {
     return (
         <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFFAFA' }}>
             {/* Sidebar */}
-            <div className="hidden md:block">
-                <Sidebar />
-            </div>
+            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+            {/* Overlay for mobile when sidebar is open */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
             {/* Header Nav */}
             <DashboardNav
                 onLogout={handleLogout}
                 accountId="ADMIN"
                 classification="ADMIN"
+                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
 
             {/* Main Content */}

@@ -1,14 +1,44 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import avatarImg from '../../../images/avatar.png';
 
-export default function DashboardNav({ onLogout, onProfile, accountId, classification }) {
+export default function DashboardNav({ onLogout, onProfile, accountId, classification, onSidebarToggle }) {
     const [showProfileDropdown, setShowProfileDropdown] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Determine the current page title based on location
+    const getPageTitle = () => {
+        if (location.pathname.includes('reports')) {
+            return 'Reports';
+        } else if (location.pathname.includes('members')) {
+            return 'Members';
+        } else if (location.pathname.includes('announcements')) {
+            return 'Announcements';
+        } else {
+            return 'Dashboard';
+        }
+    };
+
+    const pageTitle = getPageTitle();
 
     return (
         <nav className="flex items-center justify-between bg-transparent px-6 py-4 md:ml-64">
-            <h1 className="text-lg md:text-xl font-bold text-slate-900">Dashboard</h1>
+            <div className="flex items-center gap-4">
+                {/* Hamburger Menu Button - Mobile Only */}
+                {onSidebarToggle && (
+                    <button
+                        onClick={onSidebarToggle}
+                        className="md:hidden text-slate-900 hover:bg-slate-100 p-2 rounded-lg transition"
+                        aria-label="Toggle sidebar"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                )}
+                <h1 className="text-lg md:text-xl font-bold text-slate-900">{pageTitle}</h1>
+            </div>
 
             <div className="flex items-center gap-3 md:gap-6">
                 {/* Notification Bell */}
@@ -61,15 +91,6 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                     {/* Dropdown Menu */}
                     {showProfileDropdown && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
-                            <button
-                                onClick={() => {
-                                    setShowProfileDropdown(false);
-                                    navigate('/homeowner/profile');
-                                }}
-                                className="w-full text-left px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-50 border-b border-slate-200 transition"
-                            >
-                                Profile
-                            </button>
                             <button
                                 onClick={() => {
                                     setShowProfileDropdown(false);

@@ -11,10 +11,15 @@ export default function StatementSection({
 }) {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
-    const totalPages = Math.ceil(statementRows.length / itemsPerPage);
+    const sortedRows = [...statementRows].sort((a, b) => {
+        const dateA = new Date(a?.date || a?.dateTo || a?.dateFrom || 0).getTime();
+        const dateB = new Date(b?.date || b?.dateTo || b?.dateFrom || 0).getTime();
+        return dateB - dateA;
+    });
+    const totalPages = Math.ceil(sortedRows.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const paginatedRows = statementRows.slice(startIndex, endIndex);
+    const paginatedRows = sortedRows.slice(startIndex, endIndex);
     return (
         <div className={`rounded-2xl border border-slate-200 bg-[#E89B58]/30 p-6 shadow-sm ${className}`}>
             <div className="flex flex-wrap items-center justify-between gap-4">

@@ -125,6 +125,16 @@ export class FoxproService {
         return this.savePaymentRecords(records);
     }
 
+    async syncBillingsFromDbf(filePath?: string) {
+        const dbfPath = filePath ?? this.getBillingsDbfPath();
+        if (!fs.existsSync(dbfPath)) {
+            throw new BadRequestException(`billing.dbf not found at ${dbfPath}`);
+        }
+
+        const records = await this.parseBillingDbf(dbfPath);
+        return this.saveBillingRecords(records);
+    }
+
     async syncPaymentsFromDbf(filePath?: string) {
         const dbfPath = filePath ?? this.getPaymentsDbfPath();
         if (!fs.existsSync(dbfPath)) {
@@ -171,6 +181,21 @@ export class FoxproService {
         while (records.length > 0) {
             records.forEach((row) => {
                 rows.push(this.normalizePaymentRecord(row as Record<string, unknown>));
+            });
+            records = await dbf.readRecords(500);
+        }
+
+        return rows;
+    }
+
+    private async parseBillingDbf(filePath: string): Promise<FoxproBillingRecord[]> {
+        const dbf = await DBFFile.open(filePath, { encoding: 'latin1' });
+        const rows: FoxproBillingRecord[] = [];
+        let records = await dbf.readRecords(500);
+
+        while (records.length > 0) {
+            records.forEach((row) => {
+                rows.push(this.normalizeBillingRecord(row as Record<string, unknown>));
             });
             records = await dbf.readRecords(500);
         }
@@ -408,12 +433,177 @@ export class FoxproService {
         return result;
     }
 
+    private async saveBillingRecords(records: FoxproBillingRecord[]) {
+        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
+        const startDate = this.getBillingsStartDate();
+
+        await this.dataSource.transaction(async (manager) => {
+            const billingRepo = manager.getRepository(FoxproBilling);
+            const propertyRepo = manager.getRepository(PropertyAccount);
+
+            const prepared: Array<{ record: FoxproBillingRecord; row: number }> = [];
+            const accountIds = new Set<string>();
+
+            for (let index = 0; index < records.length; index += 1) {
+                const record = records[index];
+                const row = index + 1;
+
+                if (!record.accountId || !record.dueDate || !record.dateTo) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Missing accountId, dueDate, or dateTo`);
+                    continue;
+                }
+
+                if (startDate && record.dateFrom && record.dateFrom < startDate) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                prepared.push({ record, row });
+                accountIds.add(record.accountId);
+            }
+
+            const accountIdList = Array.from(accountIds);
+            const accounts = accountIdList.length
+                ? await propertyRepo.find({ where: { accountId: In(accountIdList) } })
+                : [];
+            const accountMap = new Map(accounts.map((account) => [account.accountId ?? '', account]));
+
+            const latestDateToRows = accountIdList.length
+                ? await billingRepo
+                    .createQueryBuilder('billing')
+                    .select('billing.accountId', 'accountId')
+                    .addSelect('MAX(billing.dateTo)', 'latestDateTo')
+                    .where('billing.accountId IN (:...accountIds)', { accountIds: accountIdList })
+                    .groupBy('billing.accountId')
+                    .getRawMany<{ accountId: string; latestDateTo: Date | string | null }>()
+                : [];
+            const latestDateToMap = new Map(
+                latestDateToRows.map((row) => [
+                    row.accountId,
+                    row.latestDateTo ? new Date(row.latestDateTo) : null,
+                ]),
+            );
+
+            const existingDueDateRows = accountIdList.length
+                ? await billingRepo
+                    .createQueryBuilder('billing')
+                    .select('billing.accountId', 'accountId')
+                    .addSelect('billing.dueDate', 'dueDate')
+                    .where('billing.accountId IN (:...accountIds)', { accountIds: accountIdList })
+                    .getRawMany<{ accountId: string; dueDate: Date | string | null }>()
+                : [];
+            const existingKeys = new Set(
+                existingDueDateRows
+                    .map((row) => {
+                        const dueDateKey = this.toDateKey(row.dueDate);
+                        return dueDateKey ? `${row.accountId}-${dueDateKey}` : null;
+                    })
+                    .filter((value): value is string => Boolean(value)),
+            );
+
+            for (const entry of prepared) {
+                const record = entry.record;
+                const dueDate = record.dueDate ?? null;
+                if (!accountMap.has(record.accountId)) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${entry.row}: accountId not found (${record.accountId})`);
+                    continue;
+                }
+
+                if (!dueDate) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${entry.row}: Missing dueDate`);
+                    continue;
+                }
+
+                const latestDateTo = latestDateToMap.get(record.accountId) ?? null;
+                if (latestDateTo && record.dateTo && record.dateTo <= latestDateTo) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                const payload = {
+                    accountId: record.accountId,
+                    billDate: record.billDate ?? undefined,
+                    dateFrom: record.dateFrom ?? undefined,
+                    dateTo: record.dateTo ?? undefined,
+                    dueDate,
+                    prinBal: record.prinBal,
+                    intBal: record.intBal,
+                    penBal: record.penBal,
+                    prinCurr: record.prinCurr,
+                    intCurr: record.intCurr,
+                    penCurr: record.penCurr,
+                    duesRate: record.duesRate,
+                };
+
+                const key = `${record.accountId}-${this.toDateKey(dueDate)}`;
+                const isExisting = existingKeys.has(key);
+                await billingRepo
+                    .createQueryBuilder()
+                    .insert()
+                    .into(FoxproBilling)
+                    .values(payload)
+                    .orUpdate(
+                        [
+                            'billDate',
+                            'dateFrom',
+                            'dateTo',
+                            'prinBal',
+                            'intBal',
+                            'penBal',
+                            'prinCurr',
+                            'intCurr',
+                            'penCurr',
+                            'duesRate',
+                        ],
+                        ['accountId', 'dueDate'],
+                    )
+                    .updateEntity(false)
+                    .execute();
+                if (isExisting) {
+                    result.updated += 1;
+                } else {
+                    result.inserted += 1;
+                    existingKeys.add(key);
+                }
+            }
+        });
+
+        if (result.inserted + result.updated > 0) {
+            await this.propertyService.recalculateBalances();
+        }
+
+        return result;
+    }
+
     private getPaymentsDbfPath(): string {
         if (process.env.FOXPRO_PAYMENTS_DBF_PATH) {
             return process.env.FOXPRO_PAYMENTS_DBF_PATH;
         }
 
         return path.resolve('C:/parkplacevillagesystemPayments/payments.dbf');
+    }
+
+    private getBillingsDbfPath(): string {
+        if (process.env.FOXPRO_BILLINGS_DBF_PATH) {
+            return process.env.FOXPRO_BILLINGS_DBF_PATH;
+        }
+
+        return path.resolve('C:/Users/CLienT/Documents/hoaportal/BILLING.DBF');
+    }
+
+    private getBillingsStartDate(): Date | null {
+        const configured = process.env.FOXPRO_BILLINGS_START_DATE;
+        if (configured) {
+            const parsed = new Date(`${configured}T00:00:00.000Z`);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+
+        return null;
     }
 
     private getPaymentsCutoffDate(): Date {
@@ -460,7 +650,10 @@ export class FoxproService {
             return null;
         }
 
-        return date.toISOString().slice(0, 10);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     private normalizeKeys(raw: Record<string, unknown>): Record<string, unknown> {

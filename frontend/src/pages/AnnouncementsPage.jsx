@@ -14,6 +14,7 @@ export default function AnnouncementsPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [account, setAccount] = useState(null);
     const [accountId, setAccountId] = useState('');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [newAnnouncement, setNewAnnouncement] = useState({
         title: '',
         content: '',
@@ -286,14 +287,21 @@ export default function AnnouncementsPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-            <div className="hidden md:block">
-                <Sidebar />
-            </div>
+            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+            {/* Overlay for mobile when sidebar is open */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
             <DashboardNav
                 onLogout={handleLogout}
                 accountId={accountId}
                 classification={isAdmin ? 'ADMIN' : (account?.classification || 'Loading...')}
+                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
 
             <div className="flex flex-1 md:ml-64">
