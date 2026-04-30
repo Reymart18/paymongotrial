@@ -63,10 +63,10 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                 <img src={avatarImg} alt="Avatar" className="h-8 w-8 md:h-10 md:w-10 rounded-full" />
 
                 {/* Profile Section */}
-                <div className="relative">
+                <div className="relative -ml-1 md:-ml-6">
                     <button
                         onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                        className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 rounded-lg hover:bg-slate-100 transition"
+                        className="flex items-center gap-2 md:gap-3  px-2 md:px-4 py-2 rounded-lg hover:bg-slate-100 transition"
                     >
                         <div className="flex flex-col items-end hidden md:flex">
                             <p className="text-sm font-semibold text-slate-900">{accountId}</p>
@@ -91,6 +91,17 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                     {/* Dropdown Menu */}
                     {showProfileDropdown && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
+                            {onProfile && (
+                                <button
+                                    onClick={() => {
+                                        setShowProfileDropdown(false);
+                                        onProfile();
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition border-b border-slate-100"
+                                >
+                                    Profile
+                                </button>
+                            )}
                             <button
                                 onClick={() => {
                                     setShowProfileDropdown(false);

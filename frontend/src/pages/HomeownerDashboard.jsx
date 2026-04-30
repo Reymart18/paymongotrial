@@ -153,6 +153,7 @@ export default function HomeownerDashboard() {
             {/* Header Navigation */}
             <DashboardNav
                 onLogout={handleLogout}
+                onProfile={() => navigate('/homeowner/profile', { state: { accountId, classification: account?.classification } })}
                 accountId={accountId}
                 classification={account?.classification || 'Loading...'}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
