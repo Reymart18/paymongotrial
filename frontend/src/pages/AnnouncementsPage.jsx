@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
+import pvhaiImg from '../images/pvhai.png';
 
 export default function AnnouncementsPage() {
     const navigate = useNavigate();
@@ -21,7 +22,8 @@ export default function AnnouncementsPage() {
     });
 
     const role = localStorage.getItem('userRole');
-    const isAdmin = role === 'admin';
+    const isAdmin = role === 'admin' || role === 'super_admin';
+    const adminLabel = role === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
     // Fetch announcements
@@ -91,7 +93,7 @@ export default function AnnouncementsPage() {
         }
 
         if (isAdmin) {
-            setAccountId('ADMIN');
+            setAccountId(adminLabel);
             return;
         }
 
@@ -300,8 +302,9 @@ export default function AnnouncementsPage() {
             <DashboardNav
                 onLogout={handleLogout}
                 accountId={accountId}
-                classification={isAdmin ? 'ADMIN' : (account?.classification || 'Loading...')}
+                classification={isAdmin ? adminLabel : (account?.classification || 'Loading...')}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+                avatarImage={isAdmin ? pvhaiImg : undefined}
             />
 
             <div className="flex flex-1 md:ml-64">

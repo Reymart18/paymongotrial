@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ReportsPage from './pages/ReportsPage';
 import MembersPage from './pages/MembersPage';
+import EmployeesPage from './pages/EmployeesPage';
 import HomeownerDashboard from './pages/HomeownerDashboard';
 import ChangePassword from './pages/ChangePassword';
 import SOAPreview from './pages/SOAPreview';
@@ -22,8 +23,18 @@ function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to="/login" replace />;
+  if (requiredRole) {
+    const allowedRoles = Array.isArray(requiredRole)
+      ? [...requiredRole]
+      : [requiredRole];
+
+    if (allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
+      allowedRoles.push('super_admin');
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return children;
@@ -61,6 +72,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <MembersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/employees"
+          element={
+            <ProtectedRoute requiredRole="super_admin">
+              <EmployeesPage />
             </ProtectedRoute>
           }
         />

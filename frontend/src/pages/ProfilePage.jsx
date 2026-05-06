@@ -12,7 +12,7 @@ const propertyDetails = [
     { label: 'Lot', value: '4' },
     { label: 'Member Name', value: 'CASTRO, GLENN' },
     { label: 'Property Size (sqm)', value: '232.39' },
-    { label: 'Classification', value: 'LOT OWNER' },
+    { label: 'Classification', value: 'LOT OWNER' },    
 ];
 
 export default function ProfilePage() {

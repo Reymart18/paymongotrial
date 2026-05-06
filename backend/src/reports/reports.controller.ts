@@ -22,7 +22,7 @@ export class ReportsController {
         @Query('quarter') quarter: string,
         @Request() req: AuthenticatedRequest,
     ): Promise<QuarterReport | { message: string }> {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can access reports');
         }
 

@@ -4,6 +4,7 @@ import AdminDashboardCards from './components/AdminDashboard/AdminDashboardCards
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
+import pvhaiImg from '../images/pvhai.png';
 
 export default function AdminDashboard() {
     const [summary, setSummary] = useState({
@@ -21,12 +22,14 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const userRole = localStorage.getItem('userRole');
+    const adminLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
 
     useEffect(() => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
 
-        if (!token || role !== 'admin') {
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
             navigate('/login');
             return;
         }
@@ -86,7 +89,7 @@ export default function AdminDashboard() {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
 
-        if (!token || role !== 'admin') {
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
             return;
         }
 
@@ -175,6 +178,7 @@ export default function AdminDashboard() {
     };
 
 
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
             <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
@@ -189,9 +193,10 @@ export default function AdminDashboard() {
 
             <DashboardNav
                 onLogout={handleLogout}
-                accountId="ADMIN"
-                classification="ADMIN"
+                accountId={adminLabel}
+                classification={adminLabel}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+                avatarImage={pvhaiImg}
             />
 
             <div className="flex flex-1 md:ml-64">

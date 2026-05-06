@@ -45,7 +45,7 @@ export class StatementsController {
             throw new ForbiddenException('You can only access your own statement');
         }
 
-        if (req.user.role !== 'homeowner' && req.user.role !== 'admin') {
+        if (req.user.role !== 'homeowner' && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('You are not allowed to access this resource');
         }
 

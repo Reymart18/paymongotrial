@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
+import pvhaiImg from '../images/pvhai.png';
 
 export default function MembersPage() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +38,9 @@ export default function MembersPage() {
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const userRole = localStorage.getItem('userRole');
+    const isSuperAdmin = userRole === 'super_admin';
+    const adminLabel = isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN';
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const getRowYear = (row) => {
@@ -386,6 +390,9 @@ export default function MembersPage() {
     };
 
     const startEditing = (account) => {
+        if (!isSuperAdmin) {
+            return;
+        }
         setEditingAccountId(account.accountId);
         setEditError('');
         setEditStatus('');
@@ -399,6 +406,9 @@ export default function MembersPage() {
     };
 
     const handleDeleteAccount = async (accountId) => {
+        if (!isSuperAdmin) {
+            return;
+        }
         const confirmed = window.confirm(
             `Delete property account ${accountId}? This will remove related billing and payment records.`,
         );
@@ -443,6 +453,9 @@ export default function MembersPage() {
     };
 
     const handleResetPassword = async (accountId) => {
+        if (!isSuperAdmin) {
+            return;
+        }
         const confirmed = window.confirm(
             `Reset password for account ${accountId} to ${accountId}?`,
         );
@@ -542,7 +555,7 @@ export default function MembersPage() {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
 
-        if (!token || role !== 'admin') {
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
             navigate('/login');
             return;
         }
@@ -659,9 +672,10 @@ export default function MembersPage() {
             {/* Header Nav */}
             <DashboardNav
                 onLogout={handleLogout}
-                accountId="ADMIN"
-                classification="ADMIN"
+                accountId={adminLabel}
+                classification={adminLabel}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+                avatarImage={pvhaiImg}
             />
 
             {/* Main Content */}
@@ -870,41 +884,45 @@ export default function MembersPage() {
                                                             </div>
                                                         </td>
                                                         <td className="px-2 md:px-4 py-2 md:py-4 text-xs md:text-sm text-center">
-                                                            <div className="flex gap-0.5 items-center justify-center">
-                                                                <button
-                                                                    onClick={() => startEditing(account)}
-                                                                    className="text-[#E89B58] hover:text-[#d88a47] transition p-1"
-                                                                    title="Edit"
-                                                                >
-                                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                            strokeWidth={2}
-                                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                                        />
-                                                                    </svg>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteAccount(account.accountId)}
-                                                                    className="text-red-500 hover:text-red-700 transition p-1"
-                                                                    title="Delete"
-                                                                >
-                                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                            strokeWidth={2}
-                                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                                                        />
-                                                                    </svg>
-                                                                </button>
-                                                            </div>
+                                                            {isSuperAdmin ? (
+                                                                <div className="flex gap-0.5 items-center justify-center">
+                                                                    <button
+                                                                        onClick={() => startEditing(account)}
+                                                                        className="text-[#E89B58] hover:text-[#d88a47] transition p-2"
+                                                                        title="Edit"
+                                                                    >
+                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                strokeWidth={2}
+                                                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                            />
+                                                                        </svg>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDeleteAccount(account.accountId)}
+                                                                        className="text-red-500 hover:text-red-700 transition p-2"
+                                                                        title="Delete"
+                                                                    >
+                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                strokeWidth={2}
+                                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                                            />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-xs text-slate-400">View only</span>
+                                                            )}
                                                         </td>
                                                     </tr>
 
                                                     {/* Edit Form Row */}
-                                                    {editingAccountId === account.accountId && (
+                                                    {isSuperAdmin && editingAccountId === account.accountId && (
                                                         <tr className="bg-slate-50">
                                                             <td colSpan="10" className="px-4 py-4">
                                                                 <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

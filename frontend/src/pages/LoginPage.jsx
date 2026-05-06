@@ -54,7 +54,7 @@ export default function LoginPage() {
             // Store JWT token
             if (data.access_token) {
                 localStorage.setItem('token', data.access_token);
-                localStorage.setItem('userRole', 'admin');
+                localStorage.setItem('userRole', data.role || 'admin');
                 navigate('/admin/dashboard');
             }
         } catch (err) {

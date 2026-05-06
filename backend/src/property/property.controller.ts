@@ -50,7 +50,7 @@ export class PropertyController {
         @Request() req: AuthenticatedRequest,
     ) {
         // Allow admins to inspect any account; homeowners can only access their own.
-        if (req.user.role !== 'homeowner' && req.user.role !== 'admin') {
+        if (req.user.role !== 'homeowner' && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only homeowners or admins can access this resource');
         }
 
@@ -70,7 +70,7 @@ export class PropertyController {
     @UseGuards(JwtAuthGuard)
     @Post('recalculate-balances')
     async recalculateBalances(@Request() req: AuthenticatedRequest) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can recalculate balances');
         }
 

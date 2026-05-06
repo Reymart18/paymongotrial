@@ -52,7 +52,7 @@ export class FoxproController {
         @UploadedFile() file: Express.Multer.File,
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can upload FoxPro billings');
         }
 
@@ -91,7 +91,7 @@ export class FoxproController {
         @UploadedFile() file: Express.Multer.File,
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can upload FoxPro payments');
         }
 
@@ -110,7 +110,7 @@ export class FoxproController {
     @UseGuards(JwtAuthGuard)
     @Post('payments/sync')
     async syncPayments(@Request() req: AuthenticatedRequest) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can sync FoxPro payments');
         }
 
@@ -129,7 +129,7 @@ export class FoxproController {
     @UseGuards(JwtAuthGuard)
     @Post('billings/sync')
     async syncBillings(@Request() req: AuthenticatedRequest) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can sync FoxPro billings');
         }
 

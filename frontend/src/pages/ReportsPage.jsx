@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import UploadCard from './components/AdminDashboard/UploadCard';
+import pvhaiImg from '../images/pvhai.png';
 
 const quarterOptions = [
     { value: 1, label: 'Q1 (Jan - Mar)' },
@@ -14,6 +15,8 @@ const quarterOptions = [
 export default function ReportsPage() {
     const navigate = useNavigate();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const userRole = localStorage.getItem('userRole');
+    const adminLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
 
     const today = new Date();
     const defaultYear = today.getFullYear();
@@ -212,7 +215,7 @@ export default function ReportsPage() {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
 
-        if (!token || role !== 'admin') {
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
             navigate('/login');
             return;
         }
@@ -271,8 +274,8 @@ export default function ReportsPage() {
                     localStorage.removeItem('accountId');
                     navigate('/login');
                 }}
-                accountId="ADMIN"
-                classification="ADMIN"
+                accountId={adminLabel}
+                classification={adminLabel}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
 

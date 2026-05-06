@@ -38,7 +38,7 @@ export class AnnouncementsController {
         @Body() body: { title: string; content: string },
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can create announcements');
         }
 
@@ -56,7 +56,7 @@ export class AnnouncementsController {
         @Body() body: { title: string; content: string },
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can edit announcements');
         }
 
@@ -73,7 +73,7 @@ export class AnnouncementsController {
         @Param('id') id: string,
         @Request() req: AuthenticatedRequest,
     ): Promise<{ message: string }> {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can delete announcements');
         }
 

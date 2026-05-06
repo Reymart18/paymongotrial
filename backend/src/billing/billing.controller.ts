@@ -48,7 +48,7 @@ export class BillingController {
         @UploadedFile() file: Express.Multer.File,
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can upload billings');
         }
 

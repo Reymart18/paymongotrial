@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import avatarImg from '../../../images/avatar.png';
 
-export default function DashboardNav({ onLogout, onProfile, accountId, classification, onSidebarToggle }) {
+export default function DashboardNav({ onLogout, onProfile, accountId, classification, onSidebarToggle, avatarImage }) {
     const [showProfileDropdown, setShowProfileDropdown] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const displayAvatar = avatarImage || avatarImg;
 
     // Determine the current page title based on location
     const getPageTitle = () => {
@@ -13,6 +14,8 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
             return 'Reports';
         } else if (location.pathname.includes('members')) {
             return 'Members';
+        } else if (location.pathname.includes('employees')) {
+            return 'Employees';
         } else if (location.pathname.includes('announcements')) {
             return 'Announcements';
         } else {
@@ -60,7 +63,7 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                 </button>
 
                 {/* Avatar */}
-                <img src={avatarImg} alt="Avatar" className="h-8 w-8 md:h-10 md:w-10 rounded-full" />
+                <img src={displayAvatar} alt="Avatar" className="h-8 w-8 md:h-10 md:w-10 rounded-full" />
 
                 {/* Profile Section */}
                 <div className="relative -ml-1 md:-ml-6">

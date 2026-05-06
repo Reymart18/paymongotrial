@@ -7,12 +7,16 @@ export default function Sidebar({ isOpen = false, onToggle }) {
     const navigate = useNavigate();
     const location = useLocation();
     const role = localStorage.getItem('userRole');
+    const isAdmin = role === 'admin' || role === 'super_admin';
+    const isSuperAdmin = role === 'super_admin';
 
     useEffect(() => {
         if (location.pathname.includes('reports')) {
             setActiveItem('reports');
         } else if (location.pathname.includes('members')) {
             setActiveItem('members');
+        } else if (location.pathname.includes('employees')) {
+            setActiveItem('employees');
         } else if (location.pathname.includes('announcements')) {
             setActiveItem('announcements');
         } else {
@@ -46,7 +50,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         href="#"
                         onClick={() => {
                             setActiveItem('dashboard');
-                            navigate(role === 'admin' ? '/admin/dashboard' : '/homeowner/dashboard');
+                            navigate(isAdmin ? '/admin/dashboard' : '/homeowner/dashboard');
                         }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'dashboard'
                             ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
@@ -68,7 +72,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         <span className="font-medium">Dashboard</span>
                     </a>
 
-                    {role === 'admin' && (
+                    {isAdmin && (
                         <a
                             href="#"
                             onClick={() => {
@@ -93,6 +97,34 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 />
                             </svg>
                             <span className="font-medium">Members</span>
+                        </a>
+                    )}
+
+                    {isSuperAdmin && (
+                        <a
+                            href="#"
+                            onClick={() => {
+                                setActiveItem('employees');
+                                navigate('/admin/employees');
+                            }}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'employees'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
+                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            <svg
+                                className={`w-5 h-5 flex-shrink-0 ${activeItem === 'employees' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0m-9.288 0a3 3 0 10-4.712 0m14 0a3 3 0 10-4.712 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                            </svg>
+                            <span className="font-medium">Employees</span>
                         </a>
                     )}
 
@@ -122,7 +154,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         <span className="font-medium">Announcements</span>
                     </a>
 
-                    {role === 'admin' && (
+                    {isAdmin && (
                         <a
                             href="#"
                             onClick={() => {

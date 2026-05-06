@@ -35,16 +35,27 @@ export class AdminController {
         private propertyService: PropertyService,
     ) { }
 
+    @UseGuards(JwtAuthGuard)
     @Post('create')
     async createAdmin(
         @Body() body: { username: string; password: string; fullName: string; role?: string },
+        @Request() req: AuthenticatedRequest,
     ) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can create admin accounts');
+        }
+
+        const requestedRole = body.role || 'admin';
+        if (requestedRole !== 'admin' && requestedRole !== 'super_admin') {
+            throw new BadRequestException('Invalid role value');
+        }
+
         try {
             const admin = await this.adminService.createAdmin(
                 body.username,
                 body.password,
                 body.fullName,
-                body.role || 'admin',
+                requestedRole,
             );
             const { password, ...result } = admin;
             return result;
@@ -53,8 +64,13 @@ export class AdminController {
         }
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get()
-    async getAllAdmins() {
+    async getAllAdmins(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can access admin accounts');
+        }
+
         const admins = await this.adminService.getAllAdmins();
         return admins.map(({ password, ...admin }) => admin);
     }
@@ -62,7 +78,7 @@ export class AdminController {
     @UseGuards(JwtAuthGuard)
     @Get('property-accounts')
     async getAllPropertyAccounts(@Request() req: AuthenticatedRequest) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can access this resource');
         }
 
@@ -73,7 +89,7 @@ export class AdminController {
     @UseGuards(JwtAuthGuard)
     @Get('dashboard-summary')
     async getDashboardSummary(@Request() req: AuthenticatedRequest) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can access this resource');
         }
 
@@ -86,7 +102,7 @@ export class AdminController {
         @Request() req: AuthenticatedRequest,
         @Query('limit') limit?: string,
     ) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can access this resource');
         }
 
@@ -103,8 +119,8 @@ export class AdminController {
         @Body() updates: Record<string, unknown>,
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
-            throw new ForbiddenException('Only admins can access this resource');
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can update accounts');
         }
 
         const account = await this.adminService.updatePropertyAccount(accountId, updates);
@@ -126,8 +142,8 @@ export class AdminController {
         @Param('accountId') accountId: string,
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
-            throw new ForbiddenException('Only admins can access this resource');
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can delete accounts');
         }
 
         const result = await this.adminService.deletePropertyAccount(accountId);
@@ -149,8 +165,8 @@ export class AdminController {
         @Body() body: { newPassword: string },
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
-            throw new ForbiddenException('Only admins can reset passwords');
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can reset passwords');
         }
 
         const result = await this.adminService.resetPropertyAccountPassword(accountId, body.newPassword);
@@ -188,7 +204,7 @@ export class AdminController {
         @UploadedFile() file: Express.Multer.File,
         @Request() req: AuthenticatedRequest,
     ) {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can upload masterlists');
         }
 
