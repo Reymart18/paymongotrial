@@ -23,11 +23,11 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: 'localhost',
-      port: 3306,
-      username: 'hoa_user',
-      password: 'strongpassword',
-      database: 'hoa_portal',
+      host: process.env.DB_HOST || 'localhost',
+      port: Number(process.env.DB_PORT || 3306),
+      username: process.env.DB_USER || 'hoa_user',
+      password: process.env.DB_PASS || 'strongpassword',
+      database: process.env.DB_NAME || 'hoa_portal',
       entities: [
         Admin,
         AdminActivity,
