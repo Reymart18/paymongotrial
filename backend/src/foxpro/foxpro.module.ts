@@ -9,10 +9,11 @@ import { PropertyAccount } from '../property/property.entity';
 import { AuthModule } from '../auth/auth.module';
 import { PropertyModule } from '../property/property.module';
 import { AdminModule } from '../admin/admin.module';
+import { QuarterlyReportSnapshot } from '../reports/quarterly-report.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([FoxproBilling, FoxproPayment, PropertyAccount]),
+        TypeOrmModule.forFeature([FoxproBilling, FoxproPayment, PropertyAccount, QuarterlyReportSnapshot]),
         AuthModule,
         PropertyModule,
         AdminModule,

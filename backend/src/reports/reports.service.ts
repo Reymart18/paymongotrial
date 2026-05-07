@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
+import { QuarterlyReportSnapshot } from './quarterly-report.entity';
 
 export interface QuarterTotals {
     billed: number;
@@ -26,6 +27,17 @@ export interface QuarterReport {
     previousTotals: QuarterTotals;
 }
 
+export interface OverdueAccount {
+    accountId: string;
+    memberName: string | null;
+    neighborhood: string | null;
+    block: string | null;
+    lot: string | null;
+    amountDue: number;
+    lastPaymentDate: string | null;
+    latestBillingDate: string | null;
+}
+
 @Injectable()
 export class ReportsService {
     constructor(
@@ -33,15 +45,17 @@ export class ReportsService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
+        @InjectRepository(QuarterlyReportSnapshot)
+        private snapshotRepo: Repository<QuarterlyReportSnapshot>,
     ) { }
 
     async getQuarterSummary(year: number, quarter: number): Promise<QuarterReport> {
         const { startDate, endDate } = this.getQuarterRange(year, quarter);
-        const currentTotals = await this.getTotalsForRange(startDate, endDate);
+        const currentTotals = await this.getTotalsForRange(startDate, endDate, year, quarter);
 
         const { prevYear, prevQuarter } = this.getPreviousQuarter(year, quarter);
         const { startDate: prevStart, endDate: prevEnd } = this.getQuarterRange(prevYear, prevQuarter);
-        const previousTotals = await this.getTotalsForRange(prevStart, prevEnd);
+        const previousTotals = await this.getTotalsForRange(prevStart, prevEnd, prevYear, prevQuarter);
 
         return {
             period: {
@@ -60,7 +74,103 @@ export class ReportsService {
         };
     }
 
-    private async getTotalsForRange(startDate: Date, endDate: Date): Promise<QuarterTotals> {
+    async getOverdueAccounts(): Promise<OverdueAccount[]> {
+        const cutoff = new Date();
+        cutoff.setFullYear(cutoff.getFullYear() - 1);
+        const cutoffKey = cutoff.toISOString().slice(0, 10);
+
+        const latestBillingSub = this.billingRepo
+            .createQueryBuilder('billing')
+            .select('billing.accountId', 'accountId')
+            .addSelect('MAX(COALESCE(billing.dateTo, billing.dateFrom))', 'latestDate')
+            .groupBy('billing.accountId');
+
+        const rows = await this.billingRepo
+            .createQueryBuilder('billing')
+            .innerJoin(
+                `(${latestBillingSub.getQuery()})`,
+                'latest',
+                'latest.accountId = billing.accountId AND COALESCE(billing.dateTo, billing.dateFrom) = latest.latestDate',
+            )
+            .leftJoin(FoxproPayment, 'payment', 'payment.accountId = billing.accountId')
+            .leftJoin('billing.account', 'account')
+            .setParameters({
+                ...latestBillingSub.getParameters(),
+                cutoff: cutoffKey,
+            })
+            .select('billing.accountId', 'accountId')
+            .addSelect('account.memberName', 'memberName')
+            .addSelect('account.neighborhood', 'neighborhood')
+            .addSelect('account.block', 'block')
+            .addSelect('account.lot', 'lot')
+            .addSelect(
+                'COALESCE(billing.prinBal, 0) + COALESCE(billing.intBal, 0) + COALESCE(billing.penBal, 0)',
+                'previousBalance',
+            )
+            .addSelect(
+                'COALESCE(billing.prinCurr, 0) + COALESCE(billing.intCurr, 0) + COALESCE(billing.penCurr, 0)',
+                'currentCharges',
+            )
+            .addSelect(
+                'SUM(CASE WHEN payment.paymentDate <= latest.latestDate THEN payment.amountPaid ELSE 0 END)',
+                'paymentsToDate',
+            )
+            .addSelect('MAX(payment.paymentDate)', 'lastPaymentDate')
+            .addSelect('COALESCE(billing.dateTo, billing.dateFrom)', 'latestBillingDate')
+            .groupBy('billing.accountId')
+            .addGroupBy('account.memberName')
+            .addGroupBy('account.neighborhood')
+            .addGroupBy('account.block')
+            .addGroupBy('account.lot')
+            .addGroupBy('latest.latestDate')
+            .addGroupBy('billing.prinBal')
+            .addGroupBy('billing.intBal')
+            .addGroupBy('billing.penBal')
+            .addGroupBy('billing.prinCurr')
+            .addGroupBy('billing.intCurr')
+            .addGroupBy('billing.penCurr')
+            .having('MAX(payment.paymentDate) IS NULL OR MAX(payment.paymentDate) <= :cutoff')
+            .orderBy('previousBalance', 'DESC')
+            .getRawMany<{
+                accountId: string;
+                memberName: string | null;
+                neighborhood: string | null;
+                block: string | null;
+                lot: string | null;
+                previousBalance: string | number;
+                currentCharges: string | number;
+                paymentsToDate: string | number;
+                lastPaymentDate: string | null;
+                latestBillingDate: string | null;
+            }>();
+
+        return rows
+            .map((row) => {
+                const previousBalance = Number(row.previousBalance || 0);
+                const currentCharges = Number(row.currentCharges || 0);
+                const paymentsToDate = Number(row.paymentsToDate || 0);
+                const amountDue = previousBalance + currentCharges - paymentsToDate;
+
+                return {
+                    accountId: row.accountId,
+                    memberName: row.memberName,
+                    neighborhood: row.neighborhood,
+                    block: row.block,
+                    lot: row.lot,
+                    amountDue,
+                    lastPaymentDate: row.lastPaymentDate ?? null,
+                    latestBillingDate: row.latestBillingDate ?? null,
+                };
+            })
+            .filter((row) => row.amountDue > 0);
+    }
+
+    private async getTotalsForRange(
+        startDate: Date,
+        endDate: Date,
+        year: number,
+        quarter: number,
+    ): Promise<QuarterTotals> {
         const start = startDate.toISOString().slice(0, 10);
         const end = endDate.toISOString().slice(0, 10);
 
@@ -70,8 +180,8 @@ export class ReportsService {
                 'COALESCE(SUM(billing.prinCurr + billing.intCurr + billing.penCurr), 0)',
                 'total',
             )
-            .where('billing.dateFrom >= :start', { start })
-            .andWhere('billing.dateFrom <= :end', { end })
+            .where('COALESCE(billing.dateFrom, billing.dateTo) <= :end', { end })
+            .andWhere('COALESCE(billing.dateTo, billing.dateFrom) >= :start', { start })
             .getRawOne();
 
         const collectedResult = await this.paymentRepo
@@ -81,8 +191,15 @@ export class ReportsService {
             .andWhere('payment.paymentDate <= :end', { end })
             .getRawOne();
 
-        const billed = Number(billedResult?.total || 0);
+        let billed = Number(billedResult?.total || 0);
         const collected = Number(collectedResult?.total || 0);
+
+        if (billed === 0) {
+            const snapshot = await this.snapshotRepo.findOne({ where: { year, quarter } });
+            if (snapshot?.billedTotal) {
+                billed = Number(snapshot.billedTotal);
+            }
+        }
 
         return {
             billed,

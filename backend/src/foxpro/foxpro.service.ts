@@ -11,6 +11,7 @@ import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
 import { PropertyAccount } from '../property/property.entity';
 import { PropertyService } from '../property/property.service';
+import { QuarterlyReportSnapshot } from '../reports/quarterly-report.entity';
 
 interface FoxproBillingRecord {
     accountId: string;
@@ -44,6 +45,8 @@ export class FoxproService {
         private paymentRepo: Repository<FoxproPayment>,
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
+        @InjectRepository(QuarterlyReportSnapshot)
+        private snapshotRepo: Repository<QuarterlyReportSnapshot>,
         private dataSource: DataSource,
         private propertyService: PropertyService,
     ) { }
@@ -59,6 +62,9 @@ export class FoxproService {
         await this.dataSource.transaction(async (manager) => {
             const billingRepo = manager.getRepository(FoxproBilling);
             const propertyRepo = manager.getRepository(PropertyAccount);
+            const snapshotRepo = manager.getRepository(QuarterlyReportSnapshot);
+
+            await this.snapshotQuarterlyBillings(billingRepo, snapshotRepo);
 
             for (let index = 0; index < records.length; index += 1) {
                 const record = records[index];
@@ -107,6 +113,8 @@ export class FoxproService {
                     result.inserted += 1;
                 }
             }
+
+            await this.snapshotQuarterlyBillings(billingRepo, snapshotRepo);
         });
 
         if (result.inserted + result.updated > 0) {
@@ -440,6 +448,9 @@ export class FoxproService {
         await this.dataSource.transaction(async (manager) => {
             const billingRepo = manager.getRepository(FoxproBilling);
             const propertyRepo = manager.getRepository(PropertyAccount);
+            const snapshotRepo = manager.getRepository(QuarterlyReportSnapshot);
+
+            await this.snapshotQuarterlyBillings(billingRepo, snapshotRepo);
 
             const prepared: Array<{ record: FoxproBillingRecord; row: number }> = [];
             const accountIds = new Set<string>();
@@ -569,6 +580,8 @@ export class FoxproService {
                     existingKeys.add(key);
                 }
             }
+
+            await this.snapshotQuarterlyBillings(billingRepo, snapshotRepo);
         });
 
         if (result.inserted + result.updated > 0) {
@@ -616,6 +629,45 @@ export class FoxproService {
         }
 
         return new Date(Date.UTC(2025, 9, 1));
+    }
+
+    private async snapshotQuarterlyBillings(
+        billingRepo: Repository<FoxproBilling>,
+        snapshotRepo: Repository<QuarterlyReportSnapshot>,
+    ) {
+        const rows = await billingRepo
+            .createQueryBuilder('billing')
+            .select('YEAR(COALESCE(billing.dateFrom, billing.dateTo))', 'year')
+            .addSelect('QUARTER(COALESCE(billing.dateFrom, billing.dateTo))', 'quarter')
+            .addSelect(
+                'COALESCE(SUM(billing.prinCurr + billing.intCurr + billing.penCurr), 0)',
+                'total',
+            )
+            .where('COALESCE(billing.dateFrom, billing.dateTo) IS NOT NULL')
+            .groupBy('year')
+            .addGroupBy('quarter')
+            .getRawMany<{ year: number | string; quarter: number | string; total: number | string }>();
+
+        const payload = rows
+            .map((row) => ({
+                year: Number(row.year),
+                quarter: Number(row.quarter),
+                billedTotal: Number(row.total || 0),
+            }))
+            .filter((row) => row.year && row.quarter && row.billedTotal > 0);
+
+        if (!payload.length) {
+            return;
+        }
+
+        await snapshotRepo
+            .createQueryBuilder()
+            .insert()
+            .into(QuarterlyReportSnapshot)
+            .values(payload)
+            .orUpdate(['billedTotal'], ['year', 'quarter'])
+            .updateEntity(false)
+            .execute();
     }
 
     private isPaymentChanged(

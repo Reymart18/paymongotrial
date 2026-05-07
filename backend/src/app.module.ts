@@ -8,6 +8,7 @@ import { FoxproBilling } from './foxpro/foxpro-billing.entity';
 import { FoxproPayment } from './foxpro/foxpro-payment.entity';
 import { AdminActivity } from './admin/admin-activity.entity';
 import { Announcement } from './announcements/announcement.entity';
+import { QuarterlyReportSnapshot } from './reports/quarterly-report.entity';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { PropertyModule } from './property/property.module';
@@ -27,10 +28,28 @@ import { AnnouncementsModule } from './announcements/announcements.module';
       username: 'hoa_user',
       password: 'strongpassword',
       database: 'hoa_portal',
-      entities: [Admin, AdminActivity, PropertyAccount, Billing, FoxproBilling, FoxproPayment, Announcement],
+      entities: [
+        Admin,
+        AdminActivity,
+        PropertyAccount,
+        Billing,
+        FoxproBilling,
+        FoxproPayment,
+        Announcement,
+        QuarterlyReportSnapshot,
+      ],
       synchronize: true, // auto create tables
     }),
-    TypeOrmModule.forFeature([Admin, AdminActivity, PropertyAccount, Billing, FoxproBilling, FoxproPayment, Announcement]),
+    TypeOrmModule.forFeature([
+      Admin,
+      AdminActivity,
+      PropertyAccount,
+      Billing,
+      FoxproBilling,
+      FoxproPayment,
+      Announcement,
+      QuarterlyReportSnapshot,
+    ]),
     AuthModule,
     AdminModule,
     PropertyModule,

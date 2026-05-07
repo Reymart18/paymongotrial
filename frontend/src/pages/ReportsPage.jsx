@@ -38,6 +38,34 @@ export default function ReportsPage() {
     const [billingError, setBillingError] = useState('');
     const [billingLoading, setBillingLoading] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [overdueItems, setOverdueItems] = useState([]);
+    const [overdueLoading, setOverdueLoading] = useState(false);
+    const [overdueError, setOverdueError] = useState('');
+    const [showOverdueModal, setShowOverdueModal] = useState(false);
+
+    const cacheKey = 'reportsCache';
+
+    const readCache = () => {
+        try {
+            const raw = localStorage.getItem(cacheKey);
+            return raw ? JSON.parse(raw) : {};
+        } catch (err) {
+            console.error('Report cache read error:', err);
+            return {};
+        }
+    };
+
+    const writeCache = (key, value) => {
+        try {
+            const existing = readCache();
+            localStorage.setItem(cacheKey, JSON.stringify({
+                ...existing,
+                [key]: value,
+            }));
+        } catch (err) {
+            console.error('Report cache write error:', err);
+        }
+    };
 
     const formatMoney = (value) => new Intl.NumberFormat('en-PH', {
         minimumFractionDigits: 2,
@@ -211,6 +239,59 @@ export default function ReportsPage() {
         }
     };
 
+    const handleGenerateOverdue = async () => {
+        setOverdueError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setOverdueError('Session expired. Please log in again.');
+            return;
+        }
+
+        setOverdueLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/reports/overdue`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setOverdueError(data.message || 'Failed to load overdue list.');
+                return;
+            }
+
+            setOverdueItems(Array.isArray(data) ? data : []);
+            setShowOverdueModal(true);
+        } catch (err) {
+            console.error('Overdue report error:', err);
+            setOverdueError('Failed to load overdue list. Please try again.');
+        } finally {
+            setOverdueLoading(false);
+        }
+    };
+
+    const formatDate = (value) => {
+        if (!value) {
+            return '-';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '-';
+        }
+
+        return date.toLocaleDateString('en-PH');
+    };
+
+    const handlePrintOverdue = () => {
+        window.print();
+    };
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
@@ -242,6 +323,34 @@ export default function ReportsPage() {
                     return;
                 }
 
+                const periodKey = `${year}-Q${quarter}`;
+                const totalsValue = data?.totals || {};
+                const cached = readCache()[periodKey];
+
+                if (cached?.totals) {
+                    const mergedTotals = {
+                        billed: Number(totalsValue.billed || 0) === 0
+                            ? Number(cached.totals.billed || 0)
+                            : totalsValue.billed,
+                        collected: Number(totalsValue.collected || 0) === 0
+                            ? Number(cached.totals.collected || 0)
+                            : totalsValue.collected,
+                        outstanding: Number(totalsValue.outstanding || 0) === 0
+                            ? Number(cached.totals.outstanding || 0)
+                            : totalsValue.outstanding,
+                    };
+
+                    const mergedReport = {
+                        ...data,
+                        totals: mergedTotals,
+                    };
+
+                    writeCache(periodKey, mergedReport);
+                    setReport(mergedReport);
+                    return;
+                }
+
+                writeCache(periodKey, data);
                 setReport(data);
             } catch (err) {
                 console.error('Fetch report error:', err);
@@ -254,12 +363,30 @@ export default function ReportsPage() {
         fetchReport();
     }, [API_URL, navigate, quarter, year]);
 
-
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+            <style>{`
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    .print-overdue, .print-overdue * {
+                        visibility: visible;
+                    }
+                    .print-overdue {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        background: #fff;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            `}</style>
             <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-            {/* Overlay for mobile when sidebar is open */}
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/50 z-30 md:hidden"
@@ -277,6 +404,7 @@ export default function ReportsPage() {
                 accountId={adminLabel}
                 classification={adminLabel}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+                avatarImage={pvhaiImg}
             />
 
             <div className="flex flex-1 md:ml-64">
@@ -345,6 +473,33 @@ export default function ReportsPage() {
                             ))}
                         </div>
 
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <h3 className="text-base font-semibold text-slate-900">Overdue Accounts</h3>
+                                    <p className="text-xs text-slate-500">Amount due as of latest billing, no payment for 12 months.</p>
+                                </div>
+                                <button
+                                    onClick={handleGenerateOverdue}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                                    disabled={overdueLoading}
+                                >
+                                    {overdueLoading ? 'Generating...' : 'Generate Report'}
+                                </button>
+                            </div>
+                            {overdueError && (
+                                <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+                                    {overdueError}
+                                </div>
+                            )}
+                            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                <p className="text-xs text-slate-500">Total accounts</p>
+                                <p className="text-lg font-semibold text-slate-900">
+                                    {overdueItems.length}
+                                </p>
+                            </div>
+                        </div>
+
                         {error && (
                             <div className="rounded-lg border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                                 {error}
@@ -388,6 +543,87 @@ export default function ReportsPage() {
                     </div>
                 </main>
             </div>
+
+            {showOverdueModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowOverdueModal(false)} />
+                    <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl print-overdue">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Overdue Accounts</h2>
+                                <p className="text-xs text-slate-500">Amount due/excess as of latest billing, no payment for 12 months.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintOverdue}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowOverdueModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Name</th>
+                                        <th className="px-4 py-3">Address</th>
+                                        <th className="px-4 py-3">Last Payment</th>
+                                        <th className="px-4 py-3">Amount Due / Excess</th>
+                                        <th className="px-4 py-3">Current Billing</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {overdueItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="7" className="px-4 py-6 text-center text-slate-400">
+                                                No overdue accounts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {overdueItems.map((item, index) => {
+                                        const address = [item.neighborhood, item.block, item.lot]
+                                            .filter(Boolean)
+                                            .join(' ');
+                                        return (
+                                            <tr key={`${item.accountId}-${index}`}>
+                                                <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                                <td className="px-4 py-3 font-semibold text-slate-700">
+                                                    {item.accountId || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {item.memberName || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {address || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {formatDate(item.lastPaymentDate)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    PHP {formatMoney(item.amountDue || 0)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {formatDate(item.latestBillingDate)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

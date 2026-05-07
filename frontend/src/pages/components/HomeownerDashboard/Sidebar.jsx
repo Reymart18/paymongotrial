@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             }`}
                     >
                         <svg
-                            className={`w-5 h-5 flex-shrink-0 ${activeItem === 'dashboard' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                            className={`w-5 h-5 shrink-0 ${activeItem === 'dashboard' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
                             fill="none"
                             viewBox="0 0 24 24"
                         >
@@ -85,7 +85,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 }`}
                         >
                             <svg
-                                className={`w-5 h-5 flex-shrink-0 ${activeItem === 'members' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'members' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                             >
@@ -113,7 +113,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 }`}
                         >
                             <svg
-                                className={`w-5 h-5 flex-shrink-0 ${activeItem === 'employees' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'employees' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                             >
@@ -140,7 +140,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             }`}
                     >
                         <svg
-                            className={`w-5 h-5 flex-shrink-0 ${activeItem === 'announcements' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                            className={`w-5 h-5 shrink-0 ${activeItem === 'announcements' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
                             fill="none"
                             viewBox="0 0 24 24"
                         >
@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 }`}
                         >
                             <svg
-                                className={`w-5 h-5 flex-shrink-0 ${activeItem === 'reports' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'reports' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                             >

@@ -109,7 +109,7 @@ export default function LandingPage() {
                         Discover a safe, organized, and welcoming community where every home is part of
                         something bigger.
                     </p>
-                    <div className="absolute bottom-18 left-0 z-20 w-40 sm:w-40 md:w-55 transition duration-300 hover:scale-105 hover:opacity-80 hover:shadow-lg cursor-pointer">
+                    <div className="absolute bottom-20 left-0 z-20 w-40 sm:w-40 md:w-55 transition duration-300 hover:scale-105 hover:opacity-80 hover:shadow-lg cursor-pointer">
                         <img
                             src={loginImage}
                             alt="Login"

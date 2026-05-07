@@ -71,7 +71,7 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                         onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                         className="flex items-center gap-2 md:gap-3  px-2 md:px-4 py-2 rounded-lg hover:bg-slate-100 transition"
                     >
-                        <div className="flex flex-col items-end hidden md:flex">
+                        <div className=" flex-col items-end hidden md:flex">
                             <p className="text-sm font-semibold text-slate-900">{accountId}</p>
                             <p className="text-xs text-slate-500">{classification}</p>
                         </div>

@@ -449,7 +449,7 @@ export default function AnnouncementsPage() {
                             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
                                 <div className="flex items-start gap-3">
                                     <svg
-                                        className="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5"
+                                        className="w-6 h-6 text-rose-600 shrink-0 mt-0.5"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
