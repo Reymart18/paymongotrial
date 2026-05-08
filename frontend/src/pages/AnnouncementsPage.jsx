@@ -22,7 +22,8 @@ export default function AnnouncementsPage() {
     });
 
     const role = localStorage.getItem('userRole');
-    const isAdmin = role === 'admin' || role === 'super_admin';
+    const isStaff = role === 'admin' || role === 'super_admin';
+    const isSuperAdmin = role === 'super_admin';
     const adminLabel = role === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -92,7 +93,7 @@ export default function AnnouncementsPage() {
             return;
         }
 
-        if (isAdmin) {
+        if (isStaff) {
             setAccountId(adminLabel);
             return;
         }
@@ -138,7 +139,7 @@ export default function AnnouncementsPage() {
         fetchAccount();
 
         return () => controller.abort();
-    }, [API_URL, isAdmin, navigate]);
+    }, [API_URL, isStaff, navigate, adminLabel]);
 
     const formatDate = (value) => {
         if (!value) {
@@ -302,9 +303,9 @@ export default function AnnouncementsPage() {
             <DashboardNav
                 onLogout={handleLogout}
                 accountId={accountId}
-                classification={isAdmin ? adminLabel : (account?.classification || 'Loading...')}
+                classification={isStaff ? adminLabel : (account?.classification || 'Loading...')}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
-                avatarImage={isAdmin ? pvhaiImg : undefined}
+                avatarImage={isStaff ? pvhaiImg : undefined}
             />
 
             <div className="flex flex-1 md:ml-64">
@@ -318,7 +319,7 @@ export default function AnnouncementsPage() {
                                     Stay updated with the latest community news and announcements.
                                 </p>
                             </div>
-                            {isAdmin && (
+                            {isSuperAdmin && (
                                 <button
                                     onClick={() => setShowCreateForm(!showCreateForm)}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
@@ -342,7 +343,7 @@ export default function AnnouncementsPage() {
                         </div>
 
                         {/* Create/Edit Announcement Form */}
-                        {isAdmin && (showCreateForm || editingId) && (
+                        {isSuperAdmin && (showCreateForm || editingId) && (
                             <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
                                 <h2 className="text-lg font-semibold text-slate-900 mb-4">
                                     {editingId ? 'Edit Announcement' : 'Create New Announcement'}
@@ -543,7 +544,7 @@ export default function AnnouncementsPage() {
                                                     )}
                                                 </div>
                                             </div>
-                                            {isAdmin && (
+                                            {isSuperAdmin && (
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() => handleEditAnnouncement(announcement)}

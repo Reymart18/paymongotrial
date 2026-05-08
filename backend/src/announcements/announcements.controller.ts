@@ -38,8 +38,8 @@ export class AnnouncementsController {
         @Body() body: { title: string; content: string },
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
-        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-            throw new ForbiddenException('Only admins can create announcements');
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admin can create announcements');
         }
 
         return this.announcementsService.createAnnouncement(
@@ -56,8 +56,8 @@ export class AnnouncementsController {
         @Body() body: { title: string; content: string },
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
-        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-            throw new ForbiddenException('Only admins can edit announcements');
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admin can edit announcements');
         }
 
         return this.announcementsService.updateAnnouncement(
@@ -73,8 +73,8 @@ export class AnnouncementsController {
         @Param('id') id: string,
         @Request() req: AuthenticatedRequest,
     ): Promise<{ message: string }> {
-        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-            throw new ForbiddenException('Only admins can delete announcements');
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admin can delete announcements');
         }
 
         await this.announcementsService.deleteAnnouncement(parseInt(id));
