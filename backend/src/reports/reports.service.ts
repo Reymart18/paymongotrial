@@ -151,6 +151,9 @@ export class ReportsService {
                 const paymentsToDate = Number(row.paymentsToDate || 0);
                 const amountDue = previousBalance + currentCharges - paymentsToDate;
 
+                const annualCharge = this.getAnnualCharge(currentCharges);
+                const annualOk = this.isAnnualBalanceMatch(previousBalance, annualCharge);
+
                 return {
                     accountId: row.accountId,
                     memberName: row.memberName,
@@ -160,9 +163,11 @@ export class ReportsService {
                     amountDue,
                     lastPaymentDate: row.lastPaymentDate ?? null,
                     latestBillingDate: row.latestBillingDate ?? null,
+                    annualOk,
                 };
             })
-            .filter((row) => row.amountDue > 0);
+            .filter((row) => row.amountDue > 0 && row.annualOk)
+            .map(({ annualOk, ...row }) => row);
     }
 
     private async getTotalsForRange(
@@ -229,5 +234,22 @@ export class ReportsService {
         const startDate = new Date(Date.UTC(year, startMonth, 1));
         const endDate = new Date(Date.UTC(year, startMonth + 3, 0));
         return { startDate, endDate };
+    }
+
+    private getAnnualCharge(currentCharges: number): number | null {
+        if (currentCharges <= 0) {
+            return null;
+        }
+
+        return currentCharges * 12;
+    }
+
+    private isAnnualBalanceMatch(previousBalance: number, annualCharge: number | null): boolean {
+        if (!annualCharge || previousBalance <= 0) {
+            return false;
+        }
+
+        const tolerance = Math.max(annualCharge * 0.05, 1);
+        return previousBalance + tolerance >= annualCharge;
     }
 }

@@ -16,6 +16,9 @@ export class Announcement {
     @Column({ type: 'text' })
     content?: string;
 
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    image?: string | null;
+
     @Column({ type: 'varchar', length: 120, nullable: true })
     author?: string | null;
 

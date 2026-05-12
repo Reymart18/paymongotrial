@@ -38,10 +38,11 @@ export class FoxproController {
                 const allowed =
                     file.originalname.toLowerCase().endsWith('.csv') ||
                     file.originalname.toLowerCase().endsWith('.xlsx') ||
-                    file.originalname.toLowerCase().endsWith('.xls');
+                    file.originalname.toLowerCase().endsWith('.xls') ||
+                    file.originalname.toLowerCase().endsWith('.dbf');
 
                 if (!allowed) {
-                    return cb(new BadRequestException('Only CSV or XLSX files are allowed'), false);
+                    return cb(new BadRequestException('Only CSV, XLSX, or DBF files are allowed'), false);
                 }
 
                 return cb(null, true);
@@ -77,10 +78,11 @@ export class FoxproController {
                 const allowed =
                     file.originalname.toLowerCase().endsWith('.csv') ||
                     file.originalname.toLowerCase().endsWith('.xlsx') ||
-                    file.originalname.toLowerCase().endsWith('.xls');
+                    file.originalname.toLowerCase().endsWith('.xls') ||
+                    file.originalname.toLowerCase().endsWith('.dbf');
 
                 if (!allowed) {
-                    return cb(new BadRequestException('Only CSV or XLSX files are allowed'), false);
+                    return cb(new BadRequestException('Only CSV, XLSX, or DBF files are allowed'), false);
                 }
 
                 return cb(null, true);

@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { DBFFile } from 'dbffile';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import { FoxproBilling } from './foxpro-billing.entity';
@@ -164,7 +165,11 @@ export class FoxproService {
             return this.parseBillingXlsx(file.buffer);
         }
 
-        throw new BadRequestException('Unsupported file type. Use CSV or XLSX.');
+        if (fileName.endsWith('.dbf')) {
+            return this.parseDbfUpload(file.buffer, (dbfPath) => this.parseBillingDbf(dbfPath));
+        }
+
+        throw new BadRequestException('Unsupported file type. Use CSV, XLSX, or DBF.');
     }
 
     private async parsePaymentFile(file: Express.Multer.File): Promise<FoxproPaymentRecord[]> {
@@ -178,7 +183,26 @@ export class FoxproService {
             return this.parsePaymentXlsx(file.buffer);
         }
 
-        throw new BadRequestException('Unsupported file type. Use CSV or XLSX.');
+        if (fileName.endsWith('.dbf')) {
+            return this.parseDbfUpload(file.buffer, (dbfPath) => this.parsePaymentDbf(dbfPath));
+        }
+
+        throw new BadRequestException('Unsupported file type. Use CSV, XLSX, or DBF.');
+    }
+
+    private async parseDbfUpload<T>(
+        buffer: Buffer,
+        parseFile: (dbfPath: string) => Promise<T>,
+    ): Promise<T> {
+        const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'foxpro-'));
+        const tempPath = path.join(tempDir, 'upload.dbf');
+
+        try {
+            await fs.promises.writeFile(tempPath, buffer);
+            return await parseFile(tempPath);
+        } finally {
+            await fs.promises.rm(tempDir, { recursive: true, force: true });
+        }
     }
 
     private async parsePaymentDbf(filePath: string): Promise<FoxproPaymentRecord[]> {

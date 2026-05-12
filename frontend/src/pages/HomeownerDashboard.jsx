@@ -70,6 +70,17 @@ export default function HomeownerDashboard() {
                 }
 
                 setAccount(data);
+                localStorage.setItem(
+                    'propertyDetails',
+                    JSON.stringify({
+                        neighborhood: data.neighborhood,
+                        block: data.block,
+                        lot: data.lot,
+                        memberName: data.memberName,
+                        propertySizeSqm: data.propertySizeSqm,
+                        classification: data.classification,
+                    }),
+                );
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     console.error('Fetch account error:', err);
@@ -134,6 +145,7 @@ export default function HomeownerDashboard() {
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
         localStorage.removeItem('mustChangePassword');
+        localStorage.removeItem('propertyDetails');
         navigate('/login');
     };
 
@@ -153,7 +165,24 @@ export default function HomeownerDashboard() {
             {/* Header Navigation */}
             <DashboardNav
                 onLogout={handleLogout}
-                onProfile={() => navigate('/homeowner/profile', { state: { accountId, classification: account?.classification } })}
+                onProfile={() =>
+                    navigate('/homeowner/profile', {
+                        state: {
+                            accountId,
+                            classification: account?.classification,
+                            propertyDetails: account
+                                ? {
+                                    neighborhood: account.neighborhood,
+                                    block: account.block,
+                                    lot: account.lot,
+                                    memberName: account.memberName,
+                                    propertySizeSqm: account.propertySizeSqm,
+                                    classification: account.classification,
+                                }
+                                : null,
+                        },
+                    })
+                }
                 accountId={accountId}
                 classification={account?.classification || 'Loading...'}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}

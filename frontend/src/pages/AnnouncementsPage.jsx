@@ -20,6 +20,8 @@ export default function AnnouncementsPage() {
         title: '',
         content: '',
     });
+    const [announcementImage, setAnnouncementImage] = useState(null);
+    const [viewingImage, setViewingImage] = useState(null);
 
     const role = localStorage.getItem('userRole');
     const isStaff = role === 'admin' || role === 'super_admin';
@@ -169,16 +171,19 @@ export default function AnnouncementsPage() {
 
         try {
             const token = localStorage.getItem('token');
+            const formData = new FormData();
+            formData.append('title', newAnnouncement.title);
+            formData.append('content', newAnnouncement.content);
+            if (announcementImage) {
+                formData.append('image', announcementImage);
+            }
+
             const response = await fetch(`${API_URL}/announcements`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    title: newAnnouncement.title,
-                    content: newAnnouncement.content,
-                }),
+                body: formData,
             });
 
             const data = await response.json();
@@ -190,6 +195,7 @@ export default function AnnouncementsPage() {
 
             setAnnouncements([data, ...announcements]);
             setNewAnnouncement({ title: '', content: '' });
+            setAnnouncementImage(null);
             setShowCreateForm(false);
         } catch (err) {
             console.error('Create announcement error:', err);
@@ -205,6 +211,7 @@ export default function AnnouncementsPage() {
             title: announcement.title,
             content: announcement.content,
         });
+        setAnnouncementImage(null);
     };
 
     const handleSaveEdit = async (e) => {
@@ -218,16 +225,19 @@ export default function AnnouncementsPage() {
 
         try {
             const token = localStorage.getItem('token');
+            const formData = new FormData();
+            formData.append('title', newAnnouncement.title);
+            formData.append('content', newAnnouncement.content);
+            if (announcementImage) {
+                formData.append('image', announcementImage);
+            }
+
             const response = await fetch(`${API_URL}/announcements/${editingId}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    title: newAnnouncement.title,
-                    content: newAnnouncement.content,
-                }),
+                body: formData,
             });
 
             const data = await response.json();
@@ -240,12 +250,13 @@ export default function AnnouncementsPage() {
             setAnnouncements(
                 announcements.map((ann) =>
                     ann.id === editingId
-                        ? { ...ann, title: data.title, content: data.content }
+                        ? { ...ann, title: data.title, content: data.content, image: data.image || ann.image }
                         : ann,
                 ),
             );
             setEditingId(null);
             setNewAnnouncement({ title: '', content: '' });
+            setAnnouncementImage(null);
         } catch (err) {
             console.error('Edit announcement error:', err);
             alert('Failed to update announcement');
@@ -388,6 +399,23 @@ export default function AnnouncementsPage() {
                                         />
                                     </div>
 
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-900 mb-1">
+                                            Image (Optional)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => setAnnouncementImage(e.target.files?.[0] || null)}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none transition"
+                                        />
+                                        {announcementImage && (
+                                            <p className="mt-2 text-xs text-slate-600">
+                                                Selected: {announcementImage.name}
+                                            </p>
+                                        )}
+                                    </div>
+
                                     <div className="flex gap-3">
                                         <button
                                             type="submit"
@@ -413,6 +441,7 @@ export default function AnnouncementsPage() {
                                                 setShowCreateForm(false);
                                                 setEditingId(null);
                                                 setNewAnnouncement({ title: '', content: '' });
+                                                setAnnouncementImage(null);
                                             }}
                                             className="flex-1 px-4 py-2 rounded-lg bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300 transition"
                                         >
@@ -504,6 +533,14 @@ export default function AnnouncementsPage() {
                                                 <h2 className="text-lg font-semibold text-slate-900 mb-2">
                                                     {announcement.title || 'Untitled Announcement'}
                                                 </h2>
+                                                {announcement.image && (
+                                                    <img
+                                                        src={`http://localhost:3000/uploads/announcements/${announcement.image}`}
+                                                        alt={announcement.title}
+                                                        className="w-full h-auto rounded-lg mb-3 max-h-64 object-contain cursor-pointer hover:opacity-80 transition"
+                                                        onClick={() => setViewingImage(`http://localhost:3000/uploads/announcements/${announcement.image}`)}
+                                                    />
+                                                )}
                                                 <p className="text-slate-700 leading-relaxed mb-3">
                                                     {announcement.content || 'No content provided.'}
                                                 </p>
@@ -596,6 +633,44 @@ export default function AnnouncementsPage() {
                     </div>
                 </main>
             </div>
+
+            {/* Image Viewer Modal */}
+            {viewingImage && (
+                <div
+                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                    onClick={() => setViewingImage(null)}
+                >
+                    <div
+                        className="relative max-w-4xl w-full"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={viewingImage}
+                            alt="Full view"
+                            className="w-full h-auto rounded-lg"
+                        />
+                        <button
+                            onClick={() => setViewingImage(null)}
+                            className="absolute top-4 right-4 p-2 bg-white/90 hover:bg-white rounded-lg shadow-lg transition"
+                            title="Close"
+                        >
+                            <svg
+                                className="w-6 h-6 text-slate-900"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

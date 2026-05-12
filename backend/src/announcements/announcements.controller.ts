@@ -9,7 +9,13 @@ import {
     UseGuards,
     Request,
     ForbiddenException,
+    UploadedFile,
+    UseInterceptors,
+    BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { AnnouncementsService } from './announcements.service';
 import { Announcement } from './announcement.entity';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -34,8 +40,35 @@ export class AnnouncementsController {
 
     @UseGuards(JwtAuthGuard)
     @Post()
+    @UseInterceptors(
+        FileInterceptor('image', {
+            storage: diskStorage({
+                destination: 'uploads/announcements',
+                filename: (_req, file, cb) => {
+                    const randomName = Array(32)
+                        .fill(null)
+                        .map(() => Math.round(Math.random() * 16).toString(16))
+                        .join('');
+                    cb(null, `${randomName}${extname(file.originalname)}`);
+                },
+            }),
+            limits: { fileSize: 5 * 1024 * 1024 },
+            fileFilter: (_req, file, cb) => {
+                const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(
+                    file.mimetype,
+                );
+
+                if (!allowed) {
+                    return cb(new BadRequestException('Only image files are allowed'), false);
+                }
+
+                return cb(null, true);
+            },
+        }),
+    )
     async createAnnouncement(
         @Body() body: { title: string; content: string },
+        @UploadedFile() file: Express.Multer.File | undefined,
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
         if (req.user.role !== 'super_admin') {
@@ -46,14 +79,42 @@ export class AnnouncementsController {
             body.title,
             body.content,
             req.user.username,
+            file?.filename,
         );
     }
 
     @UseGuards(JwtAuthGuard)
     @Put(':id')
+    @UseInterceptors(
+        FileInterceptor('image', {
+            storage: diskStorage({
+                destination: 'uploads/announcements',
+                filename: (_req, file, cb) => {
+                    const randomName = Array(32)
+                        .fill(null)
+                        .map(() => Math.round(Math.random() * 16).toString(16))
+                        .join('');
+                    cb(null, `${randomName}${extname(file.originalname)}`);
+                },
+            }),
+            limits: { fileSize: 5 * 1024 * 1024 },
+            fileFilter: (_req, file, cb) => {
+                const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(
+                    file.mimetype,
+                );
+
+                if (!allowed) {
+                    return cb(new BadRequestException('Only image files are allowed'), false);
+                }
+
+                return cb(null, true);
+            },
+        }),
+    )
     async updateAnnouncement(
         @Param('id') id: string,
         @Body() body: { title: string; content: string },
+        @UploadedFile() file: Express.Multer.File | undefined,
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
         if (req.user.role !== 'super_admin') {
@@ -64,6 +125,7 @@ export class AnnouncementsController {
             parseInt(id),
             body.title,
             body.content,
+            file?.filename,
         );
     }
 

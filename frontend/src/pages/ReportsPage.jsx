@@ -37,6 +37,10 @@ export default function ReportsPage() {
     const [billingStatus, setBillingStatus] = useState('');
     const [billingError, setBillingError] = useState('');
     const [billingLoading, setBillingLoading] = useState(false);
+    const [paymentFile, setPaymentFile] = useState(null);
+    const [paymentStatus, setPaymentStatus] = useState('');
+    const [paymentError, setPaymentError] = useState('');
+    const [paymentLoading, setPaymentLoading] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [overdueItems, setOverdueItems] = useState([]);
     const [overdueLoading, setOverdueLoading] = useState(false);
@@ -203,7 +207,7 @@ export default function ReportsPage() {
         }
 
         if (!billingFile) {
-            setBillingError('Please choose a CSV or XLSX file first.');
+            setBillingError('Please choose a DBF file first.');
             return;
         }
 
@@ -229,13 +233,61 @@ export default function ReportsPage() {
             }
 
             setBillingStatus(
-                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
+                `Upload complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped.`,
             );
         } catch (err) {
             console.error('Billing upload error:', err);
             setBillingError('Upload failed. Please try again.');
         } finally {
             setBillingLoading(false);
+        }
+    };
+
+    const handleUploadPayments = async (event) => {
+        event.preventDefault();
+        setPaymentStatus('');
+        setPaymentError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setPaymentError('Session expired. Please log in again.');
+            return;
+        }
+
+        if (!paymentFile) {
+            setPaymentError('Please choose a DBF file first.');
+            return;
+        }
+
+        setPaymentLoading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', paymentFile);
+
+            const response = await fetch(`${API_URL}/foxpro/payments/upload`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setPaymentError(data.message || 'Upload failed. Please try again.');
+                return;
+            }
+
+            setPaymentStatus(
+                `Upload complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped.`,
+            );
+        } catch (err) {
+            console.error('Payment upload error:', err);
+            setPaymentError('Upload failed. Please try again.');
+        } finally {
+            setPaymentLoading(false);
         }
     };
 
@@ -410,37 +462,35 @@ export default function ReportsPage() {
             <div className="flex flex-1 md:ml-64">
                 <main className="flex-1 overflow-auto">
                     <div className="space-y-6 px-4 md:px-6 py-6 md:py-8">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-slate-900">Quarterly Reports</h2>
-                                    <p className="text-sm text-slate-500">
-                                        Total billed, collected, and outstanding balances by quarter.
-                                    </p>
-                                </div>
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <input
-                                        type="number"
-                                        className="w-full sm:w-28 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                                        value={year}
-                                        onChange={(event) => setYear(Number(event.target.value))}
-                                    />
-                                    <select
-                                        className="w-full sm:w-52 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                                        value={quarter}
-                                        onChange={(event) => setQuarter(Number(event.target.value))}
-                                    >
-                                        {quarterOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6">
+                            <div>
+                                <h2 className="text-3xl font-semibold text-slate-900">Quarterly Reports</h2>
+                                <p className="text-sm text-slate-500">
+                                    Total billed, collected, and outstanding balances by quarter.
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <input
+                                    type="number"
+                                    className="w-full sm:w-28 rounded-lg px-3 py-2 text-sm bg-[#F3E4C9]"
+                                    value={year}
+                                    onChange={(event) => setYear(Number(event.target.value))}
+                                />
+                                <select
+                                    className="w-full sm:w-52 rounded-lg  px-3 py-2 text-sm bg-[#F3E4C9]"
+                                    value={quarter}
+                                    onChange={(event) => setQuarter(Number(event.target.value))}
+                                >
+                                    {quarterOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                             {[
                                 {
                                     title: 'Total Billed (This Quarter)',
@@ -471,32 +521,28 @@ export default function ReportsPage() {
                                     </p>
                                 </div>
                             ))}
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <h3 className="text-base font-semibold text-slate-900">Overdue Accounts</h3>
-                                    <p className="text-xs text-slate-500">Amount due as of latest billing, no payment for 12 months.</p>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                <div className="flex items-start justify-between gap-3">
+                                    <h3 className="text-sm font-medium text-slate-600">Overdue Accounts</h3>
+                                    <button
+                                        onClick={handleGenerateOverdue}
+                                        className="rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                                        disabled={overdueLoading}
+                                    >
+                                        {overdueLoading ? 'Generating...' : 'Generate Report'}
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={handleGenerateOverdue}
-                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-                                    disabled={overdueLoading}
-                                >
-                                    {overdueLoading ? 'Generating...' : 'Generate Report'}
-                                </button>
-                            </div>
-                            {overdueError && (
-                                <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
-                                    {overdueError}
+                                {overdueError && (
+                                    <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                                        {overdueError}
+                                    </div>
+                                )}
+                                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                    <p className="text-xs text-slate-500">Total accounts</p>
+                                    <p className="text-lg font-semibold text-slate-900">
+                                        {overdueItems.length}
+                                    </p>
                                 </div>
-                            )}
-                            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                                <p className="text-xs text-slate-500">Total accounts</p>
-                                <p className="text-lg font-semibold text-slate-900">
-                                    {overdueItems.length}
-                                </p>
                             </div>
                         </div>
 
@@ -506,40 +552,55 @@ export default function ReportsPage() {
                             </div>
                         )}
 
-                        <UploadCard
-                            title="Sync FoxPro Payments (DBF)"
-                            description="Manual sync from payments.DBF. Uses ORNO to prevent duplicates."
-                            onSubmit={handleSyncPayments}
-                            loading={syncLoading}
-                            loadingLabel="Syncing..."
-                            buttonLabel="Sync Payments"
-                            status={syncStatus}
-                            error={syncError}
-                            showFileInput={false}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <UploadCard
+                                title="Sync FoxPro Payments (DBF)"
+                                description="Manual sync from payments.DBF. Uses ORNO to prevent duplicates."
+                                onSubmit={handleSyncPayments}
+                                loading={syncLoading}
+                                loadingLabel="Syncing..."
+                                buttonLabel="Sync Payments"
+                                status={syncStatus}
+                                error={syncError}
+                                showFileInput={false}
+                            />
 
-                        <UploadCard
-                            title="Sync FoxPro Billings (DBF)"
-                            description="Manual sync from BILLING.DBF. Uses latest DATETO per account to accept new rows."
-                            onSubmit={handleSyncBillings}
-                            loading={billingSyncLoading}
-                            loadingLabel="Syncing..."
-                            buttonLabel="Sync Billings"
-                            status={billingSyncStatus}
-                            error={billingSyncError}
-                            showFileInput={false}
-                        />
+                            <UploadCard
+                                title="Sync FoxPro Billings (DBF)"
+                                description="Manual sync from BILLING.DBF. Uses latest DATETO per account to accept new rows."
+                                onSubmit={handleSyncBillings}
+                                loading={billingSyncLoading}
+                                loadingLabel="Syncing..."
+                                buttonLabel="Sync Billings"
+                                status={billingSyncStatus}
+                                error={billingSyncError}
+                                showFileInput={false}
+                            />
 
-                        <UploadCard
-                            title="Upload FoxPro Billings (CSV/XLSX)"
-                            description="Required headers: BILLDATE, DATEFROM, DATETO, DUEDATE, PRINBAL, INTBAL, PENBAL, PRINCURR, INTCURR, PENCURR, KEYSEARCH"
-                            onSubmit={handleUploadBillings}
-                            onFileChange={(event) => setBillingFile(event.target.files?.[0] || null)}
-                            loading={billingLoading}
-                            buttonLabel="Upload Billings"
-                            status={billingStatus}
-                            error={billingError}
-                        />
+                            <UploadCard
+                                title="Upload FoxPro Payments (DBF)"
+                                description="Upload PAYMENTS.DBF to update payment records."
+                                onSubmit={handleUploadPayments}
+                                onFileChange={(event) => setPaymentFile(event.target.files?.[0] || null)}
+                                loading={paymentLoading}
+                                buttonLabel="Upload Payments"
+                                status={paymentStatus}
+                                error={paymentError}
+                                inputAccept=".dbf"
+                            />
+
+                            <UploadCard
+                                title="Upload FoxPro Billings (DBF)"
+                                description="Upload BILLING.DBF to update billing records."
+                                onSubmit={handleUploadBillings}
+                                onFileChange={(event) => setBillingFile(event.target.files?.[0] || null)}
+                                loading={billingLoading}
+                                buttonLabel="Upload Billings"
+                                status={billingStatus}
+                                error={billingError}
+                                inputAccept=".dbf"
+                            />
+                        </div>
                     </div>
                 </main>
             </div>

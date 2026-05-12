@@ -20,11 +20,13 @@ export class AnnouncementsService {
         title: string,
         content: string,
         author?: string,
+        image?: string,
     ): Promise<Announcement> {
         const announcement = this.announcementRepo.create({
             title,
             content,
             author: author ?? 'Admin',
+            image: image || null,
         });
         return this.announcementRepo.save(announcement);
     }
@@ -33,11 +35,13 @@ export class AnnouncementsService {
         id: number,
         title: string,
         content: string,
+        image?: string,
     ): Promise<Announcement> {
-        await this.announcementRepo.update(id, {
-            title,
-            content,
-        });
+        const updateData: any = { title, content };
+        if (image) {
+            updateData.image = image;
+        }
+        await this.announcementRepo.update(id, updateData);
         return this.announcementRepo.findOneOrFail({ where: { id } });
     }
 

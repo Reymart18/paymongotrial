@@ -1,4 +1,5 @@
-import { useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import avatarImg from '../images/avatar.png';
 
 const profileDetails = [
@@ -6,19 +7,111 @@ const profileDetails = [
     { label: 'Classification', value: '' },
 ];
 
-const propertyDetails = [
-    { label: 'Neighborhood', value: 'A' },
-    { label: 'Block', value: '1' },
-    { label: 'Lot', value: '4' },
-    { label: 'Member Name', value: 'CASTRO, GLENN' },
-    { label: 'Property Size (sqm)', value: '232.39' },
-    { label: 'Classification', value: 'LOT OWNER' },    
-];
+const defaultPropertyDetails = {
+    neighborhood: 'N/A',
+    block: 'N/A',
+    lot: 'N/A',
+    memberName: 'N/A',
+    propertySizeSqm: 'N/A',
+    classification: 'N/A',
+};
 
 export default function ProfilePage() {
     const location = useLocation();
+    const navigate = useNavigate();
     const accountId = location.state?.accountId || localStorage.getItem('accountId') || 'N/A';
     const classification = location.state?.classification || 'LOT OWNER';
+    const [propertyDetailsState, setPropertyDetailsState] = useState(null);
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+    let storedPropertyDetails = null;
+    try {
+        storedPropertyDetails = JSON.parse(localStorage.getItem('propertyDetails') || 'null');
+    } catch {
+        storedPropertyDetails = null;
+    }
+
+    const propertySource = {
+        ...defaultPropertyDetails,
+        ...(storedPropertyDetails || {}),
+        ...(location.state?.propertyDetails || {}),
+        ...(propertyDetailsState || {}),
+    };
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const storedAccountId = localStorage.getItem('accountId');
+
+        if (!token || !storedAccountId) {
+            navigate('/login');
+            return;
+        }
+
+        if (location.state?.propertyDetails || storedPropertyDetails) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const fetchAccount = async () => {
+            try {
+                const response = await fetch(
+                    `${API_URL}/property/account/${storedAccountId}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        signal: controller.signal,
+                    },
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('userRole');
+                        localStorage.removeItem('accountId');
+                        localStorage.removeItem('propertyDetails');
+                        navigate('/login');
+                    }
+                    return;
+                }
+
+                const nextDetails = {
+                    neighborhood: data.neighborhood,
+                    block: data.block,
+                    lot: data.lot,
+                    memberName: data.memberName,
+                    propertySizeSqm: data.propertySizeSqm,
+                    classification: data.classification,
+                };
+
+                localStorage.setItem('propertyDetails', JSON.stringify(nextDetails));
+                setPropertyDetailsState(nextDetails);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Fetch account error:', err);
+                }
+            }
+        };
+
+        fetchAccount();
+
+        return () => controller.abort();
+    }, [API_URL, location.state, navigate, storedPropertyDetails]);
+
+    const propertyDetails = [
+        { label: 'Neighborhood', value: propertySource.neighborhood },
+        { label: 'Block', value: propertySource.block },
+        { label: 'Lot', value: propertySource.lot },
+        { label: 'Member Name', value: propertySource.memberName },
+        { label: 'Property Size (sqm)', value: propertySource.propertySizeSqm },
+        { label: 'Classification', value: propertySource.classification || classification },
+    ];
 
     const profileInfo = profileDetails.map((item) => {
         if (item.label === 'Account ID') {
