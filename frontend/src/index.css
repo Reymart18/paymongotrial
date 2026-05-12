@@ -76,3 +76,27 @@
         color: #000000;
     }
 }
+
+/* Make number input spinners always visible and blend with background */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    opacity: 1 !important;
+    -webkit-appearance: auto !important;
+    appearance: auto !important;
+    height: auto !important;
+    background-color: #F3E4C9 !important;
+    color: #64748b !important;
+    border: none !important;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield !important;
+}
+
+input[type="number"]::-moz-inner-spin-button,
+input[type="number"]::-moz-outer-spin-button {
+    appearance: auto !important;
+    opacity: 1 !important;
+    background-color: #F3E4C9 !important;
+    color: #64748b !important;
+}

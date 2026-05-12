@@ -526,7 +526,7 @@ export default function ReportsPage() {
                                     <h3 className="text-sm font-medium text-slate-600">Overdue Accounts</h3>
                                     <button
                                         onClick={handleGenerateOverdue}
-                                        className="rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                                        className="rounded-lg bg-slate-900 px-1 py-1 text-[11px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
                                         disabled={overdueLoading}
                                     >
                                         {overdueLoading ? 'Generating...' : 'Generate Report'}
