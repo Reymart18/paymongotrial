@@ -80,6 +80,14 @@ export default function MembersPage() {
         return date.toISOString().slice(0, 10);
     };
 
+    const isMembershipDues = (row) => {
+        if (!row?.paycat) {
+            return false;
+        }
+
+        return String(row.paycat).trim().toLowerCase() === 'membership dues';
+    };
+
     const calculateAccountSummary = (statements) => {
         if (!statements || statements.length === 0) {
             return { netBalance: 0, currentCharges: 0, carryingBalance: 0 };
@@ -114,31 +122,6 @@ export default function MembersPage() {
             }, null)
             : (latestDate ? latestDate.getFullYear() : new Date().getFullYear());
 
-        const previousYear = selectedBillingYear - 1;
-        const rowsInPreviousYear = statements.filter((row) => getRowYear(row) === previousYear);
-
-        const previousUnpaidBalance = rowsInPreviousYear.length
-            ? (() => {
-                const sortedRows = [...rowsInPreviousYear].sort((a, b) => {
-                    const dateA = getEffectiveRowDate(a)?.getTime() ?? 0;
-                    const dateB = getEffectiveRowDate(b)?.getTime() ?? 0;
-
-                    if (dateA !== dateB) {
-                        return dateA - dateB;
-                    }
-
-                    if (a.type === b.type) {
-                        return 0;
-                    }
-
-                    return a.type === 'payment' ? 1 : -1;
-                });
-
-                const latestRow = sortedRows[sortedRows.length - 1] || null;
-                return latestRow ? Number(latestRow.totalBalance || 0) : 0;
-            })()
-            : 0;
-
         const billingRowsForYear = billingRows
             .filter((row) => getRowYear(row) === selectedBillingYear)
             .sort((a, b) => {
@@ -152,42 +135,41 @@ export default function MembersPage() {
         }
 
         const latestBilling = billingRowsForYear[billingRowsForYear.length - 1];
-        const latestBillingFrom = dateKey(latestBilling?.dateFrom);
-        const latestBillingTo = dateKey(latestBilling?.dateTo) || latestBillingFrom;
 
-        const currentBillingRows = billingRowsForYear.filter((row) => {
-            const rowFromKey = dateKey(row.dateFrom);
-            const rowToKey = dateKey(row.dateTo) || rowFromKey;
-            return rowFromKey === latestBillingFrom && rowToKey === latestBillingTo;
-        });
+        const principalBalance = Number(latestBilling?.prinBal ?? 0);
+        const interestBalance = Number(latestBilling?.intBal ?? 0);
+        const penaltyBalance = Number(latestBilling?.penBal ?? 0);
+        const hasBalanceParts = [latestBilling?.prinBal, latestBilling?.intBal, latestBilling?.penBal]
+            .some((value) => value !== undefined && value !== null);
+        const carryingBalance = hasBalanceParts
+            ? principalBalance + interestBalance + penaltyBalance
+            : Number(latestBilling?.previousBalance ?? 0);
 
-        const currentCharges = currentBillingRows.reduce(
-            (sum, row) => sum
-                + Number(row.amountDue || 0)
-                + Number(row.interest || 0)
-                + Number(row.penalty || 0),
-            0,
-        );
+        const currentPrincipal = Number(latestBilling?.prinCurr ?? latestBilling?.amountDue ?? 0);
+        const currentInterest = Number(latestBilling?.intCurr ?? latestBilling?.interest ?? 0);
+        const currentPenalty = Number(latestBilling?.penCurr ?? latestBilling?.penalty ?? 0);
+        const currentCharges = currentPrincipal + currentInterest + currentPenalty;
 
-        const totalPayments = statements
-            .filter((row) => row.type === 'payment' && getRowYear(row) === selectedBillingYear)
-            .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0);
+        const start = latestBilling?.dateFrom ? new Date(latestBilling.dateFrom) : null;
+        const end = latestBilling?.dateTo ? new Date(latestBilling.dateTo) : null;
+        const hasValidRange = start && end
+            && !Number.isNaN(start.getTime())
+            && !Number.isNaN(end.getTime());
 
-        // Calculate amount due the same way SOA does:
-        // (prinBal + intBal + penBal) + (prinCurr + intCurr + penCurr) - totalPayments
-        const amountDue = (
-            Number(latestBilling?.prinBal || 0) +
-            Number(latestBilling?.intBal || 0) +
-            Number(latestBilling?.penBal || 0) +
-            Number(latestBilling?.prinCurr || 0) +
-            Number(latestBilling?.intCurr || 0) +
-            Number(latestBilling?.penCurr || 0)
-        ) - totalPayments;
+        const currentPeriodPaymentsTotal = hasValidRange
+            ? statements
+                .filter((row) => row.type === 'payment' && isMembershipDues(row))
+                .filter((row) => {
+                    const paymentDate = new Date(row.date);
+                    if (Number.isNaN(paymentDate.getTime())) {
+                        return false;
+                    }
+                    return paymentDate >= start && paymentDate <= end;
+                })
+                .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0)
+            : 0;
 
-        // Calculate carrying balance from latest billing (PRINBAL + INTBAL + PENBAL)
-        const carryingBalance = (Number(latestBilling?.prinBal || 0) +
-            Number(latestBilling?.intBal || 0) +
-            Number(latestBilling?.penBal || 0));
+        const amountDue = carryingBalance + currentCharges - currentPeriodPaymentsTotal;
 
         return { netBalance: amountDue, currentCharges, carryingBalance };
     };
@@ -208,12 +190,15 @@ export default function MembersPage() {
 
                 setCalculatedBalances((prev) => ({ ...prev, [accountId]: netBalance }));
 
-                // Determine status based on carrying balance (PRINBAL + INTBAL + PENBAL)
+                // Determine status based on Amount Due / Excess (netBalance)
                 let status = 'settled';
-                if (carryingBalance > 0) {
-                    status = 'underpaid';
-                } else if (carryingBalance < 0) {
-                    status = 'overpaid';
+                const absBalance = Math.abs(netBalance);
+                if (absBalance >= 0.005) {
+                    if (netBalance > 0) {
+                        status = 'underpaid';
+                    } else if (netBalance < 0) {
+                        status = 'overpaid';
+                    }
                 }
 
                 setCalculatedStatuses((prev) => ({
@@ -227,6 +212,20 @@ export default function MembersPage() {
             }
             console.error(`Error fetching balance for ${accountId}:`, err);
         }
+    };
+
+    const formatBalance = (value) => {
+        const amount = Number(value || 0);
+        const absAmount = Math.abs(amount);
+        // If amount rounds to zero, return positive zero
+        if (absAmount < 0.005) {
+            return '0.00';
+        }
+        const sign = amount < 0 ? '-' : '';
+        return `${sign}${absAmount.toLocaleString('en-PH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}`;
     };
 
     const handleLogout = () => {
@@ -630,6 +629,28 @@ export default function MembersPage() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedAccounts = filteredAccounts.slice(startIndex, startIndex + itemsPerPage);
 
+    // Preload all account balances for accurate filtering
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token || accounts.length === 0) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        accounts.forEach((account) => {
+            const alreadyLoaded =
+                calculatedBalances[account.accountId] !== undefined
+                && calculatedStatuses[account.accountId] !== undefined;
+
+            if (!alreadyLoaded) {
+                fetchAndCalculateBalance(account.accountId, token, controller.signal);
+            }
+        });
+
+        return () => controller.abort();
+    }, [accounts, calculatedBalances, calculatedStatuses]);
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token || paginatedAccounts.length === 0) {
@@ -864,10 +885,7 @@ export default function MembersPage() {
                                                             {account.classification}
                                                         </td>
                                                         <td className="px-2 md:px-4 py-2 md:py-4 text-xs md:text-sm text-gray-800">
-                                                            ₱{Number((calculatedBalances[account.accountId] ?? account.balance) || 0).toLocaleString('en-PH', {
-                                                                minimumFractionDigits: 2,
-                                                                maximumFractionDigits: 2,
-                                                            })}
+                                                            ₱{formatBalance(calculatedBalances[account.accountId] ?? account.balance)}
                                                         </td>
                                                         <td className="hidden sm:table-cell px-2 md:px-4 py-2 md:py-4 text-xs md:text-sm">
                                                             <div className="flex flex-col gap-0.5">
@@ -1122,16 +1140,32 @@ export default function MembersPage() {
                                         <button
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                             disabled={currentPage === 1}
-                                            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-gray-700 text-xs md:text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                            className="p-2 rounded-lg border border-slate-300 bg-white text-gray-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                            title="Previous"
                                         >
-                                            Previous
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                            </svg>
                                         </button>
                                         <button
                                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                             disabled={currentPage === totalPages}
-                                            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-gray-700 text-xs md:text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                            className="p-2 rounded-lg border border-slate-300 bg-white text-gray-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                            title="Next"
                                         >
-                                            Next
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                            className="p-2 rounded-lg border border-slate-300 bg-white text-gray-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                            title="Last"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                            </svg>
                                         </button>
                                     </div>
                                 </div>

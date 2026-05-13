@@ -14,6 +14,7 @@ export interface StatementRow {
     BILLDATE?: string | null;
     dueDate?: string | null;
     referenceNumber?: string | null;
+    paycat?: string | null;
     prinBal?: number;
     intBal?: number;
     penBal?: number;
@@ -65,6 +66,7 @@ export class StatementsService {
             billDateValue?: Date | null;
             dueDateValue?: Date | null;
             referenceNumber?: string | null;
+            paycat?: string | null;
             prinBal?: number;
             intBal?: number;
             penBal?: number;
@@ -122,6 +124,7 @@ export class StatementsService {
                 dateValue: new Date(payment.paymentDate),
                 type: 'payment',
                 referenceNumber: payment.referenceNumber ?? null,
+                paycat: payment.paycat ?? null,
                 amountDue: 0,
                 interest: 0,
                 penalty: 0,
@@ -162,6 +165,7 @@ export class StatementsService {
                         ? row.dueDateValue.toISOString()
                         : null,
                 referenceNumber: row.referenceNumber ?? null,
+                paycat: row.paycat ?? null,
                 prinBal: row.type === 'billing' ? row.prinBal ?? 0 : 0,
                 intBal: row.type === 'billing' ? row.intBal ?? 0 : 0,
                 penBal: row.type === 'billing' ? row.penBal ?? 0 : 0,

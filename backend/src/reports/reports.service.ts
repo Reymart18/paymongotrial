@@ -112,7 +112,7 @@ export class ReportsService {
                 'currentCharges',
             )
             .addSelect(
-                'SUM(CASE WHEN payment.paymentDate <= latest.latestDate THEN payment.amountPaid ELSE 0 END)',
+                "SUM(CASE WHEN payment.paymentDate <= latest.latestDate AND LOWER(payment.paycat) = 'membership dues' THEN payment.amountPaid ELSE 0 END)",
                 'paymentsToDate',
             )
             .addSelect('MAX(payment.paymentDate)', 'lastPaymentDate')

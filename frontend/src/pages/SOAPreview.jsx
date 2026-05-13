@@ -211,6 +211,14 @@ export default function SOAPreview() {
         [paymentRows, selectedBillingYear],
     );
 
+    const isMembershipDues = (row) => {
+        if (!row?.paycat) {
+            return false;
+        }
+
+        return String(row.paycat).trim().toLowerCase() === 'membership dues';
+    };
+
     const currentPeriodPayments = useMemo(() => {
         if (!latestBillingRow?.dateFrom || !latestBillingRow?.dateTo) {
             return [];
@@ -232,9 +240,14 @@ export default function SOAPreview() {
         });
     }, [latestBillingRow, paymentRows]);
 
-    const currentPeriodPaymentsTotal = useMemo(
-        () => currentPeriodPayments.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
+    const currentPeriodMembershipPayments = useMemo(
+        () => currentPeriodPayments.filter((row) => isMembershipDues(row)),
         [currentPeriodPayments],
+    );
+
+    const currentPeriodPaymentsTotal = useMemo(
+        () => currentPeriodMembershipPayments.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
+        [currentPeriodMembershipPayments],
     );
 
     const totalPayments = useMemo(
@@ -299,7 +312,12 @@ export default function SOAPreview() {
 
     const formatSignedMoney = (value) => {
         const amount = Number(value || 0);
-        const formatted = formatMoney(Math.abs(amount));
+        const absAmount = Math.abs(amount);
+        // If amount rounds to zero, return positive zero
+        if (absAmount < 0.005) {
+            return formatMoney(0);
+        }
+        const formatted = formatMoney(absAmount);
         return amount < 0 ? `-${formatted}` : formatted;
     };
 
@@ -399,6 +417,12 @@ export default function SOAPreview() {
 
                         .export-safe [class*="bg-"] {
                             background-color: transparent !important;
+                        }
+
+                        .export-safe .soa-contact-email {
+                            display: inline-block;
+                            line-height: 1.4 !important;
+                            padding-bottom: 2px !important;
                         }
 
                         .export-safe table,
@@ -519,7 +543,7 @@ export default function SOAPreview() {
                             <div className="mt-1">
                                 (046) 484-2107 or (046-) 8754674
                             </div>
-                            <div className="mt-1">theparkplacevillagehoa@gmail.com</div>
+                            <div className="mt-1 soa-contact-email">theparkplacevillagehoa@gmail.com</div>
                         </div>
                     </>
                 )}

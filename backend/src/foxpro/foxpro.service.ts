@@ -34,6 +34,7 @@ interface FoxproPaymentRecord {
     paymentDate?: Date | null;
     amountPaid: number;
     description?: string;
+    paycat?: string | null;
     referenceNumber?: string | null;
 }
 
@@ -309,12 +310,14 @@ export class FoxproService {
     private normalizePaymentRecord(raw: Record<string, unknown>): FoxproPaymentRecord {
         const normalized = this.normalizeKeys(raw);
         const referenceNumber = normalized.orno ? String(normalized.orno).trim() : '';
+        const paycat = normalized.paycat ? String(normalized.paycat).trim() : '';
 
         return {
             accountId: String(normalized.keysearch || '').trim(),
             paymentDate: this.parseFoxProDate(normalized.paydate),
             amountPaid: this.toNumber(normalized.amtpaid),
             description: normalized.applicable ? String(normalized.applicable).trim() : '',
+            paycat: paycat ? paycat : null,
             referenceNumber: referenceNumber ? referenceNumber : null,
         };
     }
@@ -397,6 +400,7 @@ export class FoxproService {
                         paymentDate: record.paymentDate,
                         amountPaid: record.amountPaid,
                         description: record.description || '',
+                        paycat: record.paycat ?? null,
                         referenceNumber: record.referenceNumber ?? null,
                     };
                     const existing = existingByRef.get(record.referenceNumber ?? '') ?? null;
@@ -431,6 +435,7 @@ export class FoxproService {
                     paymentDate: record.paymentDate,
                     amountPaid: record.amountPaid,
                     description: record.description || '',
+                    paycat: record.paycat ?? null,
                     referenceNumber: null,
                 };
 
@@ -701,6 +706,7 @@ export class FoxproService {
             paymentDate: Date;
             amountPaid: number;
             description: string;
+            paycat: string | null;
             referenceNumber: string | null;
         },
     ): boolean {
@@ -712,6 +718,7 @@ export class FoxproService {
             existingDateKey !== payloadDateKey ||
             Number(existing.amountPaid || 0) !== Number(payload.amountPaid || 0) ||
             (existing.description || '') !== (payload.description || '') ||
+            (existing.paycat ?? null) !== payload.paycat ||
             (existing.referenceNumber ?? null) !== payload.referenceNumber
         );
     }

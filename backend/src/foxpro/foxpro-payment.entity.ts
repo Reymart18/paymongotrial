@@ -33,6 +33,9 @@ export class FoxproPayment {
     @Column({ type: 'varchar', length: 255, nullable: true })
     description?: string;
 
+    @Column({ type: 'varchar', length: 50, nullable: true })
+    paycat?: string | null;
+
     @Column({ type: 'varchar', length: 50, nullable: true, default: null })
     referenceNumber?: string | null;
 

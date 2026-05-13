@@ -207,20 +207,63 @@ export class AdminService {
             billingsByAccount.get(billing.accountId)?.push(billing);
         }
 
-        for (const [, accountBillings] of billingsByAccount) {
+        const paymentsByAccount = new Map<string, FoxproPayment[]>();
+        for (const payment of payments) {
+            if (!payment.accountId) {
+                continue;
+            }
+            if (!paymentsByAccount.has(payment.accountId)) {
+                paymentsByAccount.set(payment.accountId, []);
+            }
+            paymentsByAccount.get(payment.accountId)?.push(payment);
+        }
+
+        for (const [accountId, accountBillings] of billingsByAccount) {
             if (accountBillings.length === 0) {
                 continue;
             }
 
             const latestBilling = accountBillings[0];
-            const carryingBalance = Number(latestBilling?.prinBal || 0)
-                + Number(latestBilling?.intBal || 0)
-                + Number(latestBilling?.penBal || 0);
-            const carryingBalanceCents = toCents(carryingBalance);
 
-            if (carryingBalanceCents > 0) {
+            // Calculate Amount Due / Excess like SOA preview:
+            // (prinBal + intBal + penBal) + (prinCurr + intCurr + penCurr) - membershipDuesPayments
+            const principalBalance = Number(latestBilling?.prinBal || 0);
+            const interestBalance = Number(latestBilling?.intBal || 0);
+            const penaltyBalance = Number(latestBilling?.penBal || 0);
+            const carryingBalance = principalBalance + interestBalance + penaltyBalance;
+
+            const currentPrincipal = Number(latestBilling?.prinCurr || 0);
+            const currentInterest = Number(latestBilling?.intCurr || 0);
+            const currentPenalty = Number(latestBilling?.penCurr || 0);
+            const currentCharges = currentPrincipal + currentInterest + currentPenalty;
+
+            // Calculate membership dues payments within the billing period
+            let membershipPayments = 0;
+            const billingStart = latestBilling?.dateFrom ? new Date(latestBilling.dateFrom) : null;
+            const billingEnd = latestBilling?.dateTo ? new Date(latestBilling.dateTo) : null;
+
+            if (billingStart && billingEnd && !Number.isNaN(billingStart.getTime()) && !Number.isNaN(billingEnd.getTime())) {
+                const accountPayments = paymentsByAccount.get(accountId) || [];
+                for (const payment of accountPayments) {
+                    if (!payment.paymentDate) {
+                        continue;
+                    }
+                    const paymentDate = new Date(payment.paymentDate);
+                    if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= billingStart && paymentDate <= billingEnd) {
+                        const paycat = String(payment.paycat || '').trim().toLowerCase();
+                        if (paycat === 'membership dues') {
+                            membershipPayments += Number(payment.amountPaid || 0);
+                        }
+                    }
+                }
+            }
+
+            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            const amountDueCents = toCents(amountDue);
+
+            if (amountDueCents > 0) {
                 unpaidAccountsCount += 1;
-            } else if (carryingBalanceCents < 0) {
+            } else if (amountDueCents < 0) {
                 overpaidAccountsCount += 1;
             }
         }
