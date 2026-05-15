@@ -76,6 +76,70 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Delete(':adminId')
+    async deleteAdmin(
+        @Param('adminId') adminId: string,
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can delete admin accounts');
+        }
+
+        const resolvedId = Number(adminId);
+        if (!Number.isFinite(resolvedId)) {
+            throw new BadRequestException('Invalid admin ID');
+        }
+
+        if (resolvedId === req.user.id) {
+            throw new BadRequestException('You cannot delete your own account');
+        }
+
+        const result = await this.adminService.deleteAdmin(resolvedId);
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'delete_admin',
+            targetType: 'admin',
+            targetId: adminId,
+            details: 'Deleted admin account.',
+        });
+        return result;
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':adminId/reset-password')
+    async resetAdminPassword(
+        @Param('adminId') adminId: string,
+        @Body() body: { newPassword: string },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can reset admin passwords');
+        }
+
+        const resolvedId = Number(adminId);
+        if (!Number.isFinite(resolvedId)) {
+            throw new BadRequestException('Invalid admin ID');
+        }
+
+        if (!body?.newPassword || body.newPassword.trim().length < 6) {
+            throw new BadRequestException('Password must be at least 6 characters');
+        }
+
+        const result = await this.adminService.resetAdminPassword(resolvedId, body.newPassword.trim());
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'reset_admin_password',
+            targetType: 'admin',
+            targetId: adminId,
+            details: 'Reset admin password.',
+        });
+        const { password, ...sanitized } = result;
+        return sanitized;
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('property-accounts')
     async getAllPropertyAccounts(@Request() req: AuthenticatedRequest) {
         if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {

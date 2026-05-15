@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
+import * as bcrypt from 'bcrypt';
 import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
 import { PropertyAccount } from '../property/property.entity';
@@ -36,6 +37,16 @@ interface FoxproPaymentRecord {
     description?: string;
     paycat?: string | null;
     referenceNumber?: string | null;
+}
+
+interface FoxproMemberRecord {
+    accountId: string;
+    neighborhood: string;
+    block: string;
+    lot: string;
+    memberName: string;
+    propertySizeSqm?: number | null;
+    classification?: string | null;
 }
 
 @Injectable()
@@ -155,6 +166,120 @@ export class FoxproService {
         return this.savePaymentRecords(records);
     }
 
+    async syncMembersFromDbf(filePath?: string) {
+        const dbfPath = filePath ?? this.getMembersDbfPath();
+        if (!fs.existsSync(dbfPath)) {
+            throw new BadRequestException(`members.dbf not found at ${dbfPath}`);
+        }
+
+        const records = await this.parseMembersDbf(dbfPath);
+        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
+
+        await this.dataSource.transaction(async (manager) => {
+            const propertyRepo = manager.getRepository(PropertyAccount);
+            const accountIds = records
+                .map((record) => record.accountId)
+                .filter((value): value is string => Boolean(value));
+            const existingAccounts = accountIds.length
+                ? await propertyRepo.find({ where: { accountId: In(accountIds) } })
+                : [];
+            const existingMap = new Map(
+                existingAccounts.map((account) => [account.accountId ?? '', account]),
+            );
+
+            for (let index = 0; index < records.length; index += 1) {
+                const record = records[index];
+                const row = index + 1;
+
+                if (!record.accountId || !record.memberName) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Missing accountId or memberName`);
+                    continue;
+                }
+
+                const normalizedClass = record.classification
+                    ? this.normalizeMemberClassification(record.classification)
+                    : null;
+
+                if (!normalizedClass) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Invalid classification (${record.classification ?? ''})`);
+                    continue;
+                }
+
+                const existing = existingMap.get(record.accountId) ?? null;
+                if (existing) {
+                    let changed = false;
+
+                    if (record.neighborhood && existing.neighborhood !== record.neighborhood) {
+                        existing.neighborhood = record.neighborhood;
+                        changed = true;
+                    }
+
+                    if (record.block && existing.block !== record.block) {
+                        existing.block = record.block;
+                        changed = true;
+                    }
+
+                    if (record.lot && existing.lot !== record.lot) {
+                        existing.lot = record.lot;
+                        changed = true;
+                    }
+
+                    if (record.memberName && existing.memberName !== record.memberName) {
+                        existing.memberName = record.memberName;
+                        changed = true;
+                    }
+
+                    if (record.propertySizeSqm !== null && record.propertySizeSqm !== undefined) {
+                        const existingSize = existing.propertySizeSqm ?? null;
+                        if (existingSize === null || Number(existingSize) !== Number(record.propertySizeSqm)) {
+                            existing.propertySizeSqm = record.propertySizeSqm;
+                            changed = true;
+                        }
+                    }
+
+                    if (existing.classification !== normalizedClass) {
+                        existing.classification = normalizedClass;
+                        changed = true;
+                    }
+
+                    if (changed) {
+                        await propertyRepo.save(existing);
+                        result.updated += 1;
+                    } else {
+                        result.skipped += 1;
+                    }
+                    continue;
+                }
+
+                const hashedPassword = await bcrypt.hash(record.accountId, 10);
+                const account = propertyRepo.create({
+                    accountId: record.accountId,
+                    neighborhood: record.neighborhood,
+                    block: record.block,
+                    lot: record.lot,
+                    memberName: record.memberName,
+                    propertySizeSqm:
+                        record.propertySizeSqm !== undefined && record.propertySizeSqm !== null
+                            ? Number(record.propertySizeSqm)
+                            : undefined,
+                    classification: normalizedClass,
+                    username: record.accountId,
+                    password: hashedPassword,
+                    passwordChanged: false,
+                    balance: 0,
+                    status: 'active',
+                });
+
+                await propertyRepo.save(account);
+                result.inserted += 1;
+            }
+        });
+
+        return result;
+    }
+
     private async parseBillingFile(file: Express.Multer.File): Promise<FoxproBillingRecord[]> {
         const fileName = file.originalname.toLowerCase();
 
@@ -229,6 +354,21 @@ export class FoxproService {
         while (records.length > 0) {
             records.forEach((row) => {
                 rows.push(this.normalizeBillingRecord(row as Record<string, unknown>));
+            });
+            records = await dbf.readRecords(500);
+        }
+
+        return rows;
+    }
+
+    private async parseMembersDbf(filePath: string): Promise<FoxproMemberRecord[]> {
+        const dbf = await DBFFile.open(filePath, { encoding: 'latin1' });
+        const rows: FoxproMemberRecord[] = [];
+        let records = await dbf.readRecords(500);
+
+        while (records.length > 0) {
+            records.forEach((row) => {
+                rows.push(this.normalizeMemberRecord(row as Record<string, unknown>));
             });
             records = await dbf.readRecords(500);
         }
@@ -319,6 +459,31 @@ export class FoxproService {
             description: normalized.applicable ? String(normalized.applicable).trim() : '',
             paycat: paycat ? paycat : null,
             referenceNumber: referenceNumber ? referenceNumber : null,
+        };
+    }
+
+    private normalizeMemberRecord(raw: Record<string, unknown>): FoxproMemberRecord {
+        const normalized = this.normalizeKeys(raw);
+        const neighborhood = this.cleanText(normalized.neighbor || normalized.neighborhood);
+        const block = this.formatMemberSegment(normalized.block1 || normalized.block, 3);
+        const lot = this.formatMemberSegment(normalized.lot || normalized.lotno, 3);
+        const accountId = this.resolveMemberAccountId(normalized, neighborhood, block, lot);
+        const fallbackSegments = this.parseMemberSegmentsFromAccountId(accountId);
+        const resolvedNeighborhood = neighborhood || fallbackSegments.neighborhood;
+        const resolvedBlock = block || fallbackSegments.block;
+        const resolvedLot = lot || fallbackSegments.lot;
+        const memberName = this.buildMemberName(normalized);
+        const propertySizeSqm = this.toNumberOrNull(normalized.area ?? normalized.lotsize);
+        const classificationRaw = normalized.holo || normalized.classification || '';
+
+        return {
+            accountId,
+            neighborhood: resolvedNeighborhood,
+            block: resolvedBlock,
+            lot: resolvedLot,
+            memberName,
+            propertySizeSqm,
+            classification: classificationRaw ? String(classificationRaw).trim() : null,
         };
     }
 
@@ -620,6 +785,14 @@ export class FoxproService {
         return result;
     }
 
+    private getMembersDbfPath(): string {
+        if (process.env.FOXPRO_MEMBERS_DBF_PATH) {
+            return process.env.FOXPRO_MEMBERS_DBF_PATH;
+        }
+
+        return path.resolve('C:/Users/CLienT/Documents/hoaportal/MEMBERS.DBF');
+    }
+
     private getPaymentsDbfPath(): string {
         if (process.env.FOXPRO_PAYMENTS_DBF_PATH) {
             return process.env.FOXPRO_PAYMENTS_DBF_PATH;
@@ -801,6 +974,15 @@ export class FoxproService {
         return parsed;
     }
 
+    private toNumberOrNull(value: unknown): number | null {
+        if (value === null || value === undefined || value === '') {
+            return null;
+        }
+
+        const num = Number(value);
+        return Number.isNaN(num) ? null : num;
+    }
+
     private toNumber(value: unknown): number {
         if (value === null || value === undefined || value === '') {
             return 0;
@@ -808,5 +990,91 @@ export class FoxproService {
 
         const num = Number(value);
         return Number.isNaN(num) ? 0 : num;
+    }
+
+    private normalizeMemberClassification(value: string): string | null {
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) {
+            return null;
+        }
+
+        if (normalized === 'ho' || normalized === 'homeowner' || normalized === 'home owner') {
+            return 'HOMEOWNER';
+        }
+
+        if (normalized === 'lo' || normalized === 'lot owner' || normalized === 'lotowner') {
+            return 'LOT OWNER';
+        }
+
+        return null;
+    }
+
+    private cleanText(value: unknown): string {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value).trim();
+    }
+
+    private formatMemberSegment(value: unknown, length: number): string {
+        const text = this.cleanText(value);
+        if (!text) {
+            return '';
+        }
+
+        if (/^\d+$/.test(text)) {
+            return text.padStart(length, '0');
+        }
+
+        return text;
+    }
+
+    private resolveMemberAccountId(
+        normalized: Record<string, unknown>,
+        neighborhood: string,
+        block: string,
+        lot: string,
+    ): string {
+        const keysearch = this.cleanText(normalized.keysearch);
+        if (keysearch) {
+            return keysearch;
+        }
+
+        if (neighborhood && block && lot) {
+            return `${neighborhood}${block}${lot}`;
+        }
+
+        return '';
+    }
+
+    private buildMemberName(normalized: Record<string, unknown>): string {
+        const lastName = this.cleanText(normalized.lastname || normalized.last || normalized.surname);
+        const firstName = this.cleanText(normalized.firstname || normalized.first);
+        const middleName = this.cleanText(normalized.midname || normalized.middle);
+
+        const base = [lastName, firstName].filter(Boolean).join(', ');
+        if (!base) {
+            return this.cleanText(normalized.membername || normalized.name);
+        }
+
+        return middleName ? `${base} ${middleName}` : base;
+    }
+
+    private parseMemberSegmentsFromAccountId(accountId: string): {
+        neighborhood: string;
+        block: string;
+        lot: string;
+    } {
+        const match = accountId.match(/^([A-Za-z]+)(\d{3})(\d{3})$/);
+        if (!match) {
+            return { neighborhood: '', block: '', lot: '' };
+        }
+
+        return {
+            neighborhood: match[1],
+            block: match[2],
+            lot: match[3],
+        };
     }
 }

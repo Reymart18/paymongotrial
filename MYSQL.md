@@ -17,3 +17,6 @@ amountDue=(prinBal+intBal+penBal)+ (prinCurr+intCurr+penCurr)− membershipDuesP
 If amountDue > 0 = Unpaid
 If amountDue < 0 = Overpaid
 If amountDue = 0, its neither
+
+##
+payments collection doesnt calculated payment made by admin or pvhai to overall.

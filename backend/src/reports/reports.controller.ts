@@ -2,6 +2,9 @@ import { Controller, Get, Query, UseGuards, ForbiddenException, Request } from '
 import type { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { ReportsService, type OverdueAccount, type QuarterReport } from './reports.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { PropertyAccount } from '../property/property.entity';
 
 interface AuthenticatedRequest extends ExpressRequest {
     user: {
@@ -13,7 +16,11 @@ interface AuthenticatedRequest extends ExpressRequest {
 
 @Controller('reports')
 export class ReportsController {
-    constructor(private reportsService: ReportsService) { }
+    constructor(
+        private reportsService: ReportsService,
+        @InjectRepository(PropertyAccount)
+        private propertyRepo: Repository<PropertyAccount>,
+    ) { }
 
     @UseGuards(JwtAuthGuard)
     @Get('quarter')
@@ -48,5 +55,20 @@ export class ReportsController {
         }
 
         return this.reportsService.getOverdueAccounts();
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('overdue/self')
+    async getOverdueSelf(
+        @Request() req: AuthenticatedRequest,
+    ): Promise<OverdueAccount | null> {
+        if (req.user.role !== 'homeowner') {
+            throw new ForbiddenException('Only homeowners can access this report');
+        }
+
+        const account = await this.propertyRepo.findOne({ where: { id: req.user.id } });
+        const accountId = account?.accountId ?? req.user.username ?? '';
+
+        return this.reportsService.getOverdueAccount(accountId);
     }
 }

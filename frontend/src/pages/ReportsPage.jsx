@@ -341,7 +341,74 @@ export default function ReportsPage() {
     };
 
     const handlePrintOverdue = () => {
-        window.print();
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const rowsHtml = overdueItems.map((item, index) => {
+            const address = [item.neighborhood, item.block, item.lot]
+                .filter(Boolean)
+                .join(' ');
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${address || '-'}</td>
+                    <td>${formatDate(item.lastPaymentDate)}</td>
+                    <td>PHP ${formatMoney(item.amountDue || 0)}</td>
+                    <td>${formatDate(item.latestBillingDate)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Overdue Accounts</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Overdue Accounts</h1>
+                <p>Amount due/excess as of latest billing, no payment for 12 months.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Name</th>
+                            <th>Address</th>
+                            <th>Last Payment</th>
+                            <th>Amount Due / Excess</th>
+                            <th>Current Billing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="7">No overdue accounts found.</td></tr>'}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
     };
 
     useEffect(() => {
@@ -419,6 +486,10 @@ export default function ReportsPage() {
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
             <style>{`
                 @media print {
+                    html, body {
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
                     body * {
                         visibility: hidden;
                     }
@@ -426,11 +497,37 @@ export default function ReportsPage() {
                         visibility: visible;
                     }
                     .print-overdue {
-                        position: absolute;
+                        position: static !important;
                         left: 0;
                         top: 0;
                         width: 100%;
+                        height: auto !important;
+                        max-height: none !important;
+                        overflow: visible !important;
                         background: #fff;
+                    }
+                    .print-overdue .print-overdue-table {
+                        max-height: none !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    .print-overdue * {
+                        overflow: visible !important;
+                    }
+                    .print-overdue table {
+                        width: 100% !important;
+                        border-collapse: collapse;
+                        page-break-inside: auto;
+                    }
+                    .print-overdue thead {
+                        display: table-header-group;
+                    }
+                    .print-overdue tr {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .print-overdue tbody {
+                        page-break-inside: auto;
                     }
                     .no-print {
                         display: none !important;
@@ -630,7 +727,7 @@ export default function ReportsPage() {
                             </div>
                         </div>
 
-                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100 print-overdue-table">
                             <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
                                 <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                                     <tr>

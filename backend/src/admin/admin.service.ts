@@ -70,6 +70,26 @@ export class AdminService {
         return this.adminRepo.findOne({ where: { id } });
     }
 
+    async deleteAdmin(id: number): Promise<{ deleted: boolean }> {
+        const result = await this.adminRepo.delete({ id });
+        if (!result.affected) {
+            throw new NotFoundException('Admin not found');
+        }
+
+        return { deleted: true };
+    }
+
+    async resetAdminPassword(id: number, newPassword: string): Promise<Admin> {
+        const admin = await this.adminRepo.findOne({ where: { id } });
+        if (!admin) {
+            throw new NotFoundException('Admin not found');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        admin.password = hashedPassword;
+        return this.adminRepo.save(admin);
+    }
+
     async getAllPropertyAccounts(): Promise<PropertyAccount[]> {
         return this.propertyRepo.find();
     }

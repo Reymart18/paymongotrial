@@ -29,11 +29,9 @@ export default function MembersPage() {
     const [editStatus, setEditStatus] = useState('');
     const [calculatedBalances, setCalculatedBalances] = useState({});
     const [calculatedStatuses, setCalculatedStatuses] = useState({});
-    const [masterlistFile, setMasterlistFile] = useState(null);
-    const [masterlistStatus, setMasterlistStatus] = useState('');
-    const [masterlistError, setMasterlistError] = useState('');
-    const [masterlistLoading, setMasterlistLoading] = useState(false);
-    const [showUploadForm, setShowUploadForm] = useState(false);
+    const [membersSyncStatus, setMembersSyncStatus] = useState('');
+    const [membersSyncError, setMembersSyncError] = useState('');
+    const [membersSyncLoading, setMembersSyncLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const navigate = useNavigate();
 
@@ -234,66 +232,47 @@ export default function MembersPage() {
         navigate('/login');
     };
 
-    const handleImport = () => {
-        setShowUploadForm(!showUploadForm);
-    };
-
-    const handleUploadMasterlist = async (event) => {
-        event.preventDefault();
-        setMasterlistStatus('');
-        setMasterlistError('');
+    const handleSyncMembers = async () => {
+        setMembersSyncStatus('');
+        setMembersSyncError('');
 
         const token = localStorage.getItem('token');
         if (!token) {
-            setMasterlistError('Session expired. Please log in again.');
+            setMembersSyncError('Session expired. Please log in again.');
             return;
         }
 
-        if (!masterlistFile) {
-            setMasterlistError('Please choose a CSV or XLSX file first.');
-            return;
-        }
-
-        setMasterlistLoading(true);
+        setMembersSyncLoading(true);
 
         try {
-            const formData = new FormData();
-            formData.append('file', masterlistFile);
-
-            const response = await fetch(`${API_URL}/admin/masterlist/upload`, {
+            const response = await fetch(`${API_URL}/foxpro/members/sync`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
-                body: formData,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                setMasterlistError(data.message || 'Upload failed. Please try again.');
-                setMasterlistLoading(false);
+                setMembersSyncError(data.message || 'Sync failed. Please try again.');
+                setMembersSyncLoading(false);
                 return;
             }
 
-            setMasterlistStatus(
-                `Upload complete: ${data.inserted} inserted, ${data.skipped} skipped.`,
+            setMembersSyncStatus(
+                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped.`,
             );
 
-            // Reset form and refresh data after successful upload
-            setMasterlistFile(null);
-            setTimeout(() => {
-                const token = localStorage.getItem('token');
-                if (token) {
-                    refreshAccounts(token);
-                    setShowUploadForm(false);
-                    setMasterlistStatus('');
-                }
-            }, 1500);
+            const refreshedToken = localStorage.getItem('token');
+            if (refreshedToken) {
+                await refreshAccounts(refreshedToken);
+            }
         } catch (err) {
-            console.error('Masterlist upload error:', err);
-            setMasterlistError('Upload failed. Please try again.');
-            setMasterlistLoading(false);
+            console.error('Members sync error:', err);
+            setMembersSyncError('Sync failed. Please try again.');
+        } finally {
+            setMembersSyncLoading(false);
         }
     };
 
@@ -625,9 +604,14 @@ export default function MembersPage() {
 
     // Pagination logic
     const itemsPerPage = 10;
-    const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage);
+    const sortedAccounts = [...filteredAccounts].sort((a, b) => {
+        const left = String(a.accountId || '');
+        const right = String(b.accountId || '');
+        return left.localeCompare(right, 'en', { numeric: true, sensitivity: 'base' });
+    });
+    const totalPages = Math.ceil(sortedAccounts.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedAccounts = filteredAccounts.slice(startIndex, startIndex + itemsPerPage);
+    const paginatedAccounts = sortedAccounts.slice(startIndex, startIndex + itemsPerPage);
 
     // Preload all account balances for accurate filtering
     useEffect(() => {
@@ -745,63 +729,30 @@ export default function MembersPage() {
                                 <option value="overpaid">Overpaid</option>
                             </select>
 
-                            {/* Import Button */}
+                            {/* Sync Members Button */}
                             <button
-                                onClick={handleImport}
-                                className="px-6 py-2 bg-[#E89B58] text-white font-medium rounded-lg hover:bg-[#d88a47] transition text-sm"
+                                onClick={handleSyncMembers}
+                                disabled={membersSyncLoading}
+                                className="px-6 py-2 bg-[#E89B58] text-white font-medium rounded-lg hover:bg-[#d88a47] transition text-sm disabled:cursor-not-allowed disabled:opacity-70"
                                 style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}
                             >
-                                Import
+                                {membersSyncLoading ? 'Syncing...' : 'Sync Members'}
                             </button>
                         </div>
 
-                        {/* Members Table */}
-                        {showUploadForm && (
-                            <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                                <h3 className="text-base font-semibold text-slate-800">Upload Masterlist (CSV/XLSX)</h3>
-                                <p className="mt-2 text-xs text-slate-500">Upload a CSV or XLSX file to add multiple accounts at once</p>
-                                <form onSubmit={handleUploadMasterlist} className="mt-4 flex flex-wrap items-center gap-3">
-                                    <input
-                                        type="file"
-                                        accept=".csv,.xlsx,.xls"
-                                        onChange={(e) => setMasterlistFile(e.target.files?.[0] || null)}
-                                        className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
-                                    />
-                                    <button
-                                        type="submit"
-                                        disabled={masterlistLoading}
-                                        className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
-                                    >
-                                        {masterlistLoading ? 'Uploading...' : 'Upload'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowUploadForm(false);
-                                            setMasterlistFile(null);
-                                            setMasterlistStatus('');
-                                            setMasterlistError('');
-                                        }}
-                                        className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                </form>
-                                {masterlistStatus && (
-                                    <AdminStatusMessage
-                                        variant="success"
-                                        message={masterlistStatus}
-                                        className="mt-4"
-                                    />
-                                )}
-                                {masterlistError && (
-                                    <AdminStatusMessage
-                                        variant="error"
-                                        message={masterlistError}
-                                        className="mt-4"
-                                    />
-                                )}
-                            </div>
+                        {membersSyncStatus && (
+                            <AdminStatusMessage
+                                variant="success"
+                                message={membersSyncStatus}
+                                className="mb-6"
+                            />
+                        )}
+                        {membersSyncError && (
+                            <AdminStatusMessage
+                                variant="error"
+                                message={membersSyncError}
+                                className="mb-6"
+                            />
                         )}
 
                         {/* Members Table */}
@@ -1131,10 +1082,10 @@ export default function MembersPage() {
                             </div>
 
                             {/* Pagination Controls */}
-                            {!loading && !error && filteredAccounts.length > 0 && (
+                            {!loading && !error && sortedAccounts.length > 0 && (
                                 <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                                     <div className="text-xs md:text-sm text-gray-600">
-                                        Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredAccounts.length)} of {filteredAccounts.length} members
+                                        Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedAccounts.length)} of {sortedAccounts.length} members
                                     </div>
                                     <div className="flex gap-2">
                                         <button
