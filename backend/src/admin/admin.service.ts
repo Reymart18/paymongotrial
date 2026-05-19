@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Admin } from './admin.entity';
 import { AdminActivity } from './admin-activity.entity';
 import { PropertyAccount } from '../property/property.entity';
@@ -158,6 +158,7 @@ export class AdminService {
         currentBillingLabel: string;
         unpaidAccountsCount: number;
         overpaidAccountsCount: number;
+        settledAccountsCount: number;
         totalCollectedPayments: number;
     }> {
         const [billings, payments] = await Promise.all([
@@ -215,6 +216,7 @@ export class AdminService {
 
         let unpaidAccountsCount = 0;
         let overpaidAccountsCount = 0;
+        let settledAccountsCount = 0;
 
         const billingsByAccount = new Map<string, FoxproBilling[]>();
         for (const billing of billings) {
@@ -285,6 +287,8 @@ export class AdminService {
                 unpaidAccountsCount += 1;
             } else if (amountDueCents < 0) {
                 overpaidAccountsCount += 1;
+            } else {
+                settledAccountsCount += 1;
             }
         }
 
@@ -306,7 +310,188 @@ export class AdminService {
             currentBillingLabel,
             unpaidAccountsCount,
             overpaidAccountsCount,
+            settledAccountsCount,
             totalCollectedPayments,
+        };
+    }
+
+    async getSettledAccountsReport(): Promise<{
+        currentBillingLabel: string;
+        items: Array<{
+            accountId: string;
+            memberName: string;
+            neighborhood: string;
+            block: string;
+            lot: string;
+            amountDue: number;
+            lastPaymentDate: Date | null;
+        }>;
+    }> {
+        const [billings, payments] = await Promise.all([
+            this.billingRepo.find({ order: { dueDate: 'DESC' } }),
+            this.paymentRepo.find(),
+        ]);
+
+        const parseDate = (value: unknown) => {
+            if (!value) {
+                return null;
+            }
+            const date = value instanceof Date ? value : new Date(value as string);
+            return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const dateKey = (value: unknown) => {
+            const parsed = parseDate(value);
+            return parsed ? parsed.toISOString().slice(0, 10) : null;
+        };
+
+        const formatDate = (value: unknown) => {
+            const date = parseDate(value);
+            return date ? date.toLocaleDateString() : '-';
+        };
+
+        const formatKey = (key: string | null) => {
+            if (!key) {
+                return '-';
+            }
+            const date = new Date(`${key}T00:00:00.000Z`);
+            return formatDate(date);
+        };
+
+        const toCents = (value: unknown) => Math.round(Number(value || 0) * 100);
+
+        let latestPeriod: { fromKey: string | null; toKey: string } | null = null;
+        for (const row of billings) {
+            const toKey = dateKey(row?.dateTo) || dateKey(row?.dateFrom);
+            if (!toKey) {
+                continue;
+            }
+
+            latestPeriod = {
+                fromKey: dateKey(row?.dateFrom) || toKey,
+                toKey,
+            };
+            break;
+        }
+
+        const currentBillingLabel = latestPeriod?.fromKey && latestPeriod?.toKey
+            ? `${formatKey(latestPeriod.fromKey)} - ${formatKey(latestPeriod.toKey)}`
+            : latestPeriod?.toKey
+                ? formatKey(latestPeriod.toKey)
+                : '-';
+
+        const billingsByAccount = new Map<string, FoxproBilling[]>();
+        const accountIds = new Set<string>();
+        for (const billing of billings) {
+            if (!billing.accountId) {
+                continue;
+            }
+            accountIds.add(billing.accountId);
+            if (!billingsByAccount.has(billing.accountId)) {
+                billingsByAccount.set(billing.accountId, []);
+            }
+            billingsByAccount.get(billing.accountId)?.push(billing);
+        }
+
+        const paymentsByAccount = new Map<string, FoxproPayment[]>();
+        for (const payment of payments) {
+            if (!payment.accountId) {
+                continue;
+            }
+            if (!paymentsByAccount.has(payment.accountId)) {
+                paymentsByAccount.set(payment.accountId, []);
+            }
+            paymentsByAccount.get(payment.accountId)?.push(payment);
+        }
+
+        const accountIdList = Array.from(accountIds);
+        const accounts = accountIdList.length
+            ? await this.propertyRepo.find({ where: { accountId: In(accountIdList) } })
+            : [];
+        const accountMap = new Map(
+            accounts.map((account) => [account.accountId ?? '', account]),
+        );
+
+        const items: Array<{
+            accountId: string;
+            memberName: string;
+            neighborhood: string;
+            block: string;
+            lot: string;
+            amountDue: number;
+            lastPaymentDate: Date | null;
+        }> = [];
+
+        for (const [accountId, accountBillings] of billingsByAccount) {
+            if (accountBillings.length === 0) {
+                continue;
+            }
+
+            const latestBilling = accountBillings[0];
+            const principalBalance = Number(latestBilling?.prinBal || 0);
+            const interestBalance = Number(latestBilling?.intBal || 0);
+            const penaltyBalance = Number(latestBilling?.penBal || 0);
+            const carryingBalance = principalBalance + interestBalance + penaltyBalance;
+
+            const currentPrincipal = Number(latestBilling?.prinCurr || 0);
+            const currentInterest = Number(latestBilling?.intCurr || 0);
+            const currentPenalty = Number(latestBilling?.penCurr || 0);
+            const currentCharges = currentPrincipal + currentInterest + currentPenalty;
+
+            let membershipPayments = 0;
+            const billingStart = latestBilling?.dateFrom ? new Date(latestBilling.dateFrom) : null;
+            const billingEnd = latestBilling?.dateTo ? new Date(latestBilling.dateTo) : null;
+
+            if (billingStart && billingEnd && !Number.isNaN(billingStart.getTime()) && !Number.isNaN(billingEnd.getTime())) {
+                const accountPayments = paymentsByAccount.get(accountId) || [];
+                for (const payment of accountPayments) {
+                    if (!payment.paymentDate) {
+                        continue;
+                    }
+                    const paymentDate = new Date(payment.paymentDate);
+                    if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= billingStart && paymentDate <= billingEnd) {
+                        const paycat = String(payment.paycat || '').trim().toLowerCase();
+                        if (paycat === 'membership dues') {
+                            membershipPayments += Number(payment.amountPaid || 0);
+                        }
+                    }
+                }
+            }
+
+            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            if (toCents(amountDue) !== 0) {
+                continue;
+            }
+
+            const account = accountMap.get(accountId);
+            const accountPayments = paymentsByAccount.get(accountId) || [];
+            const lastPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
+                const parsed = parseDate(payment.paymentDate);
+                if (!parsed) {
+                    return latest;
+                }
+                if (!latest || parsed > latest) {
+                    return parsed;
+                }
+                return latest;
+            }, null);
+
+            items.push({
+                accountId,
+                memberName: account?.memberName ?? '-',
+                neighborhood: account?.neighborhood ?? '-',
+                block: account?.block ?? '-',
+                lot: account?.lot ?? '-',
+                amountDue,
+                lastPaymentDate,
+            });
+        }
+
+        items.sort((a, b) => a.accountId.localeCompare(b.accountId, 'en', { numeric: true }));
+
+        return {
+            currentBillingLabel,
+            items,
         };
     }
 }

@@ -161,6 +161,16 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('settled-accounts')
+    async getSettledAccounts(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getSettledAccountsReport();
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('activities')
     async getRecentActivities(
         @Request() req: AuthenticatedRequest,
