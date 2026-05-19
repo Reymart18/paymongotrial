@@ -81,7 +81,7 @@ export default function AdminDashboardCards({
                                     type="button"
                                     onClick={onGenerateSettledReport}
                                     disabled={settledReportLoading}
-                                    className="mt-4 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="mt-4 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {settledReportLoading ? 'Generating...' : 'Generate Report'}
                                 </button>
