@@ -28,6 +28,8 @@ export default function AnnouncementsPage() {
     const isSuperAdmin = role === 'super_admin';
     const adminLabel = role === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const accountIdKey = localStorage.getItem('accountId') || role || 'unknown';
+    const announcementReadKey = `announcementsLastReadAt:${accountIdKey}`;
 
     // Fetch announcements
     useEffect(() => {
@@ -69,7 +71,16 @@ export default function AnnouncementsPage() {
                     return;
                 }
 
-                setAnnouncements(Array.isArray(data) ? data : []);
+                const items = Array.isArray(data) ? data : [];
+                setAnnouncements(items);
+
+                const latestCreatedAt = items.reduce((maxTime, item) => {
+                    const createdTime = item?.createdAt ? new Date(item.createdAt).getTime() : 0;
+                    return createdTime > maxTime ? createdTime : maxTime;
+                }, 0);
+
+                const readTime = latestCreatedAt > 0 ? latestCreatedAt : Date.now();
+                localStorage.setItem(announcementReadKey, new Date(readTime).toISOString());
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     console.error('Fetch announcements error:', err);
@@ -83,7 +94,7 @@ export default function AnnouncementsPage() {
         fetchAnnouncements();
 
         return () => controller.abort();
-    }, [API_URL, navigate]);
+    }, [API_URL, navigate, announcementReadKey]);
 
     // Fetch account data for classification
     useEffect(() => {

@@ -46,6 +46,9 @@ export default function ReportsPage() {
     const [overdueLoading, setOverdueLoading] = useState(false);
     const [overdueError, setOverdueError] = useState('');
     const [showOverdueModal, setShowOverdueModal] = useState(false);
+    const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const [currentPaymentCardIndex, setCurrentPaymentCardIndex] = useState(0);
+    const [currentBillingCardIndex, setCurrentBillingCardIndex] = useState(0);
 
     const cacheKey = 'reportsCache';
 
@@ -88,6 +91,30 @@ export default function ReportsPage() {
 
     const comparison = useMemo(() => report?.comparison || {}, [report]);
     const totals = useMemo(() => report?.totals || {}, [report]);
+
+    const handlePrevCard = () => {
+        setCurrentCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
+    };
+
+    const handleNextCard = () => {
+        setCurrentCardIndex((prev) => (prev === 1 ? 0 : prev + 1));
+    };
+
+    const handlePrevPaymentCard = () => {
+        setCurrentPaymentCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
+    };
+
+    const handleNextPaymentCard = () => {
+        setCurrentPaymentCardIndex((prev) => (prev === 1 ? 0 : prev + 1));
+    };
+
+    const handlePrevBillingCard = () => {
+        setCurrentBillingCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
+    };
+
+    const handleNextBillingCard = () => {
+        setCurrentBillingCardIndex((prev) => (prev === 1 ? 0 : prev + 1));
+    };
 
     const syncPayments = useCallback(async (isAuto = false) => {
         if (syncLoading) {
@@ -593,50 +620,77 @@ export default function ReportsPage() {
                                     title: 'Total Billed (This Quarter)',
                                     value: `PHP ${formatMoney(totals.billed)}`,
                                     comparison: comparison.billedPercent,
+                                    icon: (
+                                        <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M19 6h-8.5l-2.25-3h-6.25v14h2v2h16v-2h2v-11zm-1 11h-14v-10h14v10zm-3-7h-8v2h8v-2z" />
+                                        </svg>
+                                    ),
                                 },
                                 {
                                     title: 'Total Collected (This Quarter)',
                                     value: `PHP ${formatMoney(totals.collected)}`,
                                     comparison: comparison.collectedPercent,
+                                    icon: (
+                                        <svg className="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
+                                            <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    ),
                                 },
                                 {
                                     title: 'Net Collection (This Quarter)',
                                     value: `PHP ${formatMoney(totals.outstanding)}`,
                                     comparison: comparison.outstandingPercent,
+                                    icon: (
+                                        <svg className="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                                            <polyline points="17 6 23 6 23 12"></polyline>
+                                        </svg>
+                                    ),
                                 },
-                            ].map((card) => (
-                                <div
-                                    key={card.title}
-                                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                                >
-                                    <p className="text-sm font-medium text-slate-600">{card.title}</p>
-                                    <p className="mt-3 text-2xl font-semibold text-slate-900">
-                                        {loading ? 'Loading...' : card.value}
-                                    </p>
-                                    <p className="mt-2 text-xs text-slate-500">
-                                        vs previous quarter: {formatPercent(card.comparison)}
-                                    </p>
-                                </div>
-                            ))}
-                            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            ].map((card) => {
+                                const isPositive = card.comparison && card.comparison > 0;
+                                const isNegative = card.comparison && card.comparison < 0;
+                                return (
+                                    <div
+                                        key={card.title}
+                                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div>{card.icon}</div>
+                                            <p className="text-sm font-medium text-slate-600">{card.title}</p>
+                                        </div>
+                                        <p className="mt-3 text-2xl font-semibold text-slate-900">
+                                            {loading ? 'Loading...' : card.value}
+                                        </p>
+                                        <p className={`mt-2 text-xs ${isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-slate-500'}`}>
+                                            vs previous quarter: <span className="font-semibold">{formatPercent(card.comparison)}</span>
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                            <div className="rounded-2xl border border-slate-700 p-5 shadow-sm" style={{ backgroundColor: '#0E0E0E' }}>
                                 <div className="flex items-start justify-between gap-3">
-                                    <h3 className="text-sm font-medium text-slate-600">Overdue Accounts</h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">⚠️</span>
+                                        <h3 className="text-sm font-medium text-white">Overdue Accounts</h3>
+                                    </div>
                                     <button
                                         onClick={handleGenerateOverdue}
-                                        className="rounded-lg bg-slate-900 px-1 py-1 text-[11px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                                        className="rounded-lg bg-white px-1 py-1 text-[11px] font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-60"
                                         disabled={overdueLoading}
                                     >
                                         {overdueLoading ? 'Generating...' : 'Generate Report'}
                                     </button>
                                 </div>
                                 {overdueError && (
-                                    <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                                    <div className="mt-3 rounded-lg border border-rose-400 bg-rose-900/30 px-3 py-2 text-[11px] text-rose-200">
                                         {overdueError}
                                     </div>
                                 )}
-                                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                                    <p className="text-xs text-slate-500">Total accounts</p>
-                                    <p className="text-lg font-semibold text-slate-900">
+                                <div className="mt-4 rounded-xl border border-slate-600 px-4 py-3" style={{ backgroundColor: '#1a1a1a' }}>
+                                    <p className="text-xs text-slate-400">Total accounts</p>
+                                    <p className="text-lg font-semibold text-white">
                                         {overdueItems.length}
                                     </p>
                                 </div>
@@ -649,54 +703,173 @@ export default function ReportsPage() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <UploadCard
-                                title="Sync FoxPro Payments (DBF)"
-                                description="Manual sync from payments.DBF. Uses ORNO to prevent duplicates."
-                                onSubmit={handleSyncPayments}
-                                loading={syncLoading}
-                                loadingLabel="Syncing..."
-                                buttonLabel="Sync Payments"
-                                status={syncStatus}
-                                error={syncError}
-                                showFileInput={false}
-                            />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                            {/* Payments Section */}
+                            <div className="relative flex flex-col items-center justify-center overflow-hidden">
+                                <button
+                                    onClick={handlePrevPaymentCard}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 text-slate-700"
+                                    title="Previous"
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15 19l-7-7 7-7"
+                                        />
+                                    </svg>
+                                </button>
 
-                            <UploadCard
-                                title="Sync FoxPro Billings (DBF)"
-                                description="Manual sync from BILLING.DBF. Uses latest DATETO per account to accept new rows."
-                                onSubmit={handleSyncBillings}
-                                loading={billingSyncLoading}
-                                loadingLabel="Syncing..."
-                                buttonLabel="Sync Billings"
-                                status={billingSyncStatus}
-                                error={billingSyncError}
-                                showFileInput={false}
-                            />
+                                <div className="w-full flex items-center justify-center px-8">
+                                    {currentPaymentCardIndex === 0 && (
+                                        <UploadCard
+                                            title="Sync FoxPro Payments (DBF)"
+                                            description="Manual sync from payments.DBF to update payment records."
+                                            onSubmit={handleSyncPayments}
+                                            loading={syncLoading}
+                                            loadingLabel="Syncing..."
+                                            buttonLabel="SYNC"
+                                            status={syncStatus}
+                                            error={syncError}
+                                            showFileInput={false}
+                                        />
+                                    )}
 
-                            <UploadCard
-                                title="Upload FoxPro Payments (DBF)"
-                                description="Upload PAYMENTS.DBF to update payment records."
-                                onSubmit={handleUploadPayments}
-                                onFileChange={(event) => setPaymentFile(event.target.files?.[0] || null)}
-                                loading={paymentLoading}
-                                buttonLabel="Upload Payments"
-                                status={paymentStatus}
-                                error={paymentError}
-                                inputAccept=".dbf"
-                            />
+                                    {currentPaymentCardIndex === 1 && (
+                                        <UploadCard
+                                            title="Upload FoxPro Payments (DBF)"
+                                            onFileChange={(event) => setPaymentFile(event.target.files?.[0] || null)}
+                                            loading={paymentLoading}
+                                            buttonLabel="Upload Payments"
+                                            status={paymentStatus}
+                                            error={paymentError}
+                                            inputAccept=".dbf"
+                                        />
+                                    )}
+                                </div>
 
-                            <UploadCard
-                                title="Upload FoxPro Billings (DBF)"
-                                description="Upload BILLING.DBF to update billing records."
-                                onSubmit={handleUploadBillings}
-                                onFileChange={(event) => setBillingFile(event.target.files?.[0] || null)}
-                                loading={billingLoading}
-                                buttonLabel="Upload Billings"
-                                status={billingStatus}
-                                error={billingError}
-                                inputAccept=".dbf"
-                            />
+                                <button
+                                    onClick={handleNextPaymentCard}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 text-slate-700"
+                                    title="Next"
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9 5l7 7-7 7"
+                                        />
+                                    </svg>
+                                </button>
+
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    {[0, 1].map((index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setCurrentPaymentCardIndex(index)}
+                                            className={`w-2 h-2 rounded-full transition ${index === currentPaymentCardIndex ? 'bg-slate-900' : 'bg-slate-300'
+                                                }`}
+                                            title={`Payment Card ${index + 1}`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Billings Section */}
+                            <div className="relative flex flex-col items-center justify-center overflow-hidden">
+                                <button
+                                    onClick={handlePrevBillingCard}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 text-slate-700"
+                                    title="Previous"
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15 19l-7-7 7-7"
+                                        />
+                                    </svg>
+                                </button>
+
+                                <div className="w-full flex items-center justify-center px-8">
+                                    {currentBillingCardIndex === 0 && (
+                                        <UploadCard
+                                            title="Sync FoxPro Billings (DBF)"
+                                            description="Manual sync from BILLING.DBF to update billing records."
+                                            onSubmit={handleSyncBillings}
+                                            loading={billingSyncLoading}
+                                            loadingLabel="Syncing..."
+                                            buttonLabel="SYNC"
+                                            status={billingSyncStatus}
+                                            error={billingSyncError}
+                                            showFileInput={false}
+                                        />
+                                    )}
+
+                                    {currentBillingCardIndex === 1 && (
+                                        <UploadCard
+                                            title="Upload FoxPro Billings (DBF)"
+                                            onSubmit={handleUploadBillings}
+                                            onFileChange={(event) => setBillingFile(event.target.files?.[0] || null)}
+                                            loading={billingLoading}
+                                            buttonLabel="Upload Billings"
+                                            status={billingStatus}
+                                            error={billingError}
+                                            inputAccept=".dbf"
+                                        />
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={handleNextBillingCard}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-10 h-10 text-slate-700"
+                                    title="Next"
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9 5l7 7-7 7"
+                                        />
+                                    </svg>
+                                </button>
+
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    {[0, 1].map((index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setCurrentBillingCardIndex(index)}
+                                            className={`w-2 h-2 rounded-full transition ${index === currentBillingCardIndex ? 'bg-slate-900' : 'bg-slate-300'
+                                                }`}
+                                            title={`Billing Card ${index + 1}`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </main>
