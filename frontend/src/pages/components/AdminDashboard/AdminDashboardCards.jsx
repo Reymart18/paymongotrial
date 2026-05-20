@@ -2,6 +2,7 @@ import pbIcon from '../../../images/pb.png';
 import cbIcon from '../../../images/cb.png';
 import rpIcon from '../../../images/rp.png';
 import toIcon from '../../../images/to.png';
+import upIcon from '../../../images/up.png';
 
 export default function AdminDashboardCards({
     currentBillingLabel,
@@ -12,6 +13,8 @@ export default function AdminDashboardCards({
     loading,
     onGenerateSettledReport,
     settledReportLoading,
+    onGenerateOverpaidReport,
+    overpaidReportLoading,
 }) {
     const formatMoney = (value) => new Intl.NumberFormat('en-PH', {
         minimumFractionDigits: 2,
@@ -29,14 +32,14 @@ export default function AdminDashboardCards({
             value: Number.isFinite(settledAccountsCount)
                 ? String(settledAccountsCount)
                 : '0',
-            icon: cbIcon,
+            icon: rpIcon,
         },
         {
             title: 'Unpaid Accounts',
             value: Number.isFinite(unpaidAccountsCount)
                 ? String(unpaidAccountsCount)
                 : '0',
-            icon: rpIcon,
+            icon: upIcon,
         },
         {
             title: 'Overpaid Accounts',
@@ -57,6 +60,7 @@ export default function AdminDashboardCards({
             {cards.map((card, index) => {
                 const isCenteredBottomRow = cards.length === 5 && index >= 3;
                 const isSettledCard = card.title === 'Settled Accounts';
+                const isOverpaidCard = card.title === 'Overpaid Accounts';
                 const cardClassName = `relative rounded-2xl p-6 pt-10 shadow-sm transition hover:shadow-md ${isCenteredBottomRow ? 'lg:col-span-3' : 'lg:col-span-2'
                     }`;
 
@@ -81,9 +85,19 @@ export default function AdminDashboardCards({
                                     type="button"
                                     onClick={onGenerateSettledReport}
                                     disabled={settledReportLoading}
-                                    className="mt-4 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="mt-0 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {settledReportLoading ? 'Generating...' : 'Generate Report'}
+                                </button>
+                            )}
+                            {isOverpaidCard && onGenerateOverpaidReport && (
+                                <button
+                                    type="button"
+                                    onClick={onGenerateOverpaidReport}
+                                    disabled={overpaidReportLoading}
+                                    className="mt-0 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {overpaidReportLoading ? 'Generating...' : 'Generate Report'}
                                 </button>
                             )}
                         </div>

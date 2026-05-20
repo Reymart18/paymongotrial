@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -8,14 +8,19 @@ export class AuthController {
     @Post('login')
     async login(@Body() body: { username: string; password: string }) {
         const user = await this.authService.validateAdmin(body.username, body.password);
-        if (!user) return { message: 'Invalid credentials' };
+        if (!user) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
         return this.authService.login(user);
     }
 
     @Post('login/homeowner')
     async loginHomeowner(@Body() body: { accountId: string; password: string }) {
-        const homeowner = await this.authService.validateHomeowner(body.accountId, body.password);
-        if (!homeowner) return { message: 'Invalid credentials' };
-        return this.authService.loginHomeowner(homeowner);
+        return this.authService.startHomeownerLogin(body.accountId, body.password);
+    }
+
+    @Post('login/homeowner/verify')
+    async verifyHomeownerOtp(@Body() body: { accountId: string; otp: string }) {
+        return this.authService.verifyHomeownerOtp(body.accountId, body.otp);
     }
 }

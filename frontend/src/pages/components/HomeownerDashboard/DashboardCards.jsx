@@ -30,6 +30,34 @@ export default function DashboardCards({ account, statementRows }) {
         return parsed;
     };
 
+    const formatDate = (value) => {
+        if (!value) {
+            return '';
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return '';
+        }
+
+        return parsed.toLocaleDateString('en-PH');
+    };
+
+    const formatDateRange = (from, to) => {
+        const fromLabel = formatDate(from);
+        const toLabel = formatDate(to);
+
+        if (!fromLabel && !toLabel) {
+            return '';
+        }
+
+        if (!toLabel || fromLabel === toLabel) {
+            return fromLabel;
+        }
+
+        return `${fromLabel} - ${toLabel}`;
+    };
+
     const latestDate = rows.reduce((latest, row) => {
         const current = new Date(row?.date || row?.dateTo || row?.dateFrom || 0);
         if (Number.isNaN(current.getTime())) {
@@ -120,9 +148,14 @@ export default function DashboardCards({ account, statementRows }) {
             return dateA.getTime() - dateB.getTime();
         });
 
-    const latestBilling = billingRowsForYear.length > 0 
-        ? billingRowsForYear[billingRowsForYear.length - 1] 
+    const latestBilling = billingRowsForYear.length > 0
+        ? billingRowsForYear[billingRowsForYear.length - 1]
         : null;
+
+    const currentBillingRange = formatDateRange(
+        latestBilling?.dateFrom,
+        latestBilling?.dateTo,
+    );
 
     // Calculate carrying balance breakdown (Principal, Interest, Penalties from latest billing)
     const carryingBalanceBreakdown = {
@@ -209,6 +242,7 @@ export default function DashboardCards({ account, statementRows }) {
         {
             title: 'Current Billing Charges',
             value: currentBillingCharges.toFixed(2),
+            description: currentBillingRange,
             icon: cbIcon,
             color: 'from-amber-400 to-orange-400',
         },

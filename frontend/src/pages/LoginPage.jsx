@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import login1Image from '../images/login1.png';
 import pvhaiImage from '../images/pvhai.png';
@@ -11,11 +11,42 @@ export default function LoginPage() {
     const [accountId, setAccountId] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [otpCode, setOtpCode] = useState('');
+    const [otpStep, setOtpStep] = useState(false);
+    const [otpTarget, setOtpTarget] = useState('');
+    const [otpCooldown, setOtpCooldown] = useState(0);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+    useEffect(() => {
+        if (!otpStep || otpCooldown <= 0) {
+            return undefined;
+        }
+
+        const timer = setInterval(() => {
+            setOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [otpStep, otpCooldown]);
+
+    const startOtpCooldown = (seconds) => {
+        if (!seconds || seconds <= 0) {
+            return;
+        }
+
+        setOtpCooldown(seconds);
+    };
+
+    const formatCooldown = (seconds) => {
+        const safeSeconds = Math.max(0, Number(seconds) || 0);
+        const minutes = Math.floor(safeSeconds / 60);
+        const remaining = safeSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
+    };
 
     /**
      * Handle admin login
@@ -51,6 +82,14 @@ export default function LoginPage() {
                 return;
             }
 
+            if (data.otpRequired) {
+                setOtpStep(true);
+                setOtpTarget(data.gmail || '');
+                setOtpCode('');
+                startOtpCooldown(data.cooldownSeconds || 180);
+                return;
+            }
+
             // Store JWT token
             if (data.access_token) {
                 localStorage.setItem('token', data.access_token);
@@ -60,6 +99,93 @@ export default function LoginPage() {
         } catch (err) {
             setError('An error occurred. Please try again.');
             console.error('Login error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleHomeownerOtpVerify = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (!otpCode.trim()) {
+            setError('Please enter the verification code');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/auth/login/homeowner/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accountId, otp: otpCode }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setError(data.message || 'Verification failed. Please try again.');
+                return;
+            }
+
+            if (data.access_token) {
+                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('userRole', 'homeowner');
+                localStorage.setItem('accountId', data.accountId || accountId);
+                if (data.requirePasswordChange) {
+                    localStorage.setItem('mustChangePassword', 'true');
+                } else {
+                    localStorage.removeItem('mustChangePassword');
+                }
+                navigate('/homeowner/dashboard');
+            }
+        } catch (err) {
+            setError('An error occurred. Please try again.');
+            console.error('Verification error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        setError('');
+
+        if (!accountId.trim() || !password.trim()) {
+            setError('Please enter both account ID and password');
+            return;
+        }
+
+        if (otpCooldown > 0) {
+            setError(`Please wait ${otpCooldown} seconds before requesting a new code.`);
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/auth/login/homeowner`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accountId, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setError(data.message || 'Failed to resend verification code.');
+                return;
+            }
+
+            if (data.otpRequired) {
+                setOtpStep(true);
+                setOtpTarget(data.gmail || '');
+                setOtpCode('');
+                startOtpCooldown(data.cooldownSeconds || 180);
+            }
+        } catch (err) {
+            setError('An error occurred. Please try again.');
+            console.error('Resend OTP error:', err);
         } finally {
             setLoading(false);
         }
@@ -99,6 +225,14 @@ export default function LoginPage() {
                 return;
             }
 
+            if (data.otpRequired) {
+                setOtpStep(true);
+                setOtpTarget(data.gmail || '');
+                setOtpCode('');
+                startOtpCooldown(data.cooldownSeconds || 180);
+                return;
+            }
+
             // Store JWT token
             if (data.access_token) {
                 localStorage.setItem('token', data.access_token);
@@ -120,7 +254,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="h-screen w-full bg-[#E89B58] flex relative">
+        <div className="min-h-screen w-full bg-[#E89B58] flex relative overflow-y-auto">
             {/* Home Button */}
             <button
                 onClick={() => navigate('/')}
@@ -130,9 +264,9 @@ export default function LoginPage() {
                 Home
             </button>
 
-            <div className="flex w-full h-screen">
+            <div className="flex w-full min-h-screen">
                 {/* Left Panel - Image */}
-                <div className="hidden w-1/2 lg:flex overflow-hidden h-screen -mt-[0.5%]">
+                <div className="hidden w-1/2 lg:flex overflow-hidden min-h-screen -mt-[0.5%]">
                     <img
                         src={login1Image}
                         alt="Login"
@@ -141,7 +275,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Right Panel - Login Form */}
-                <div className="w-full px-8 py-10 lg:w-1/2 h-screen flex flex-col justify-center">
+                <div className="w-full px-8 py-10 lg:w-1/2 min-h-screen flex flex-col justify-center">
                     <div className="text-center">
                         <img
                             src={pvhaiImage}
@@ -169,6 +303,9 @@ export default function LoginPage() {
                                 setAccountId('');
                                 setUsername('');
                                 setPassword('');
+                                setOtpCode('');
+                                setOtpStep(false);
+                                setOtpTarget('');
                             }}
                         >
                             Homeowner
@@ -184,6 +321,9 @@ export default function LoginPage() {
                                 setAccountId('');
                                 setUsername('');
                                 setPassword('');
+                                setOtpCode('');
+                                setOtpStep(false);
+                                setOtpTarget('');
                             }}
                         >
                             Admin
@@ -248,7 +388,15 @@ export default function LoginPage() {
 
                     {/* Homeowner Login Form */}
                     {loginType === 'homeowner' && (
-                        <form onSubmit={handleHomeownerLogin} className="mt-8 mx-auto w-full max-w-sm space-y-6">
+                        <form
+                            onSubmit={otpStep ? handleHomeownerOtpVerify : handleHomeownerLogin}
+                            className="mt-8 mx-auto w-full max-w-sm space-y-6"
+                        >
+                            {otpStep && (
+                                <div className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-xs text-white/90">
+                                    Verification code sent to {otpTarget || 'your Gmail address'}.
+                                </div>
+                            )}
                             <div className="relative group">
                                 <img
                                     src={vecImage}
@@ -262,7 +410,7 @@ export default function LoginPage() {
                                     placeholder="Enter your account ID (e.g., A001001)"
                                     value={accountId}
                                     onChange={(e) => setAccountId(e.target.value.toUpperCase())}
-                                    disabled={loading}
+                                    disabled={loading || otpStep}
                                     className="w-full pl-10 pr-4 py-4 rounded-2xl border border-slate-200 bg-white/70 text-sm text-slate-900 shadow-sm transition focus:border-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:shadow-[inset_-10px_0_0_0_rgb(140,65,0)] disabled:cursor-not-allowed disabled:bg-slate-100 relative"
                                 />
                             </div>
@@ -280,7 +428,7 @@ export default function LoginPage() {
                                     placeholder="Enter your password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    disabled={loading}
+                                    disabled={loading || otpStep}
                                     className="w-full pl-10 pr-12 py-4 rounded-2xl border border-slate-200 bg-white/70 text-sm text-slate-900 shadow-sm transition focus:border-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:shadow-[inset_-10px_0_0_0_rgb(140,65,0)] disabled:cursor-not-allowed disabled:bg-slate-100 relative"
                                 />
                                 <button
@@ -294,6 +442,34 @@ export default function LoginPage() {
                                 </button>
                             </div>
 
+                            {otpStep && (
+                                <div className="relative group">
+                                    <input
+                                        id="homeowner-otp"
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={8}
+                                        placeholder="Enter 8-digit verification code"
+                                        value={otpCode}
+                                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                                        disabled={loading}
+                                        className="w-full px-4 pr-28 py-4 rounded-2xl border border-slate-200 bg-white/70 text-sm text-slate-900 shadow-sm transition focus:border-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:shadow-[inset_-10px_0_0_0_rgb(140,65,0)] disabled:cursor-not-allowed disabled:bg-slate-100"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleResendOtp}
+                                        disabled={loading || otpCooldown > 0}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                        {loading
+                                            ? 'Sending...'
+                                            : otpCooldown > 0
+                                                ? `Resend ${formatCooldown(otpCooldown)}`
+                                                : 'Resend Code'}
+                                    </button>
+                                </div>
+                            )}
+
                             <div className="pt-2">
                                 <p className="text-xs font-poppins font-light text-white/80">
                                     For forgotten passwords, kindly reach out to the HOA office.
@@ -306,7 +482,7 @@ export default function LoginPage() {
                                 disabled={loading}
                                 className="w-full rounded-2xl bg-[#FFFAFA]/70 px-4 py-4 text-sm font-semibold text-[#363232] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
                             >
-                                {loading ? 'Logging in...' : 'LOG IN'}
+                                {loading ? 'Logging in...' : otpStep ? 'VERIFY CODE' : 'LOG IN'}
                             </button>
                         </form>
                     )}

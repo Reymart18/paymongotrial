@@ -34,11 +34,23 @@ export class PropertyAccount {
     @Column({ unique: true })
     username?: string;
 
+    @Column({ nullable: true })
+    gmail?: string;
+
     @Column()
     password?: string;
 
     @Column({ default: false })
     passwordChanged?: boolean;
+
+    @Column({ nullable: true })
+    otpHash?: string;
+
+    @Column({ type: 'datetime', nullable: true })
+    otpExpiresAt?: Date;
+
+    @Column({ type: 'datetime', nullable: true })
+    otpLastSentAt?: Date;
 
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     balance?: number;

@@ -47,6 +47,7 @@ interface FoxproMemberRecord {
     memberName: string;
     propertySizeSqm?: number | null;
     classification?: string | null;
+    gmail?: string | null;
 }
 
 @Injectable()
@@ -231,6 +232,11 @@ export class FoxproService {
                         changed = true;
                     }
 
+                    if (record.gmail && existing.gmail !== record.gmail) {
+                        existing.gmail = record.gmail;
+                        changed = true;
+                    }
+
                     if (record.propertySizeSqm !== null && record.propertySizeSqm !== undefined) {
                         const existingSize = existing.propertySizeSqm ?? null;
                         if (existingSize === null || Number(existingSize) !== Number(record.propertySizeSqm)) {
@@ -260,6 +266,7 @@ export class FoxproService {
                     block: record.block,
                     lot: record.lot,
                     memberName: record.memberName,
+                    gmail: record.gmail || undefined,
                     propertySizeSqm:
                         record.propertySizeSqm !== undefined && record.propertySizeSqm !== null
                             ? Number(record.propertySizeSqm)
@@ -475,6 +482,15 @@ export class FoxproService {
         const memberName = this.buildMemberName(normalized);
         const propertySizeSqm = this.toNumberOrNull(normalized.area ?? normalized.lotsize);
         const classificationRaw = normalized.holo || normalized.classification || '';
+        const gmail = this.cleanText(
+            normalized.gmail
+            || normalized.email
+            || normalized.emailadd
+            || normalized.emailaddress
+            || normalized.mail
+            || normalized.mailadd
+            || normalized.mailaddress,
+        );
 
         return {
             accountId,
@@ -484,6 +500,7 @@ export class FoxproService {
             memberName,
             propertySizeSqm,
             classification: classificationRaw ? String(classificationRaw).trim() : null,
+            gmail: gmail || null,
         };
     }
 

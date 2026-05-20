@@ -171,6 +171,16 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('overpaid-accounts')
+    async getOverpaidAccounts(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getOverpaidAccountsReport();
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('activities')
     async getRecentActivities(
         @Request() req: AuthenticatedRequest,

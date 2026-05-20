@@ -4,6 +4,9 @@ import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import UploadCard from './components/AdminDashboard/UploadCard';
 import pvhaiImg from '../images/pvhai.png';
+import cbIcon from '../images/cb.png';
+import rpIcon from '../images/rp.png';
+import toIcon from '../images/to.png';
 
 const quarterOptions = [
     { value: 1, label: 'Q1 (Jan - Mar)' },
@@ -91,6 +94,10 @@ export default function ReportsPage() {
 
     const comparison = useMemo(() => report?.comparison || {}, [report]);
     const totals = useMemo(() => report?.totals || {}, [report]);
+    const overdueTotal = useMemo(
+        () => overdueItems.reduce((sum, item) => sum + Number(item?.amountDue || 0), 0),
+        [overdueItems],
+    );
 
     const handlePrevCard = () => {
         setCurrentCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
@@ -389,6 +396,18 @@ export default function ReportsPage() {
                 </tr>
             `;
         }).join('');
+        const totalRowHtml = overdueItems.length
+            ? `
+                <tr>
+                    <td colspan="5" style="text-align: right; font-weight: 600;">Grand Total</td>
+                    <td style="font-weight: 600;">PHP ${formatMoney(overdueTotal)}</td>
+                    <td></td>
+                </tr>
+            `
+            : '';
+        const bodyHtml = rowsHtml
+            ? `${rowsHtml}${totalRowHtml}`
+            : '<tr><td colspan="7">No overdue accounts found.</td></tr>';
 
         const html = `
             <!DOCTYPE html>
@@ -424,7 +443,7 @@ export default function ReportsPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml || '<tr><td colspan="7">No overdue accounts found.</td></tr>'}
+                        ${bodyHtml}
                     </tbody>
                 </table>
             </body>
@@ -618,35 +637,42 @@ export default function ReportsPage() {
                             {[
                                 {
                                     title: 'Total Billed (This Quarter)',
-                                    value: `PHP ${formatMoney(totals.billed)}`,
-                                    comparison: comparison.billedPercent,
-                                    icon: (
-                                        <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M19 6h-8.5l-2.25-3h-6.25v14h2v2h16v-2h2v-11zm-1 11h-14v-10h14v10zm-3-7h-8v2h8v-2z" />
-                                        </svg>
+                                    value: (
+                                        <div className="flex flex-col">
+                                            <span className="text-2xl text-gray-700">PHP</span>
+                                            <span className="text-2xl font-bold">
+                                                {formatMoney(totals.billed)}
+                                            </span>
+                                        </div>
                                     ),
+                                    comparison: comparison.billedPercent,
+                                    icon: cbIcon,
                                 },
                                 {
                                     title: 'Total Collected (This Quarter)',
-                                    value: `PHP ${formatMoney(totals.collected)}`,
-                                    comparison: comparison.collectedPercent,
-                                    icon: (
-                                        <svg className="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 24 24">
-                                            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
-                                            <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
+                                    value: (
+                                        <div className="flex flex-col">
+                                            <span className="text-2xl text-gray-700">PHP</span>
+                                            <span className="text-2xl font-bold">
+                                                {formatMoney(totals.collected)}
+                                            </span>
+                                        </div>
                                     ),
+                                    comparison: comparison.collectedPercent,
+                                    icon: toIcon,
                                 },
                                 {
                                     title: 'Net Collection (This Quarter)',
-                                    value: `PHP ${formatMoney(totals.outstanding)}`,
-                                    comparison: comparison.outstandingPercent,
-                                    icon: (
-                                        <svg className="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                            <polyline points="17 6 23 6 23 12"></polyline>
-                                        </svg>
+                                    value: (
+                                        <div className="flex flex-col">
+                                            <span className="text-2xl text-gray-700">PHP</span>
+                                            <span className="text-2xl font-bold">
+                                                {formatMoney(totals.outstanding)}
+                                            </span>
+                                        </div>
                                     ),
+                                    comparison: comparison.outstandingPercent,
+                                    icon: rpIcon,
                                 },
                             ].map((card) => {
                                 const isPositive = card.comparison && card.comparison > 0;
@@ -654,22 +680,29 @@ export default function ReportsPage() {
                                 return (
                                     <div
                                         key={card.title}
-                                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                                        className="relative rounded-2xl border border-slate-200 bg-white p-6 pt-10 shadow-sm transition hover:shadow-md"
                                     >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div>{card.icon}</div>
-                                            <p className="text-sm font-medium text-slate-600">{card.title}</p>
+                                        <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+                                            <div className="flex items-center justify-center h-14 w-14 rounded-full bg-white shadow-md border-2 border-[#E89B58]/33">
+                                                <img src={card.icon} alt="" className="h-7 w-7" />
+                                            </div>
                                         </div>
-                                        <p className="mt-3 text-2xl font-semibold text-slate-900">
+                                        <div className="text-center">
+                                            <p className="text-sm font-medium text-slate-600 whitespace-nowrap">{card.title}</p>
+                                        </div>
+                                        <p className="mt-3 text-2xl font-semibold text-slate-900 text-center">
                                             {loading ? 'Loading...' : card.value}
                                         </p>
-                                        <p className={`mt-2 text-xs ${isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-slate-500'}`}>
+                                        <p className={`mt-2 text-xs text-center ${isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-slate-500'}`}>
                                             vs previous quarter: <span className="font-semibold">{formatPercent(card.comparison)}</span>
                                         </p>
                                     </div>
                                 );
                             })}
-                            <div className="rounded-2xl border border-slate-700 p-5 shadow-sm" style={{ backgroundColor: '#0E0E0E' }}>
+                            <div className="relative rounded-2xl border border-slate-700 p-5 shadow-sm transition hover:shadow-md" style={{ backgroundColor: '#0E0E0E' }}>
+                                <p className="text-xs text-slate-500 mb-3">
+                                    Disclaimer: No payment for 12 months and equivalent to 12 months’ amount due.
+                                </p>
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xl">⚠️</span>
@@ -949,6 +982,17 @@ export default function ReportsPage() {
                                             </tr>
                                         );
                                     })}
+                                    {overdueItems.length > 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="px-4 py-3 text-right font-semibold text-slate-700">
+                                                Grand Total
+                                            </td>
+                                            <td className="px-4 py-3 font-semibold text-slate-900">
+                                                {formatMoney(overdueTotal)}
+                                            </td>
+                                            <td className="px-4 py-3"></td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>

@@ -206,7 +206,7 @@ export class ReportsService {
                 'previousBalance',
             )
             .addSelect(
-                'COALESCE(billing.prinCurr, 0) + COALESCE(billing.intCurr, 0) + COALESCE(billing.penCurr, 0)',
+                'COALESCE(billing.prinCurr, 0)',
                 'currentCharges',
             )
             .addSelect(
@@ -225,8 +225,6 @@ export class ReportsService {
             .addGroupBy('billing.intBal')
             .addGroupBy('billing.penBal')
             .addGroupBy('billing.prinCurr')
-            .addGroupBy('billing.intCurr')
-            .addGroupBy('billing.penCurr')
             .having('MAX(payment.paymentDate) IS NULL OR MAX(payment.paymentDate) <= :cutoff')
             .orderBy('previousBalance', 'DESC');
 

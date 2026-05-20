@@ -24,6 +24,12 @@ export default function AdminDashboard() {
     const [settledError, setSettledError] = useState('');
     const [settledBillingLabel, setSettledBillingLabel] = useState('-');
     const [showSettledModal, setShowSettledModal] = useState(false);
+    const [overpaidItems, setOverpaidItems] = useState([]);
+    const [overpaidLoading, setOverpaidLoading] = useState(false);
+    const [overpaidError, setOverpaidError] = useState('');
+    const [overpaidBillingLabel, setOverpaidBillingLabel] = useState('-');
+    const [overpaidBillingEndDateKey, setOverpaidBillingEndDateKey] = useState(null);
+    const [showOverpaidModal, setShowOverpaidModal] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
@@ -164,6 +170,19 @@ export default function AdminDashboard() {
         }
 
         const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '-';
+        }
+
+        return date.toLocaleDateString('en-PH');
+    };
+
+    const formatDateKey = (value) => {
+        if (!value) {
+            return '-';
+        }
+
+        const date = new Date(`${value}T00:00:00.000Z`);
         if (Number.isNaN(date.getTime())) {
             return '-';
         }
@@ -315,6 +334,121 @@ export default function AdminDashboard() {
         printWindow.print();
     };
 
+    const handleGenerateOverpaidReport = async () => {
+        if (overpaidLoading) {
+            return;
+        }
+
+        setOverpaidError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setOverpaidError('Session expired. Please log in again.');
+            return;
+        }
+
+        setOverpaidLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/admin/overpaid-accounts`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setOverpaidError(data.message || 'Failed to load overpaid accounts.');
+                return;
+            }
+
+            setOverpaidItems(Array.isArray(data?.items) ? data.items : []);
+            setOverpaidBillingLabel(data?.currentBillingLabel || '-');
+            setOverpaidBillingEndDateKey(data?.billingEndDateKey || null);
+            setShowOverpaidModal(true);
+        } catch (err) {
+            console.error('Overpaid report error:', err);
+            setOverpaidError('Failed to load overpaid accounts. Please try again.');
+        } finally {
+            setOverpaidLoading(false);
+        }
+    };
+
+    const handlePrintOverpaid = () => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const rowsHtml = overpaidItems.map((item, index) => {
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${item.neighborhood || '-'}</td>
+                    <td>${item.block || '-'}</td>
+                    <td>${item.lot || '-'}</td>
+                    <td>PHP ${formatMoney(item.amountDue || 0)}</td>
+                    <td>${formatDate(item.lastPaymentDate)}</td>
+                    <td>${overpaidBillingLabel || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const formattedAsOf = formatDateKey(overpaidBillingEndDateKey);
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Overpaid Accounts</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Overpaid Accounts</h1>
+                <p>Amount Due / Excess as of ${formattedAsOf}.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Name</th>
+                            <th>Neighborhood</th>
+                            <th>Block</th>
+                            <th>Lot</th>
+                            <th>Amount Due / Excess</th>
+                            <th>Last Payment</th>
+                            <th>Current Billing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="9">No overpaid accounts found.</td></tr>'}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
 
 
     return (
@@ -334,6 +468,42 @@ export default function AdminDashboard() {
                     .print-settled {
                         position: static !important;
                         left: 0;
+                    .print-overpaid, .print-overpaid * {
+                        visibility: visible;
+                    }
+                    .print-overpaid {
+                        position: static !important;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: auto !important;
+                        max-height: none !important;
+                        overflow: visible !important;
+                        background: #fff;
+                    }
+                    .print-overpaid .print-overpaid-table {
+                        max-height: none !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    .print-overpaid * {
+                        overflow: visible !important;
+                    }
+                    .print-overpaid table {
+                        width: 100% !important;
+                        border-collapse: collapse;
+                        page-break-inside: auto;
+                    }
+                    .print-overpaid thead {
+                        display: table-header-group;
+                    }
+                    .print-overpaid tr {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .print-overpaid tbody {
+                        page-break-inside: auto;
+                    }
                         top: 0;
                         width: 100%;
                         height: auto !important;
@@ -399,6 +569,8 @@ export default function AdminDashboard() {
                             loading={summaryLoading}
                             onGenerateSettledReport={handleGenerateSettledReport}
                             settledReportLoading={settledLoading}
+                            onGenerateOverpaidReport={handleGenerateOverpaidReport}
+                            overpaidReportLoading={overpaidLoading}
                         />
 
                         {summaryError && (
@@ -412,6 +584,13 @@ export default function AdminDashboard() {
                             <AdminStatusMessage
                                 variant="error"
                                 message={settledError}
+                            />
+                        )}
+
+                        {overpaidError && (
+                            <AdminStatusMessage
+                                variant="error"
+                                message={overpaidError}
                             />
                         )}
 
@@ -532,6 +711,89 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-4 py-3 text-slate-600">
                                                 {settledBillingLabel}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showOverpaidModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowOverpaidModal(false)} />
+                    <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl print-overpaid">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Overpaid Accounts</h2>
+                                <p className="text-xs text-slate-500">Amount Due / Excess as of {formatDateKey(overpaidBillingEndDateKey)}.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintOverpaid}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowOverpaidModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100 print-overpaid-table">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Name</th>
+                                        <th className="px-4 py-3">Neighborhood</th>
+                                        <th className="px-4 py-3">Block</th>
+                                        <th className="px-4 py-3">Lot</th>
+                                        <th className="px-4 py-3">Amount Due / Excess</th>
+                                        <th className="px-4 py-3">Last Payment</th>
+                                        <th className="px-4 py-3">Current Billing</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {overpaidItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="9" className="px-4 py-6 text-center text-slate-400">
+                                                No overpaid accounts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {overpaidItems.map((item, index) => (
+                                        <tr key={`${item.accountId}-${index}`}>
+                                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-700">
+                                                {item.accountId || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.memberName || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.neighborhood || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.block || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.lot || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 font-semibold text-rose-600">
+                                                PHP {formatMoney(item.amountDue || 0)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {formatDate(item.lastPaymentDate)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {overpaidBillingLabel || '-'}
                                             </td>
                                         </tr>
                                     ))}

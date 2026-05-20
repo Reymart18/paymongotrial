@@ -129,7 +129,7 @@ export default function ProfilePage() {
                 <div className="px-2 md:px-6 py-3 md:py-8 flex items-center gap-2 md:gap-4">
                     <button
                         onClick={() => window.history.back()}
-                        className="flex-shrink-0 text-white hover:opacity-80 transition"
+                        className="shrink-0 text-white hover:opacity-80 transition"
                     >
                         <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -143,7 +143,7 @@ export default function ProfilePage() {
                 <div className="mx-auto max-w-6xl px-2 md:px-18 py-4 md:py-10">
                     <div className="rounded-xl md:rounded-2xl bg-[#E89B58]/30 p-2 md:p-7">
                         <div className="flex flex-col md:flex-row gap-3 md:gap-5 items-center justify-center md:justify-start text-center md:text-left">
-                            <img src={avatarImg} alt="Avatar" className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover flex-shrink-0" />
+                            <img src={avatarImg} alt="Avatar" className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shrink-0" />
                             <div className="min-w-0">
                                 <div className="mb-3 md:mb-4">
                                     <p className="text-base md:text-2xl font-extrabold text-[#8C4100] truncate">{accountId}</p>
@@ -166,7 +166,7 @@ export default function ProfilePage() {
                                     <p className="text-[7px] md:text-xs font-semibold uppercase tracking-none md:tracking-wide text-slate-500 line-clamp-2">
                                         {item.label}
                                     </p>
-                                    <p className="mt-1 md:mt-2 text-xs md:text-base font-semibold text-slate-900 break-words">
+                                    <p className="mt-1 md:mt-2 text-xs md:text-base font-semibold text-slate-900 wrap-break-words">
                                         {item.value}
                                     </p>
                                 </div>

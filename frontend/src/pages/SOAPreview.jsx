@@ -351,7 +351,7 @@ export default function SOAPreview() {
         maximumFractionDigits: 0,
     }).format(Number(value || 0));
 
-    const soaPrefix = 'for 2025 reference -';
+    const soaPrefix = 'for dec 2025 reference -';
     const soaValueLabel =
         account?.soa !== undefined && account?.soa !== null
             ? `SOA ${formatSoa(account.soa)}`
