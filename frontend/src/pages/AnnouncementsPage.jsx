@@ -437,6 +437,27 @@ export default function AnnouncementsPage() {
 
             <DashboardNav
                 onLogout={handleLogout}
+                onProfile={() => {
+                    if (isStaff) {
+                        return;
+                    }
+                    navigate('/homeowner/profile', {
+                        state: {
+                            accountId,
+                            classification: account?.classification,
+                            propertyDetails: account
+                                ? {
+                                    neighborhood: account.neighborhood,
+                                    block: account.block,
+                                    lot: account.lot,
+                                    memberName: account.memberName,
+                                    propertySizeSqm: account.propertySizeSqm,
+                                    classification: account.classification,
+                                }
+                                : null,
+                        },
+                    });
+                }}
                 accountId={accountId}
                 classification={isStaff ? adminLabel : (account?.classification || 'Loading...')}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
