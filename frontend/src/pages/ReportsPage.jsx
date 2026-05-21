@@ -672,11 +672,16 @@ export default function ReportsPage() {
                                         </div>
                                     ),
                                     comparison: comparison.outstandingPercent,
+                                    compareMode: 'inverse',
                                     icon: rpIcon,
                                 },
                             ].map((card) => {
-                                const isPositive = card.comparison && card.comparison > 0;
-                                const isNegative = card.comparison && card.comparison < 0;
+                                const adjustedComparison = card.compareMode === 'inverse' && typeof card.comparison === 'number'
+                                    ? -card.comparison
+                                    : card.comparison;
+                                const hasComparison = typeof adjustedComparison === 'number';
+                                const isPositive = hasComparison && adjustedComparison > 0;
+                                const isNegative = hasComparison && adjustedComparison < 0;
                                 return (
                                     <div
                                         key={card.title}
@@ -694,7 +699,7 @@ export default function ReportsPage() {
                                             {loading ? 'Loading...' : card.value}
                                         </p>
                                         <p className={`mt-2 text-xs text-center ${isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-slate-500'}`}>
-                                            vs previous quarter: <span className="font-semibold">{formatPercent(card.comparison)}</span>
+                                            vs previous quarter: <span className="font-semibold">{formatPercent(adjustedComparison)}</span>
                                         </p>
                                     </div>
                                 );

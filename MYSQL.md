@@ -20,3 +20,22 @@ If amountDue = 0, its neither
 
 ##
 payments collection doesnt calculated payment made by admin or pvhai to overall.
+
+##percentage calculation##
+A percentage change formula measures how many times bigger or smaller something became compared to the old value.
+
+Previous:       
+138,045.39
+
+Current:
+2,233,140.89
+
+Difference:
+2,095,095.50
+
+Now divide the increase by the old value:
+
+2,095,095.50 divide 138,045.39
+×100
+
+That equals about 1517.7%.

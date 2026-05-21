@@ -30,7 +30,21 @@ export class AdminService {
         targetType?: string | null;
         targetId?: string | null;
         details?: string | null;
-    }): Promise<AdminActivity> {
+    }): Promise<AdminActivity | null> {
+        // Skip logging for bulk uploads and sync operations per request
+        const ignoredActions = new Set([
+            'upload_masterlist',
+            'upload_billings',
+            'upload_payments',
+            'sync_payments_dbf',
+            'sync_billings_dbf',
+            'sync_members_dbf',
+        ]);
+
+        if (ignoredActions.has(input.action)) {
+            return null;
+        }
+
         const activity = this.activityRepo.create({
             actorId: input.actorId ?? null,
             actorUsername: input.actorUsername ?? null,

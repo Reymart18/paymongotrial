@@ -76,9 +76,11 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                     </button>
                 )}
 
-                <div className="mb-8">
+                <div className="mb-1">
                     <img src={logoImg} alt="PV Hai" className="h-20 w-auto" />
                 </div>
+
+                <div className="mb-8 h-px bg-[#FFFAFA]/19 -mx-6"></div>
 
                 <nav className="space-y-2">
                     <a

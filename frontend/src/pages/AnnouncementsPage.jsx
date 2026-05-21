@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
@@ -171,6 +171,119 @@ export default function AnnouncementsPage() {
         });
     };
 
+    const featuredAnnouncement = announcements[0] || null;
+    const recentAnnouncements = announcements.slice(1);
+    const carouselSlides = announcements.length > 0
+        ? [announcements[0], announcements[1] || announcements[0]]
+        : [];
+    const [carouselIndex, setCarouselIndex] = useState(0);
+    const [expandedRecentIds, setExpandedRecentIds] = useState([]);
+
+    useEffect(() => {
+        if (carouselIndex >= carouselSlides.length) {
+            setCarouselIndex(0);
+        }
+    }, [carouselIndex, carouselSlides.length]);
+
+    const renderAnnouncementActions = (announcement) => {
+        if (!isSuperAdmin) {
+            return null;
+        }
+
+        return (
+            <div className="flex shrink-0 items-center gap-1 self-start sm:self-auto">
+                <button
+                    onClick={() => handleEditAnnouncement(announcement)}
+                    disabled={editingId !== null}
+                    className="rounded-lg p-2 text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Edit announcement"
+                >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                    </svg>
+                </button>
+                <button
+                    onClick={() => handleDeleteAnnouncement(announcement.id)}
+                    disabled={editingId !== null}
+                    className="rounded-lg p-2 text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Delete announcement"
+                >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                    </svg>
+                </button>
+            </div>
+        );
+    };
+
+    function AnnouncementCard({ announcement, isFeatured = false }) {
+        const [expanded, setExpanded] = useState(false);
+        const [truncated, setTruncated] = useState(false);
+        const ref = useRef(null);
+
+        useEffect(() => {
+            const el = ref.current;
+            if (!el) return;
+
+            // Allow layout to settle (images) before measuring
+            const check = () => {
+                // Compare scrollHeight to clientHeight to detect truncation
+                setTruncated(el.scrollHeight > el.clientHeight + 1);
+            };
+
+            check();
+
+            // Re-check when images inside the node finish loading
+            const imgs = el.querySelectorAll('img');
+            let loadedCount = 0;
+            if (imgs.length === 0) return;
+            imgs.forEach((img) => {
+                if (img.complete) {
+                    loadedCount += 1;
+                    if (loadedCount === imgs.length) check();
+                } else {
+                    img.addEventListener('load', () => {
+                        loadedCount += 1;
+                        if (loadedCount === imgs.length) check();
+                    });
+                }
+            });
+        }, [announcement]);
+
+        if (!announcement) return null;
+
+        return (
+            <div>
+                <p
+                    ref={ref}
+                    className={`${expanded ? '' : 'line-clamp-2'} text-sm leading-relaxed text-slate-700 sm:text-base`}
+                >
+                    {announcement.content || 'No content provided.'}
+                </p>
+                {truncated && (
+                    <div className="mt-2 flex justify-start">
+                        <button
+                            onClick={() => setExpanded((v) => !v)}
+                            className="text-sm font-medium text-indigo-600 hover:underline"
+                        >
+                            {expanded ? 'Show less' : 'Read more'}
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     const handleAddAnnouncement = async (e) => {
         e.preventDefault();
 
@@ -334,9 +447,9 @@ export default function AnnouncementsPage() {
                 <main className="flex-1 overflow-auto">
                     <div className="space-y-6 px-4 md:px-6 py-6 md:py-8">
                         {/* Header */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Announcements</h1>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1 max-w-2xl">
+                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Admin Announcements</h1>
                                 <p className="text-sm md:text-base text-slate-600 mt-1">
                                     Stay updated with the latest community news and announcements.
                                 </p>
@@ -344,10 +457,12 @@ export default function AnnouncementsPage() {
                             {isSuperAdmin && (
                                 <button
                                     onClick={() => setShowCreateForm(!showCreateForm)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
+                                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm transition hover:bg-indigo-700 active:scale-95"
+                                    aria-label="Add announcement"
+                                    title="Add announcement"
                                 >
                                     <svg
-                                        className="w-5 h-5"
+                                        className="h-5 w-5"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -359,7 +474,6 @@ export default function AnnouncementsPage() {
                                             d="M12 4v16m8-8H4"
                                         />
                                     </svg>
-                                    New Announcement
                                 </button>
                             )}
                         </div>
@@ -531,114 +645,219 @@ export default function AnnouncementsPage() {
                             </div>
                         )}
 
-                        {/* Announcements List */}
+                        {/* Announcements Feed */}
                         {!announcementsLoading && !announcementsError && announcements.length > 0 && (
-                            <div className="space-y-4">
-                                {announcements.map((announcement) => (
-                                    <div
-                                        key={announcement.id}
-                                        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition"
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1">
-                                                <h2 className="text-lg font-semibold text-slate-900 mb-2">
-                                                    {announcement.title || 'Untitled Announcement'}
-                                                </h2>
-                                                {announcement.image && (
-                                                    <img
-                                                        src={`http://localhost:3000/uploads/announcements/${announcement.image}`}
-                                                        alt={announcement.title}
-                                                        className="w-full h-auto rounded-lg mb-3 max-h-64 object-contain cursor-pointer hover:opacity-80 transition"
-                                                        onClick={() => setViewingImage(`http://localhost:3000/uploads/announcements/${announcement.image}`)}
-                                                    />
+                            <div className="space-y-4 md:hidden">
+                                {featuredAnnouncement && (
+                                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                                        {featuredAnnouncement.image && (
+                                            <img
+                                                src={`http://localhost:3000/uploads/announcements/${featuredAnnouncement.image}`}
+                                                alt={featuredAnnouncement.title}
+                                                className="h-52 w-full cursor-pointer object-cover sm:h-64"
+                                                onClick={() => setViewingImage(`http://localhost:3000/uploads/announcements/${featuredAnnouncement.image}`)}
+                                            />
+                                        )}
+                                        <div className="space-y-3 p-4 sm:p-6">
+                                            <div className="flex items-center gap-2 text-xs text-slate-500 sm:text-sm">
+                                                <span>{formatDate(featuredAnnouncement.createdAt)}</span>
+                                                {featuredAnnouncement.author && (
+                                                    <>
+                                                        <span className="text-slate-300">|</span>
+                                                        <span>{featuredAnnouncement.author}</span>
+                                                    </>
                                                 )}
-                                                <p className="text-slate-700 leading-relaxed mb-3">
-                                                    {announcement.content || 'No content provided.'}
-                                                </p>
-                                                <div className="flex items-center gap-4 text-sm text-slate-500">
-                                                    <span className="flex items-center gap-1">
-                                                        <svg
-                                                            className="w-4 h-4"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                                            />
-                                                        </svg>
-                                                        {formatDate(announcement.createdAt)}
-                                                    </span>
-                                                    {announcement.author && (
-                                                        <span className="flex items-center gap-1">
-                                                            <svg
-                                                                className="w-4 h-4"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    strokeWidth={2}
-                                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                                                />
-                                                            </svg>
-                                                            {announcement.author}
-                                                        </span>
-                                                    )}
-                                                </div>
                                             </div>
+                                            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                                                {featuredAnnouncement.title || 'Untitled Announcement'}
+                                            </h2>
+                                            <AnnouncementCard announcement={featuredAnnouncement} isFeatured />
                                             {isSuperAdmin && (
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleEditAnnouncement(announcement)}
-                                                        disabled={editingId !== null}
-                                                        className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Edit announcement"
-                                                    >
-                                                        <svg
-                                                            className="w-5 h-5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                            />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteAnnouncement(announcement.id)}
-                                                        disabled={editingId !== null}
-                                                        className="p-2 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Delete announcement"
-                                                    >
-                                                        <svg
-                                                            className="w-5 h-5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                                            />
-                                                        </svg>
-                                                    </button>
+                                                <div className="flex justify-end gap-2 pt-1">
+                                                    {renderAnnouncementActions(featuredAnnouncement)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+                                )}
+
+                                {recentAnnouncements.length > 0 && (
+                                    <div className="flex items-center gap-3 px-1">
+                                        <div className="h-px flex-1 bg-slate-200" />
+                                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                            Recent
+                                        </span>
+                                        <div className="h-px flex-1 bg-slate-200" />
+                                    </div>
+                                )}
+
+                                {recentAnnouncements.length > 0 && (
+                                    <section className="space-y-3">
+                                        <div className="space-y-3">
+                                            {recentAnnouncements.map((announcement) => (
+                                                <article
+                                                    key={announcement.id}
+                                                    className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md sm:p-4"
+                                                >
+                                                    <div className="space-y-3">
+                                                        <div className="overflow-hidden rounded-xl bg-slate-100">
+                                                            {announcement.image ? (
+                                                                <img
+                                                                    src={`http://localhost:3000/uploads/announcements/${announcement.image}`}
+                                                                    alt={announcement.title}
+                                                                    className="h-40 w-full cursor-pointer object-cover sm:h-44"
+                                                                    onClick={() => setViewingImage(`http://localhost:3000/uploads/announcements/${announcement.image}`)}
+                                                                />
+                                                            ) : (
+                                                                <div className="flex h-40 w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 sm:h-44">
+                                                                    News
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2 text-xs text-slate-500 sm:text-sm">
+                                                            <span>{formatDate(announcement.createdAt)}</span>
+                                                            {announcement.author && (
+                                                                <>
+                                                                    <span className="text-slate-300">|</span>
+                                                                    <span>{announcement.author}</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+
+                                                        <h4 className="text-sm font-semibold text-slate-900 sm:text-base">
+                                                            {announcement.title || 'Untitled Announcement'}
+                                                        </h4>
+
+                                                        <AnnouncementCard announcement={announcement} />
+
+                                                        {isSuperAdmin && (
+                                                            <div className="flex justify-end gap-2 pt-1">
+                                                                {renderAnnouncementActions(announcement)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+                            </div>
+                        )}
+
+                        {!announcementsLoading && !announcementsError && announcements.length > 0 && (
+                            <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_400px] md:gap-10 md:items-start">
+                                <section className="min-w-0 space-y-4">
+                                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                                        {carouselSlides[carouselIndex]?.image && (
+                                            <img
+                                                src={`http://localhost:3000/uploads/announcements/${carouselSlides[carouselIndex].image}`}
+                                                alt={carouselSlides[carouselIndex].title || 'Announcement'}
+                                                className="h-48 w-full cursor-pointer object-cover lg:h-56"
+                                                onClick={() => setViewingImage(`http://localhost:3000/uploads/announcements/${carouselSlides[carouselIndex].image}`)}
+                                            />
+                                        )}
+                                        {!carouselSlides[carouselIndex]?.image && (
+                                            <div className="flex h-48 w-full items-center justify-center bg-slate-100 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 lg:h-56">
+                                                Announcement
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-3 p-4 lg:p-6">
+                                            <div className="flex items-center gap-2 text-xs text-slate-500 lg:text-sm">
+                                                <span>{formatDate(carouselSlides[carouselIndex]?.createdAt)}</span>
+                                                {carouselSlides[carouselIndex]?.author && (
+                                                    <>
+                                                        <span className="text-slate-300">|</span>
+                                                        <span>{carouselSlides[carouselIndex].author}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <h2 className="text-xl font-semibold text-slate-900 lg:text-2xl">
+                                                {carouselSlides[carouselIndex]?.title || 'Untitled Announcement'}
+                                            </h2>
+                                            <p className="text-sm leading-relaxed text-slate-700 lg:text-base">
+                                                {carouselSlides[carouselIndex]?.content || 'No content provided.'}
+                                            </p>
+                                            {isSuperAdmin && (
+                                                <div className="flex justify-end pt-1">
+                                                    {renderAnnouncementActions(carouselSlides[carouselIndex])}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                ))}
+
+                                </section>
+
+                                <aside className="border-l border-slate-200 pl-8">
+                                    <div className="rounded-2xl bg-slate-50/70">
+                                        <h3 className="text-base font-bold text-slate-900">Recent Announcements</h3>
+                                        <div className="mt-4 min-h-52 rounded-2xl bg-slate-100/70 p-4">
+                                            {recentAnnouncements.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {recentAnnouncements.map((announcement) => (
+                                                        <article
+                                                            key={announcement.id}
+                                                            className="rounded-2xl bg-white p-4 shadow-sm"
+                                                        >
+                                                            <div className="flex gap-4">
+                                                                {announcement.image ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setViewingImage(`http://localhost:3000/uploads/announcements/${announcement.image}`)}
+                                                                        className="shrink-0 overflow-hidden rounded-xl"
+                                                                        aria-label={`View ${announcement.title || 'announcement'} image`}
+                                                                    >
+                                                                        <img
+                                                                            src={`http://localhost:3000/uploads/announcements/${announcement.image}`}
+                                                                            alt={announcement.title}
+                                                                            className="h-20 w-28 object-cover transition duration-200 hover:scale-105"
+                                                                        />
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="h-20 w-28 rounded-xl bg-slate-100" />
+                                                                )}
+                                                                <div className="min-w-0">
+                                                                    <div className="text-xs text-slate-500">
+                                                                        {formatDate(announcement.createdAt)}
+                                                                    </div>
+                                                                    <div className="mt-1 text-base font-semibold leading-snug text-slate-900">
+                                                                        {announcement.title || 'Untitled Announcement'}
+                                                                    </div>
+                                                                    <p className={`${expandedRecentIds.includes(announcement.id) ? '' : 'line-clamp-3'} mt-2 text-sm leading-relaxed text-slate-600`}>
+                                                                        {announcement.content || 'No content provided.'}
+                                                                    </p>
+                                                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setExpandedRecentIds((current) => (
+                                                                                    current.includes(announcement.id)
+                                                                                        ? current.filter((id) => id !== announcement.id)
+                                                                                        : [...current, announcement.id]
+                                                                                ));
+                                                                            }}
+                                                                            className="text-sm font-medium text-indigo-600 hover:underline"
+                                                                        >
+                                                                            {expandedRecentIds.includes(announcement.id) ? 'Show less' : 'Read more'}
+                                                                        </button>
+                                                                        {isSuperAdmin && (
+                                                                            <div className="shrink-0">
+                                                                                {renderAnnouncementActions(announcement)}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </article>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="h-full rounded-2xl bg-slate-100/70" />
+                                            )}
+                                        </div>
+                                    </div>
+                                </aside>
                             </div>
                         )}
                     </div>
