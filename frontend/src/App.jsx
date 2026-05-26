@@ -95,6 +95,15 @@ function App() {
         />
 
         <Route
+          path="/admin/bod-announcements"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AnnouncementsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/homeowner/dashboard"
           element={
             <ProtectedRoute requiredRole="homeowner">

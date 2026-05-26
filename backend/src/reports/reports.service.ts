@@ -112,6 +112,7 @@ export class ReportsService {
             .select('COALESCE(SUM(payment.amountPaid), 0)', 'total')
             .where('payment.paymentDate >= :start', { start })
             .andWhere('payment.paymentDate <= :end', { end })
+            .andWhere("LOWER(payment.paycat) = 'membership dues'")
             .getRawOne();
 
         let billed = Number(billedResult?.total || 0);

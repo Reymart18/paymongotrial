@@ -30,6 +30,11 @@ export default function AdminDashboard() {
     const [overpaidBillingLabel, setOverpaidBillingLabel] = useState('-');
     const [overpaidBillingEndDateKey, setOverpaidBillingEndDateKey] = useState(null);
     const [showOverpaidModal, setShowOverpaidModal] = useState(false);
+    const [paymentsReportItems, setPaymentsReportItems] = useState([]);
+    const [paymentsReportLoading, setPaymentsReportLoading] = useState(false);
+    const [paymentsReportError, setPaymentsReportError] = useState('');
+    const [paymentsBillingLabel, setPaymentsBillingLabel] = useState('-');
+    const [showPaymentsModal, setShowPaymentsModal] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
@@ -376,6 +381,109 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleGeneratePaymentsReport = async () => {
+        if (paymentsReportLoading) {
+            return;
+        }
+
+        setPaymentsReportError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setPaymentsReportError('Session expired. Please log in again.');
+            return;
+        }
+
+        setPaymentsReportLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/admin/payments-collection`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setPaymentsReportError(data.message || 'Failed to load payments collection.');
+                return;
+            }
+
+            setPaymentsReportItems(Array.isArray(data?.items) ? data.items : []);
+            setPaymentsBillingLabel(data?.currentBillingLabel || '-');
+            setShowPaymentsModal(true);
+        } catch (err) {
+            console.error('Payments report error:', err);
+            setPaymentsReportError('Failed to load payments collection. Please try again.');
+        } finally {
+            setPaymentsReportLoading(false);
+        }
+    };
+
+    const handlePrintPayments = () => {
+        const printWindow = window.open('', '_blank', 'width=900,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const rowsHtml = paymentsReportItems.map((item, index) => {
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.paycat || '-'}</td>
+                    <td>${item.count || 0}</td>
+                    <td>PHP ${formatMoney(item.total || 0)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Payments Collection</title>
+                <style>
+                    @page { size: portrait; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Payments Collection</h1>
+                <p>Current billing period: ${paymentsBillingLabel || '-'}.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Pay Category</th>
+                            <th>Transactions</th>
+                            <th>Total Collected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="4">No payments found.</td></tr>'}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
     const handlePrintOverpaid = () => {
         const printWindow = window.open('', '_blank', 'width=1100,height=800');
         if (!printWindow) {
@@ -571,6 +679,8 @@ export default function AdminDashboard() {
                             settledReportLoading={settledLoading}
                             onGenerateOverpaidReport={handleGenerateOverpaidReport}
                             overpaidReportLoading={overpaidLoading}
+                            onGeneratePaymentsReport={handleGeneratePaymentsReport}
+                            paymentsReportLoading={paymentsReportLoading}
                         />
 
                         {summaryError && (
@@ -794,6 +904,70 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-4 py-3 text-slate-600">
                                                 {overpaidBillingLabel || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showPaymentsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowPaymentsModal(false)} />
+                    <div className="relative z-10 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Payments Collection</h2>
+                                <p className="text-xs text-slate-500">Current billing period: {paymentsBillingLabel || '-'}.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintPayments}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowPaymentsModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Pay Category</th>
+                                        <th className="px-4 py-3">Transactions</th>
+                                        <th className="px-4 py-3">Total Collected</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paymentsReportItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="4" className="px-4 py-6 text-center text-slate-400">
+                                                No payments found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {paymentsReportItems.map((item, index) => (
+                                        <tr key={`${item.paycat}-${index}`}>
+                                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-700">
+                                                {item.paycat || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.count || 0}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                PHP {formatMoney(item.total || 0)}
                                             </td>
                                         </tr>
                                     ))}

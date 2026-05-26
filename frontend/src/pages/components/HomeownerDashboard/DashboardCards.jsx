@@ -157,6 +157,10 @@ export default function DashboardCards({ account, statementRows }) {
         latestBilling?.dateTo,
     );
 
+    const totalOutstandingAsOf = latestBilling?.dateTo
+        ? `AS OF ${formatDate(latestBilling.dateTo)}`
+        : '';
+
     // Calculate carrying balance breakdown (Principal, Interest, Penalties from latest billing)
     const carryingBalanceBreakdown = {
         principal: latestBilling ? Number(latestBilling.prinBal || 0) : 0,
@@ -256,6 +260,7 @@ export default function DashboardCards({ account, statementRows }) {
         {
             title: 'Total Outstanding',
             value: totalOutstanding.toFixed(2),
+            description: totalOutstandingAsOf,
             icon: toIcon,
             color: 'from-amber-400 to-orange-400',
         },

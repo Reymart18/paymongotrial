@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import pvhaiImg from '../images/pvhai.png';
 
 export default function AnnouncementsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [announcements, setAnnouncements] = useState([]);
     const [announcementsLoading, setAnnouncementsLoading] = useState(true);
@@ -19,6 +20,7 @@ export default function AnnouncementsPage() {
     const [newAnnouncement, setNewAnnouncement] = useState({
         title: '',
         content: '',
+        target: 'all',
     });
     const [announcementImage, setAnnouncementImage] = useState(null);
     const [viewingImage, setViewingImage] = useState(null);
@@ -26,6 +28,7 @@ export default function AnnouncementsPage() {
     const role = localStorage.getItem('userRole');
     const isStaff = role === 'admin' || role === 'super_admin';
     const isSuperAdmin = role === 'super_admin';
+    const isBodOnlyView = location.pathname.includes('/admin/bod-announcements');
     const adminLabel = role === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const accountIdKey = localStorage.getItem('accountId') || role || 'unknown';
@@ -47,7 +50,10 @@ export default function AnnouncementsPage() {
             setAnnouncementsError('');
 
             try {
-                const response = await fetch(`${API_URL}/announcements`, {
+                const targetQuery = isBodOnlyView
+                    ? '?target=bod'
+                    : (!isSuperAdmin ? '?target=all' : '');
+                const response = await fetch(`${API_URL}/announcements${targetQuery}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -94,7 +100,7 @@ export default function AnnouncementsPage() {
         fetchAnnouncements();
 
         return () => controller.abort();
-    }, [API_URL, navigate, announcementReadKey]);
+    }, [API_URL, navigate, announcementReadKey, isBodOnlyView]);
 
     // Fetch account data for classification
     useEffect(() => {
@@ -171,10 +177,21 @@ export default function AnnouncementsPage() {
         });
     };
 
-    const featuredAnnouncement = announcements[0] || null;
-    const recentAnnouncements = announcements.slice(1);
-    const carouselSlides = announcements.length > 0
-        ? [announcements[0], announcements[1] || announcements[0]]
+    const formatTarget = (value) => {
+        const target = String(value || 'all').trim().toLowerCase();
+        return target === 'bod' ? 'BOD' : 'All Members';
+    };
+
+    const visibleAnnouncements = isBodOnlyView
+        ? announcements.filter((item) => String(item?.target || 'all').toLowerCase() === 'bod')
+        : isSuperAdmin
+            ? announcements
+            : announcements.filter((item) => String(item?.target || 'all').toLowerCase() !== 'bod');
+
+    const featuredAnnouncement = visibleAnnouncements[0] || null;
+    const recentAnnouncements = visibleAnnouncements.slice(1);
+    const carouselSlides = visibleAnnouncements.length > 0
+        ? [visibleAnnouncements[0], visibleAnnouncements[1] || visibleAnnouncements[0]]
         : [];
     const [carouselIndex, setCarouselIndex] = useState(0);
     const [expandedRecentIds, setExpandedRecentIds] = useState([]);
@@ -298,6 +315,7 @@ export default function AnnouncementsPage() {
             const formData = new FormData();
             formData.append('title', newAnnouncement.title);
             formData.append('content', newAnnouncement.content);
+            formData.append('target', newAnnouncement.target || 'all');
             if (announcementImage) {
                 formData.append('image', announcementImage);
             }
@@ -318,7 +336,7 @@ export default function AnnouncementsPage() {
             }
 
             setAnnouncements([data, ...announcements]);
-            setNewAnnouncement({ title: '', content: '' });
+            setNewAnnouncement({ title: '', content: '', target: 'all' });
             setAnnouncementImage(null);
             setShowCreateForm(false);
         } catch (err) {
@@ -334,6 +352,7 @@ export default function AnnouncementsPage() {
         setNewAnnouncement({
             title: announcement.title,
             content: announcement.content,
+            target: announcement.target || 'all',
         });
         setAnnouncementImage(null);
     };
@@ -352,6 +371,7 @@ export default function AnnouncementsPage() {
             const formData = new FormData();
             formData.append('title', newAnnouncement.title);
             formData.append('content', newAnnouncement.content);
+            formData.append('target', newAnnouncement.target || 'all');
             if (announcementImage) {
                 formData.append('image', announcementImage);
             }
@@ -379,7 +399,7 @@ export default function AnnouncementsPage() {
                 ),
             );
             setEditingId(null);
-            setNewAnnouncement({ title: '', content: '' });
+            setNewAnnouncement({ title: '', content: '', target: 'all' });
             setAnnouncementImage(null);
         } catch (err) {
             console.error('Edit announcement error:', err);
@@ -470,9 +490,13 @@ export default function AnnouncementsPage() {
                         {/* Header */}
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1 max-w-2xl">
-                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Admin Announcements</h1>
+                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+                                    {isBodOnlyView ? 'BOD Announcements' : 'Admin Announcements'}
+                                </h1>
                                 <p className="text-sm md:text-base text-slate-600 mt-1">
-                                    Stay updated with the latest community news and announcements.
+                                    {isBodOnlyView
+                                        ? 'Updates intended for BOD members only.'
+                                        : 'Stay updated with the latest community news and announcements.'}
                                 </p>
                             </div>
                             {isSuperAdmin && (
@@ -547,6 +571,25 @@ export default function AnnouncementsPage() {
 
                                     <div>
                                         <label className="block text-sm font-medium text-slate-900 mb-1">
+                                            Target
+                                        </label>
+                                        <select
+                                            value={newAnnouncement.target}
+                                            onChange={(e) =>
+                                                setNewAnnouncement({
+                                                    ...newAnnouncement,
+                                                    target: e.target.value,
+                                                })
+                                            }
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none transition"
+                                        >
+                                            <option value="all">All Members</option>
+                                            <option value="bod">BOD</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-900 mb-1">
                                             Image (Optional)
                                         </label>
                                         <input
@@ -586,7 +629,7 @@ export default function AnnouncementsPage() {
                                             onClick={() => {
                                                 setShowCreateForm(false);
                                                 setEditingId(null);
-                                                setNewAnnouncement({ title: '', content: '' });
+                                                setNewAnnouncement({ title: '', content: '', target: 'all' });
                                                 setAnnouncementImage(null);
                                             }}
                                             className="flex-1 px-4 py-2 rounded-lg bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300 transition"
@@ -688,6 +731,8 @@ export default function AnnouncementsPage() {
                                                         <span>{featuredAnnouncement.author}</span>
                                                     </>
                                                 )}
+                                                <span className="text-slate-300">|</span>
+                                                <span>{formatTarget(featuredAnnouncement.target)}</span>
                                             </div>
                                             <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
                                                 {featuredAnnouncement.title || 'Untitled Announcement'}
@@ -744,6 +789,8 @@ export default function AnnouncementsPage() {
                                                                     <span>{announcement.author}</span>
                                                                 </>
                                                             )}
+                                                            <span className="text-slate-300">|</span>
+                                                            <span>{formatTarget(announcement.target)}</span>
                                                         </div>
 
                                                         <h4 className="text-sm font-semibold text-slate-900 sm:text-base">
@@ -793,6 +840,8 @@ export default function AnnouncementsPage() {
                                                         <span>{carouselSlides[carouselIndex].author}</span>
                                                     </>
                                                 )}
+                                                <span className="text-slate-300">|</span>
+                                                <span>{formatTarget(carouselSlides[carouselIndex]?.target)}</span>
                                             </div>
                                             <h2 className="text-xl font-semibold text-slate-900 lg:text-2xl">
                                                 {carouselSlides[carouselIndex]?.title || 'Untitled Announcement'}
@@ -840,7 +889,9 @@ export default function AnnouncementsPage() {
                                                                 )}
                                                                 <div className="min-w-0">
                                                                     <div className="text-xs text-slate-500">
-                                                                        {formatDate(announcement.createdAt)}
+                                                                        <span>{formatDate(announcement.createdAt)}</span>
+                                                                        <span className="mx-1 text-slate-300">|</span>
+                                                                        <span>{formatTarget(announcement.target)}</span>
                                                                     </div>
                                                                     <div className="mt-1 text-base font-semibold leading-snug text-slate-900">
                                                                         {announcement.title || 'Untitled Announcement'}

@@ -125,11 +125,11 @@ export default function EmployeesPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                setFormError(data.message || 'Failed to create admin.');
+                setFormError(data.message || 'Failed to create BOD account.');
                 return;
             }
 
-            setFormStatus('Admin account created successfully.');
+            setFormStatus('BOD account created successfully.');
             setFormValues({
                 username: '',
                 fullName: '',
@@ -139,7 +139,7 @@ export default function EmployeesPage() {
             await loadAdmins(token);
         } catch (err) {
             console.error('Create admin error:', err);
-            setFormError('Failed to create admin. Please try again.');
+            setFormError('Failed to create BOD account. Please try again.');
         } finally {
             setFormLoading(false);
         }
@@ -204,7 +204,7 @@ export default function EmployeesPage() {
         setActionStatus('');
         setActionError('');
 
-        const confirmed = window.confirm(`Delete admin account ${admin.username}?`);
+        const confirmed = window.confirm(`Delete BOD account ${admin.username}?`);
         if (!confirmed) {
             return;
         }
@@ -262,14 +262,14 @@ export default function EmployeesPage() {
                     <div className="px-8 py-8 space-y-6">
                         <div className="flex flex-col gap-2">
                             <h1 className="text-3xl font-semibold text-slate-900">Employees</h1>
-                            <p className="text-sm text-slate-500">Manage admin and super admin accounts.</p>
+                            <p className="text-sm text-slate-500">Manage BOD and super admin accounts.</p>
                         </div>
 
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <h2 className="text-base font-semibold text-slate-900">Create admin account</h2>
-                                    <p className="text-xs text-slate-500">Add a new admin or super admin account.</p>
+                                    <p className="text-xs text-slate-500">Add a new BOD or super admin account.</p>
                                 </div>
                                 <button
                                     type="button"
@@ -320,7 +320,7 @@ export default function EmployeesPage() {
                                             className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                                             disabled={formLoading}
                                         >
-                                            <option value="admin">Admin</option>
+                                            <option value="admin">BOD</option>
                                             <option value="super_admin">Super Admin</option>
                                         </select>
                                     </label>
@@ -330,7 +330,7 @@ export default function EmployeesPage() {
                                             className="rounded-md bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
                                             disabled={formLoading}
                                         >
-                                            {formLoading ? 'Creating...' : 'Create Admin'}
+                                            {formLoading ? 'Creating...' : 'Create'}
                                         </button>
                                     </div>
                                 </form>
@@ -413,7 +413,7 @@ export default function EmployeesPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-base font-semibold text-slate-900">Admin accounts</h2>
-                                    <p className="text-xs text-slate-500">All admin and super admin users.</p>
+                                    <p className="text-xs text-slate-500">All BOD and super admin users.</p>
                                 </div>
                             </div>
 
@@ -429,7 +429,7 @@ export default function EmployeesPage() {
                             )}
                             {!loading && !error && admins.length === 0 && (
                                 <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                                    No admin accounts found.
+                                    No BOD accounts found.
                                 </div>
                             )}
 
@@ -454,7 +454,11 @@ export default function EmployeesPage() {
                                                         {admin.fullName}
                                                     </td>
                                                     <td className="px-4 py-3 text-slate-600">
-                                                        {admin.role || 'admin'}
+                                                        {admin.role === 'admin'
+                                                            ? 'BOD'
+                                                            : admin.role === 'super_admin'
+                                                                ? 'Super Admin'
+                                                                : (admin.role || 'BOD')}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
                                                         <div className="flex flex-wrap justify-center gap-2">

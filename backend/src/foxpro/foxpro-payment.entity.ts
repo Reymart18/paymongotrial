@@ -17,8 +17,8 @@ export class FoxproPayment {
     @PrimaryGeneratedColumn()
     id?: number;
 
-    @Column()
-    accountId?: string;
+    @Column({ nullable: true })
+    accountId?: string | null;
 
     @ManyToOne(() => PropertyAccount, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'accountId', referencedColumnName: 'accountId' })

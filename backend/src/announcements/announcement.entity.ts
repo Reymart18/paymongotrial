@@ -22,6 +22,9 @@ export class Announcement {
     @Column({ type: 'varchar', length: 120, nullable: true })
     author?: string | null;
 
+    @Column({ type: 'varchar', length: 20, default: 'all' })
+    target?: string;
+
     @CreateDateColumn({ type: 'datetime' })
     createdAt?: Date;
 }

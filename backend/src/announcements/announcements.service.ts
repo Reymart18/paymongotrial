@@ -10,10 +10,24 @@ export class AnnouncementsService {
         private announcementRepo: Repository<Announcement>,
     ) { }
 
-    async getAllAnnouncements(): Promise<Announcement[]> {
-        return this.announcementRepo.find({
-            order: { createdAt: 'DESC' },
-        });
+    async getAllAnnouncements(role: string, target?: string): Promise<Announcement[]> {
+        const normalizedRole = String(role || '').toLowerCase();
+        const normalizedTarget = String(target || '').toLowerCase();
+        const isStaff = normalizedRole === 'admin' || normalizedRole === 'super_admin';
+
+        const query = this.announcementRepo
+            .createQueryBuilder('announcement')
+            .orderBy('announcement.createdAt', 'DESC');
+
+        if (isStaff && normalizedTarget === 'bod') {
+            query.where('announcement.target = :target', { target: 'bod' });
+        } else if (isStaff && normalizedTarget === 'all') {
+            query.where('announcement.target = :target', { target: 'all' });
+        } else if (!isStaff) {
+            query.where('announcement.target != :target', { target: 'bod' });
+        }
+
+        return query.getMany();
     }
 
     async createAnnouncement(
@@ -21,12 +35,14 @@ export class AnnouncementsService {
         content: string,
         author?: string,
         image?: string,
+        target?: string,
     ): Promise<Announcement> {
         const announcement = this.announcementRepo.create({
             title,
             content,
             author: author ?? 'Admin',
             image: image || null,
+            target: target || 'all',
         });
         return this.announcementRepo.save(announcement);
     }
@@ -36,10 +52,14 @@ export class AnnouncementsService {
         title: string,
         content: string,
         image?: string,
+        target?: string,
     ): Promise<Announcement> {
         const updateData: any = { title, content };
         if (image) {
             updateData.image = image;
+        }
+        if (target) {
+            updateData.target = target;
         }
         await this.announcementRepo.update(id, updateData);
         return this.announcementRepo.findOneOrFail({ where: { id } });

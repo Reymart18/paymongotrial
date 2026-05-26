@@ -12,6 +12,7 @@ import {
     UploadedFile,
     UseInterceptors,
     BadRequestException,
+    Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -33,9 +34,13 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class AnnouncementsController {
     constructor(private announcementsService: AnnouncementsService) { }
 
+    @UseGuards(JwtAuthGuard)
     @Get()
-    async getAllAnnouncements(): Promise<Announcement[]> {
-        return this.announcementsService.getAllAnnouncements();
+    async getAllAnnouncements(
+        @Query('target') target: string | undefined,
+        @Request() req: AuthenticatedRequest,
+    ): Promise<Announcement[]> {
+        return this.announcementsService.getAllAnnouncements(req.user.role, target);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -67,7 +72,7 @@ export class AnnouncementsController {
         }),
     )
     async createAnnouncement(
-        @Body() body: { title: string; content: string },
+        @Body() body: { title: string; content: string; target?: string },
         @UploadedFile() file: Express.Multer.File | undefined,
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
@@ -80,6 +85,7 @@ export class AnnouncementsController {
             body.content,
             req.user.username,
             file?.filename,
+            body.target,
         );
     }
 
@@ -113,7 +119,7 @@ export class AnnouncementsController {
     )
     async updateAnnouncement(
         @Param('id') id: string,
-        @Body() body: { title: string; content: string },
+        @Body() body: { title: string; content: string; target?: string },
         @UploadedFile() file: Express.Multer.File | undefined,
         @Request() req: AuthenticatedRequest,
     ): Promise<Announcement> {
@@ -126,6 +132,7 @@ export class AnnouncementsController {
             body.title,
             body.content,
             file?.filename,
+            body.target,
         );
     }
 

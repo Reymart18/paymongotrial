@@ -161,6 +161,16 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('payments-collection')
+    async getPaymentsCollection(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getPaymentsCollectionReport();
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('settled-accounts')
     async getSettledAccounts(@Request() req: AuthenticatedRequest) {
         if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {

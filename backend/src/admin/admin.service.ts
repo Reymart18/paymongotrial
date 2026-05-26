@@ -330,6 +330,99 @@ export class AdminService {
         };
     }
 
+    async getPaymentsCollectionReport(): Promise<{
+        currentBillingLabel: string;
+        billingStartKey: string | null;
+        billingEndKey: string | null;
+        items: Array<{
+            paycat: string;
+            count: number;
+            total: number;
+        }>;
+    }> {
+        const [billings, payments] = await Promise.all([
+            this.billingRepo.find({ order: { dueDate: 'DESC' } }),
+            this.paymentRepo.find(),
+        ]);
+
+        const parseDate = (value: unknown) => {
+            if (!value) {
+                return null;
+            }
+            const date = new Date(value as string);
+            return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const dateKey = (value: unknown) => {
+            const parsed = parseDate(value);
+            return parsed ? parsed.toISOString().slice(0, 10) : null;
+        };
+
+        let latestPeriod: { fromKey: string | null; toKey: string } | null = null;
+        for (const row of billings) {
+            const toKey = dateKey(row?.dateTo) || dateKey(row?.dateFrom);
+            if (!toKey) {
+                continue;
+            }
+
+            latestPeriod = {
+                fromKey: dateKey(row?.dateFrom) || toKey,
+                toKey,
+            };
+            break;
+        }
+
+        const formatDate = (value: unknown) => {
+            const date = value instanceof Date ? value : parseDate(value);
+            return date ? date.toLocaleDateString() : '-';
+        };
+
+        const formatKey = (key: string | null) => {
+            if (!key) {
+                return '-';
+            }
+            const date = new Date(`${key}T00:00:00.000Z`);
+            return formatDate(date);
+        };
+
+        const currentBillingLabel = latestPeriod?.fromKey && latestPeriod?.toKey
+            ? `${formatKey(latestPeriod.fromKey)} - ${formatKey(latestPeriod.toKey)}`
+            : latestPeriod?.toKey
+                ? formatKey(latestPeriod.toKey)
+                : '-';
+
+        const byPaycat = new Map<string, { paycat: string; count: number; total: number }>();
+
+        if (latestPeriod?.fromKey && latestPeriod?.toKey) {
+            for (const payment of payments) {
+                const paymentKey = dateKey(payment?.paymentDate);
+                if (!paymentKey) {
+                    continue;
+                }
+
+                if (paymentKey < latestPeriod.fromKey || paymentKey > latestPeriod.toKey) {
+                    continue;
+                }
+
+                const rawPaycat = String(payment?.paycat || '').trim();
+                const paycat = rawPaycat || 'Uncategorized';
+                const current = byPaycat.get(paycat) || { paycat, count: 0, total: 0 };
+                current.count += 1;
+                current.total += Number(payment?.amountPaid || 0);
+                byPaycat.set(paycat, current);
+            }
+        }
+
+        const items = Array.from(byPaycat.values()).sort((a, b) => b.total - a.total);
+
+        return {
+            currentBillingLabel,
+            billingStartKey: latestPeriod?.fromKey || null,
+            billingEndKey: latestPeriod?.toKey || null,
+            items,
+        };
+    }
+
     async getSettledAccountsReport(): Promise<{
         currentBillingLabel: string;
         billingEndDateKey: string | null;

@@ -5,6 +5,7 @@ import logoImg from '../../../images/pvhai.png';
 export default function Sidebar({ isOpen = false, onToggle }) {
     const [activeItem, setActiveItem] = useState('dashboard');
     const [announcementCount, setAnnouncementCount] = useState(0);
+    const [bodAnnouncementCount, setBodAnnouncementCount] = useState(0);
     const navigate = useNavigate();
     const location = useLocation();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -21,6 +22,8 @@ export default function Sidebar({ isOpen = false, onToggle }) {
             setActiveItem('members');
         } else if (location.pathname.includes('employees')) {
             setActiveItem('employees');
+        } else if (location.pathname.includes('bod-announcements')) {
+            setActiveItem('bod-announcements');
         } else if (location.pathname.includes('announcements')) {
             setActiveItem('announcements');
         } else {
@@ -45,12 +48,20 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                 const lastReadRaw = localStorage.getItem(announcementReadKey);
                 const lastReadTime = lastReadRaw ? new Date(lastReadRaw).getTime() : 0;
                 const safeLastReadTime = Number.isNaN(lastReadTime) ? 0 : lastReadTime;
-                const unreadCount = items.filter((item) => {
+                const unreadItems = items.filter((item) => {
                     const createdTime = item?.createdAt ? new Date(item.createdAt).getTime() : 0;
                     return createdTime > safeLastReadTime;
-                }).length;
+                });
 
-                setAnnouncementCount(unreadCount);
+                const unreadAll = unreadItems.filter((item) =>
+                    String(item?.target || 'all').toLowerCase() !== 'bod',
+                ).length;
+                const unreadBod = unreadItems.filter((item) =>
+                    String(item?.target || 'all').toLowerCase() === 'bod',
+                ).length;
+
+                setAnnouncementCount(unreadAll);
+                setBodAnnouncementCount(role === 'admin' ? unreadBod : 0);
             } catch (err) {
                 console.error('Announcement count fetch error:', err);
             }
@@ -202,6 +213,46 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             )}
                         </div>
                     </a>
+
+                    {role === 'admin' && (
+                        <a
+                            href="#"
+                            onClick={() => {
+                                setActiveItem('bod-announcements');
+                                navigate('/admin/bod-announcements');
+                            }}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'bod-announcements'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
+                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            <svg
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'bod-announcements' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                                />
+                            </svg>
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium">BOD Updates</span>
+                                {bodAnnouncementCount > 0 && (
+                                    <span
+                                        className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-semibold rounded-full ${activeItem === 'bod-announcements'
+                                            ? 'bg-[#8C4100] text-white'
+                                            : 'bg-red-600 text-white'
+                                            }`}
+                                    >
+                                        {bodAnnouncementCount}
+                                    </span>
+                                )}
+                            </div>
+                        </a>
+                    )}
 
                     {isAdmin && (
                         <a

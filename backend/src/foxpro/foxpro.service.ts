@@ -31,7 +31,7 @@ interface FoxproBillingRecord {
 }
 
 interface FoxproPaymentRecord {
-    accountId: string;
+    accountId?: string | null;
     paymentDate?: Date | null;
     amountPaid: number;
     description?: string;
@@ -459,8 +459,10 @@ export class FoxproService {
         const referenceNumber = normalized.orno ? String(normalized.orno).trim() : '';
         const paycat = normalized.paycat ? String(normalized.paycat).trim() : '';
 
+        const accountId = String(normalized.keysearch || '').trim();
+
         return {
-            accountId: String(normalized.keysearch || '').trim(),
+            accountId: accountId ? accountId : null,
             paymentDate: this.parseFoxProDate(normalized.paydate),
             amountPaid: this.toNumber(normalized.amtpaid),
             description: normalized.applicable ? String(normalized.applicable).trim() : '',
@@ -519,9 +521,9 @@ export class FoxproService {
                 const record = records[index];
                 const row = index + 1;
 
-                if (!record.accountId || !record.paymentDate) {
+                if (!record.paymentDate) {
                     result.skipped += 1;
-                    result.errors.push(`Row ${row}: Missing accountId or paymentDate`);
+                    result.errors.push(`Row ${row}: Missing paymentDate`);
                     continue;
                 }
 
@@ -531,7 +533,9 @@ export class FoxproService {
                 }
 
                 prepared.push({ record, row });
-                accountIds.add(record.accountId);
+                if (record.accountId) {
+                    accountIds.add(record.accountId);
+                }
             }
 
             const accountIdList = Array.from(accountIds);
@@ -544,7 +548,7 @@ export class FoxproService {
             const withoutRef: Array<{ record: FoxproPaymentRecord; row: number }> = [];
 
             for (const entry of prepared) {
-                if (!accountMap.has(entry.record.accountId)) {
+                if (entry.record.accountId && !accountMap.has(entry.record.accountId)) {
                     result.skipped += 1;
                     result.errors.push(`Row ${entry.row}: accountId not found (${entry.record.accountId})`);
                     continue;
@@ -578,7 +582,7 @@ export class FoxproService {
                         continue;
                     }
                     const payload = {
-                        accountId: record.accountId,
+                        accountId: record.accountId ?? null,
                         paymentDate: record.paymentDate,
                         amountPaid: record.amountPaid,
                         description: record.description || '',
@@ -613,7 +617,7 @@ export class FoxproService {
                     continue;
                 }
                 const payload = {
-                    accountId: record.accountId,
+                    accountId: record.accountId ?? null,
                     paymentDate: record.paymentDate,
                     amountPaid: record.amountPaid,
                     description: record.description || '',
@@ -623,7 +627,7 @@ export class FoxproService {
 
                 const existing = await paymentRepo.findOne({
                     where: {
-                        accountId: record.accountId,
+                        accountId: record.accountId ? record.accountId : IsNull(),
                         paymentDate: record.paymentDate,
                         amountPaid: record.amountPaid,
                         referenceNumber: IsNull(),
@@ -892,7 +896,7 @@ export class FoxproService {
     private isPaymentChanged(
         existing: FoxproPayment,
         payload: {
-            accountId: string;
+            accountId?: string | null;
             paymentDate: Date;
             amountPaid: number;
             description: string;
@@ -904,7 +908,7 @@ export class FoxproService {
         const payloadDateKey = this.toDateKey(payload.paymentDate);
 
         return (
-            String(existing.accountId || '') !== payload.accountId ||
+            String(existing.accountId || '') !== String(payload.accountId || '') ||
             existingDateKey !== payloadDateKey ||
             Number(existing.amountPaid || 0) !== Number(payload.amountPaid || 0) ||
             (existing.description || '') !== (payload.description || '') ||
