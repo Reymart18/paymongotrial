@@ -171,6 +171,19 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('payments-by-category')
+    async getPaymentsByCategory(
+        @Request() req: AuthenticatedRequest,
+        @Query('paycat') paycat?: string,
+    ) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getPaymentsByCategoryReport(paycat ?? '');
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('settled-accounts')
     async getSettledAccounts(@Request() req: AuthenticatedRequest) {
         if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
@@ -188,6 +201,16 @@ export class AdminController {
         }
 
         return this.adminService.getOverpaidAccountsReport();
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('unpaid-accounts')
+    async getUnpaidAccounts(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getUnpaidAccountsReport();
     }
 
     @UseGuards(JwtAuthGuard)

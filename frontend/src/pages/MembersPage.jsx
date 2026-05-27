@@ -725,7 +725,7 @@ export default function MembersPage() {
                                 style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}
                             >
                                 <option value="">Status</option>
-                                <option value="underpaid">Underpaid</option>
+                                <option value="underpaid">Unpaid</option>
                                 <option value="overpaid">Overpaid</option>
                             </select>
 

@@ -38,6 +38,21 @@ export interface OverdueAccount {
     latestBillingDate: string | null;
 }
 
+export interface QuarterDueAccount {
+    accountId: string;
+    memberName: string | null;
+    classification: string | null;
+    neighborhood: string | null;
+    block: string | null;
+    lot: string | null;
+    balanceTotal: number;
+    currentChargesTotal: number;
+    amountDue: number;
+    lastPaymentDate: string | null;
+    billingStartDate: string | null;
+    billingEndDate: string | null;
+}
+
 @Injectable()
 export class ReportsService {
     constructor(
@@ -86,6 +101,152 @@ export class ReportsService {
 
         const rows = await this.buildOverdueQuery(accountId).getRawMany<OverdueRow>();
         return this.mapOverdueRows(rows)[0] ?? null;
+    }
+
+    async getQuarterDueCharges(
+        year: number,
+        quarter: number,
+    ): Promise<{ period: QuarterReport['period']; items: QuarterDueAccount[] }> {
+        const { startDate, endDate } = this.getQuarterRange(year, quarter);
+        const startKey = startDate.toISOString().slice(0, 10);
+        const endKey = endDate.toISOString().slice(0, 10);
+
+        const [billings, payments] = await Promise.all([
+            this.billingRepo.find({ relations: ['account'], order: { dueDate: 'DESC' } }),
+            this.paymentRepo.find(),
+        ]);
+
+        const parseDate = (value: unknown) => {
+            if (!value) {
+                return null;
+            }
+            const date = value instanceof Date ? value : new Date(value as string);
+            return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const dateKey = (value: unknown) => {
+            const parsed = parseDate(value);
+            return parsed ? parsed.toISOString().slice(0, 10) : null;
+        };
+
+        const toCents = (value: unknown) => Math.round(Number(value || 0) * 100);
+
+        const latestBillingsByAccount = new Map<string, FoxproBilling>();
+        for (const billing of billings) {
+            const accountId = billing.accountId;
+            if (!accountId) {
+                continue;
+            }
+
+            const billingKey = dateKey(billing.dateTo || billing.dateFrom || billing.dueDate);
+            if (!billingKey || billingKey < startKey || billingKey > endKey) {
+                continue;
+            }
+
+            const existing = latestBillingsByAccount.get(accountId);
+            if (!existing) {
+                latestBillingsByAccount.set(accountId, billing);
+                continue;
+            }
+
+            const existingKey = dateKey(existing.dateTo || existing.dateFrom || existing.dueDate);
+            if (!existingKey || billingKey > existingKey) {
+                latestBillingsByAccount.set(accountId, billing);
+            }
+        }
+
+        const paymentsByAccount = new Map<string, FoxproPayment[]>();
+        for (const payment of payments) {
+            if (!payment.accountId) {
+                continue;
+            }
+
+            if (!paymentsByAccount.has(payment.accountId)) {
+                paymentsByAccount.set(payment.accountId, []);
+            }
+            paymentsByAccount.get(payment.accountId)?.push(payment);
+        }
+
+        const items: QuarterDueAccount[] = [];
+        for (const [accountId, billing] of latestBillingsByAccount) {
+            const principalBalance = Number(billing?.prinBal || 0);
+            const interestBalance = Number(billing?.intBal || 0);
+            const penaltyBalance = Number(billing?.penBal || 0);
+            const balanceTotal = principalBalance + interestBalance + penaltyBalance;
+
+            const currentPrincipal = Number(billing?.prinCurr || 0);
+            const currentInterest = Number(billing?.intCurr || 0);
+            const currentPenalty = Number(billing?.penCurr || 0);
+            const currentChargesTotal = currentPrincipal + currentInterest + currentPenalty;
+
+            if (toCents(currentChargesTotal) <= 0) {
+                continue;
+            }
+
+            let membershipPayments = 0;
+            const billingStart = billing?.dateFrom ? new Date(billing.dateFrom) : null;
+            const billingEnd = billing?.dateTo ? new Date(billing.dateTo) : null;
+
+            if (billingStart && billingEnd && !Number.isNaN(billingStart.getTime()) && !Number.isNaN(billingEnd.getTime())) {
+                const accountPayments = paymentsByAccount.get(accountId) || [];
+                for (const payment of accountPayments) {
+                    if (!payment.paymentDate) {
+                        continue;
+                    }
+                    const paymentDate = new Date(payment.paymentDate);
+                    if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= billingStart && paymentDate <= billingEnd) {
+                        const paycat = String(payment.paycat || '').trim().toLowerCase();
+                        if (paycat === 'membership dues') {
+                            membershipPayments += Number(payment.amountPaid || 0);
+                        }
+                    }
+                }
+            }
+
+            const amountDue = balanceTotal + currentChargesTotal - membershipPayments;
+            if (toCents(amountDue) <= 5000) {
+                continue;
+            }
+
+            const accountPayments = paymentsByAccount.get(accountId) || [];
+            const lastPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
+                const parsed = parseDate(payment.paymentDate);
+                if (!parsed) {
+                    return latest;
+                }
+                if (!latest || parsed > latest) {
+                    return parsed;
+                }
+                return latest;
+            }, null);
+
+            items.push({
+                accountId,
+                memberName: billing.account?.memberName ?? null,
+                classification: billing.account?.classification ?? null,
+                neighborhood: billing.account?.neighborhood ?? null,
+                block: billing.account?.block ?? null,
+                lot: billing.account?.lot ?? null,
+                balanceTotal,
+                currentChargesTotal,
+                amountDue,
+                lastPaymentDate: lastPaymentDate ? lastPaymentDate.toISOString().slice(0, 10) : null,
+                billingStartDate: billing?.dateFrom ? dateKey(billing.dateFrom) : null,
+                billingEndDate: billing?.dateTo ? dateKey(billing.dateTo) : null,
+            });
+        }
+
+        items.sort((a, b) => a.accountId.localeCompare(b.accountId, 'en', { numeric: true }));
+
+        return {
+            period: {
+                year,
+                quarter,
+                startDate: startKey,
+                endDate: endKey,
+            },
+            items,
+        };
     }
 
     private async getTotalsForRange(

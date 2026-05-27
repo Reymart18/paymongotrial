@@ -49,6 +49,20 @@ export default function ReportsPage() {
     const [overdueLoading, setOverdueLoading] = useState(false);
     const [overdueError, setOverdueError] = useState('');
     const [showOverdueModal, setShowOverdueModal] = useState(false);
+    const [outstandingTotal, setOutstandingTotal] = useState(0);
+    const [outstandingLoading, setOutstandingLoading] = useState(false);
+    const [outstandingError, setOutstandingError] = useState('');
+    const [outstandingItems, setOutstandingItems] = useState([]);
+    const [outstandingBillingLabel, setOutstandingBillingLabel] = useState('-');
+    const [outstandingBillingEndDateKey, setOutstandingBillingEndDateKey] = useState(null);
+    const [showOutstandingModal, setShowOutstandingModal] = useState(false);
+    const [outstandingReportLoading, setOutstandingReportLoading] = useState(false);
+    const [outstandingFilter, setOutstandingFilter] = useState('ALL');
+    const [quarterDueItems, setQuarterDueItems] = useState([]);
+    const [quarterDueLoading, setQuarterDueLoading] = useState(false);
+    const [quarterDueError, setQuarterDueError] = useState('');
+    const [showQuarterDueModal, setShowQuarterDueModal] = useState(false);
+    const [quarterDueFilter, setQuarterDueFilter] = useState('ALL');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [currentPaymentCardIndex, setCurrentPaymentCardIndex] = useState(0);
     const [currentBillingCardIndex, setCurrentBillingCardIndex] = useState(0);
@@ -98,6 +112,28 @@ export default function ReportsPage() {
         () => overdueItems.reduce((sum, item) => sum + Number(item?.amountDue || 0), 0),
         [overdueItems],
     );
+    const filteredOutstandingItems = useMemo(() => {
+        if (outstandingFilter === 'ALL') {
+            return outstandingItems;
+        }
+
+        const normalizedFilter = outstandingFilter.toLowerCase();
+        return outstandingItems.filter((item) => {
+            const classification = String(item?.classification || '').toLowerCase();
+            return classification === normalizedFilter;
+        });
+    }, [outstandingFilter, outstandingItems]);
+    const filteredQuarterDueItems = useMemo(() => {
+        if (quarterDueFilter === 'ALL') {
+            return quarterDueItems;
+        }
+
+        const normalizedFilter = quarterDueFilter.toLowerCase();
+        return quarterDueItems.filter((item) => {
+            const classification = String(item?.classification || '').toLowerCase();
+            return classification === normalizedFilter;
+        });
+    }, [quarterDueFilter, quarterDueItems]);
 
     const handlePrevCard = () => {
         setCurrentCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
@@ -361,6 +397,91 @@ export default function ReportsPage() {
         }
     };
 
+    const handleGenerateOutstanding = async () => {
+        if (outstandingReportLoading) {
+            return;
+        }
+
+        setOutstandingError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setOutstandingError('Session expired. Please log in again.');
+            return;
+        }
+
+        setOutstandingReportLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/admin/unpaid-accounts`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setOutstandingError(data.message || 'Failed to load outstanding accounts.');
+                return;
+            }
+
+            setOutstandingItems(Array.isArray(data?.items) ? data.items : []);
+            setOutstandingBillingLabel(data?.currentBillingLabel || '-');
+            setOutstandingBillingEndDateKey(data?.billingEndDateKey || null);
+            setShowOutstandingModal(true);
+        } catch (err) {
+            console.error('Outstanding report error:', err);
+            setOutstandingError('Failed to load outstanding accounts. Please try again.');
+        } finally {
+            setOutstandingReportLoading(false);
+        }
+    };
+
+    const handleGenerateQuarterDue = async () => {
+        if (quarterDueLoading) {
+            return;
+        }
+
+        setQuarterDueError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setQuarterDueError('Session expired. Please log in again.');
+            return;
+        }
+
+        setQuarterDueLoading(true);
+
+        try {
+            const response = await fetch(
+                `${API_URL}/reports/quarter-due-charges?year=${year}&quarter=${quarter}`,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                },
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setQuarterDueError(data.message || 'Failed to load due list.');
+                return;
+            }
+
+            setQuarterDueItems(Array.isArray(data?.items) ? data.items : []);
+            setShowQuarterDueModal(true);
+        } catch (err) {
+            console.error('Quarter due report error:', err);
+            setQuarterDueError('Failed to load due list. Please try again.');
+        } finally {
+            setQuarterDueLoading(false);
+        }
+    };
+
     const formatDate = (value) => {
         if (!value) {
             return '-';
@@ -457,6 +578,179 @@ export default function ReportsPage() {
         printWindow.print();
     };
 
+    const handlePrintOutstanding = () => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const rowsHtml = filteredOutstandingItems.map((item, index) => {
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${item.neighborhood || '-'}</td>
+                    <td>${item.block || '-'}</td>
+                    <td>${item.lot || '-'}</td>
+                    <td>PHP ${formatMoney(item.amountDue || 0)}</td>
+                    <td>${formatDate(item.lastPaymentDate)}</td>
+                    <td>${outstandingBillingLabel || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const formattedAsOf = outstandingBillingEndDateKey
+            ? formatDate(new Date(`${outstandingBillingEndDateKey}T00:00:00.000Z`))
+            : '-';
+        const outstandingTotal = filteredOutstandingItems.reduce(
+            (sum, item) => sum + Number(item.amountDue || 0),
+            0,
+        );
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Outstanding Accounts</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Outstanding Accounts</h1>
+                <p>Amount Due as of ${formattedAsOf}. Filter: ${outstandingFilter}.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Name</th>
+                            <th>Neighborhood</th>
+                            <th>Block</th>
+                            <th>Lot</th>
+                            <th>Amount Due</th>
+                            <th>Last Payment</th>
+                            <th>Current Billing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="9">No outstanding accounts found.</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">Grand Total</td>
+                            <td style="font-weight: 600;">PHP ${formatMoney(outstandingTotal)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
+    const handlePrintQuarterDue = () => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const rowsHtml = filteredQuarterDueItems.map((item, index) => {
+            const address = [item.neighborhood, item.block, item.lot]
+                .filter(Boolean)
+                .join(' ');
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${address || '-'}</td>
+                    <td>PHP ${formatMoney(item.balanceTotal || 0)}</td>
+                    <td>PHP ${formatMoney(item.currentChargesTotal || 0)}</td>
+                    <td>PHP ${formatMoney(item.amountDue || 0)}</td>
+                    <td>${formatDate(item.lastPaymentDate)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const totalCollectibles = filteredQuarterDueItems.reduce((sum, item) => {
+            const currentCharges = Number(item.currentChargesTotal || 0);
+            const amountDue = Number(item.amountDue || 0);
+            const collectibles = amountDue >= currentCharges ? currentCharges : amountDue;
+            return sum + collectibles;
+        }, 0);
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Due vs Charges</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Net Collection (This Quarter)</h1>
+                <p>Quarter: Q${quarter} ${year}. Filter: ${quarterDueFilter}.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Name</th>
+                            <th>Address</th>
+                            <th>Previous Balance</th>
+                            <th>Total Current Charges</th>
+                            <th>Amount Due</th>
+                            <th>Last Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="8">No matching accounts found.</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">Total Collectibles (This Quarter)</td>
+                            <td style="font-weight: 600;">PHP ${formatMoney(totalCollectibles)}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
@@ -527,6 +821,47 @@ export default function ReportsPage() {
 
         fetchReport();
     }, [API_URL, navigate, quarter, year]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('userRole');
+
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
+            return;
+        }
+
+        const fetchOutstandingTotal = async () => {
+            setOutstandingLoading(true);
+            setOutstandingError('');
+
+            try {
+                const response = await fetch(`${API_URL}/admin/unpaid-accounts`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    setOutstandingError(data.message || 'Failed to load total outstanding.');
+                    return;
+                }
+
+                const items = Array.isArray(data?.items) ? data.items : [];
+                const total = items.reduce((sum, item) => sum + Number(item?.amountDue || 0), 0);
+                setOutstandingTotal(total);
+            } catch (err) {
+                console.error('Outstanding total error:', err);
+                setOutstandingError('Failed to load total outstanding. Please try again.');
+            } finally {
+                setOutstandingLoading(false);
+            }
+        };
+
+        fetchOutstandingTotal();
+    }, [API_URL]);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -669,11 +1004,42 @@ export default function ReportsPage() {
                                             <span className="text-2xl font-bold">
                                                 {formatMoney(totals.outstanding)}
                                             </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleGenerateQuarterDue}
+                                                disabled={quarterDueLoading}
+                                                className="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {quarterDueLoading ? 'Generating...' : 'Generate Report'}
+                                            </button>
                                         </div>
                                     ),
                                     comparison: comparison.outstandingPercent,
                                     compareMode: 'inverse',
                                     icon: rpIcon,
+                                    error: quarterDueError,
+                                },
+                                {
+                                    title: 'Total Outstanding (As of Today)',
+                                    value: (
+                                        <div className="flex flex-col">
+                                            <span className="text-2xl text-gray-700">PHP</span>
+                                            <span className="text-2xl font-bold">
+                                                {formatMoney(outstandingTotal)}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleGenerateOutstanding}
+                                                disabled={outstandingReportLoading}
+                                                className="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {outstandingReportLoading ? 'Generating...' : 'Generate Report'}
+                                            </button>
+                                        </div>
+                                    ),
+                                    hideComparison: true,
+                                    icon: rpIcon,
+                                    error: outstandingError,
                                 },
                             ].map((card) => {
                                 const adjustedComparison = card.compareMode === 'inverse' && typeof card.comparison === 'number'
@@ -696,43 +1062,19 @@ export default function ReportsPage() {
                                             <p className="text-sm font-medium text-slate-600 whitespace-nowrap">{card.title}</p>
                                         </div>
                                         <p className="mt-3 text-2xl font-semibold text-slate-900 text-center">
-                                            {loading ? 'Loading...' : card.value}
+                                            {loading || outstandingLoading ? 'Loading...' : card.value}
                                         </p>
-                                        <p className={`mt-2 text-xs text-center ${isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-slate-500'}`}>
-                                            vs previous quarter: <span className="font-semibold">{formatPercent(adjustedComparison)}</span>
-                                        </p>
+                                        {!card.hideComparison && (
+                                            <p className={`mt-2 text-xs text-center ${isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-slate-500'}`}>
+                                                vs previous quarter: <span className="font-semibold">{formatPercent(adjustedComparison)}</span>
+                                            </p>
+                                        )}
+                                        {card.error && (
+                                            <p className="mt-2 text-xs text-center text-rose-600">{card.error}</p>
+                                        )}
                                     </div>
                                 );
                             })}
-                            <div className="relative rounded-2xl border border-slate-700 p-5 shadow-sm transition hover:shadow-md" style={{ backgroundColor: '#0E0E0E' }}>
-                                <p className="text-xs text-slate-500 mb-3">
-                                    Disclaimer: No payment for 12 months and equivalent to 12 months’ amount due.
-                                </p>
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xl">⚠️</span>
-                                        <h3 className="text-sm font-medium text-white">Overdue Accounts</h3>
-                                    </div>
-                                    <button
-                                        onClick={handleGenerateOverdue}
-                                        className="rounded-lg bg-white px-1 py-1 text-[11px] font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-60"
-                                        disabled={overdueLoading}
-                                    >
-                                        {overdueLoading ? 'Generating...' : 'Generate Report'}
-                                    </button>
-                                </div>
-                                {overdueError && (
-                                    <div className="mt-3 rounded-lg border border-rose-400 bg-rose-900/30 px-3 py-2 text-[11px] text-rose-200">
-                                        {overdueError}
-                                    </div>
-                                )}
-                                <div className="mt-4 rounded-xl border border-slate-600 px-4 py-3" style={{ backgroundColor: '#1a1a1a' }}>
-                                    <p className="text-xs text-slate-400">Total accounts</p>
-                                    <p className="text-lg font-semibold text-white">
-                                        {overdueItems.length}
-                                    </p>
-                                </div>
-                            </div>
                         </div>
 
                         {error && (
@@ -741,7 +1083,7 @@ export default function ReportsPage() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
                             {/* Payments Section */}
                             <div className="relative flex flex-col items-center justify-center overflow-hidden">
                                 <button
@@ -908,6 +1250,38 @@ export default function ReportsPage() {
                                     ))}
                                 </div>
                             </div>
+
+                            <div className="relative flex flex-col justify-center">
+                                <div className="relative rounded-2xl border border-slate-700 p-5 shadow-sm transition hover:shadow-md" style={{ backgroundColor: '#0E0E0E' }}>
+                                    <p className="text-xs text-slate-500 mb-3">
+                                        Disclaimer: No payment for 12 months and equivalent to 12 months’ amount due.
+                                    </p>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl">⚠️</span>
+                                            <h3 className="text-sm font-medium text-white">Overdue Accounts</h3>
+                                        </div>
+                                        <button
+                                            onClick={handleGenerateOverdue}
+                                            className="rounded-lg bg-white px-1 py-1 text-[11px] font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-60"
+                                            disabled={overdueLoading}
+                                        >
+                                            {overdueLoading ? 'Generating...' : 'Generate Report'}
+                                        </button>
+                                    </div>
+                                    {overdueError && (
+                                        <div className="mt-3 rounded-lg border border-rose-400 bg-rose-900/30 px-3 py-2 text-[11px] text-rose-200">
+                                            {overdueError}
+                                        </div>
+                                    )}
+                                    <div className="mt-4 rounded-xl border border-slate-600 px-4 py-3" style={{ backgroundColor: '#1a1a1a' }}>
+                                        <p className="text-xs text-slate-400">Total accounts</p>
+                                        <p className="text-lg font-semibold text-white">
+                                            {overdueItems.length}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </main>
@@ -1000,6 +1374,222 @@ export default function ReportsPage() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showOutstandingModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowOutstandingModal(false)} />
+                    <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Outstanding Accounts</h2>
+                                <p className="text-xs text-slate-500">
+                                    Amount Due as of {outstandingBillingEndDateKey
+                                        ? formatDate(new Date(`${outstandingBillingEndDateKey}T00:00:00.000Z`))
+                                        : '-'}.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Classification
+                                    <select
+                                        value={outstandingFilter}
+                                        onChange={(event) => setOutstandingFilter(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                    >
+                                        <option value="ALL">All</option>
+                                        <option value="HOMEOWNER">Homeowner</option>
+                                        <option value="LOT OWNER">Lot Owner</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintOutstanding}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowOutstandingModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Name</th>
+                                        <th className="px-4 py-3">Neighborhood</th>
+                                        <th className="px-4 py-3">Block</th>
+                                        <th className="px-4 py-3">Lot</th>
+                                        <th className="px-4 py-3">Amount Due</th>
+                                        <th className="px-4 py-3">Last Payment</th>
+                                        <th className="px-4 py-3">Current Billing</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {outstandingItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="9" className="px-4 py-6 text-center text-slate-400">
+                                                No outstanding accounts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {filteredOutstandingItems.map((item, index) => (
+                                        <tr key={`${item.accountId}-${index}`}>
+                                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-700">
+                                                {item.accountId || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.memberName || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.neighborhood || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.block || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.lot || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 font-semibold text-rose-600">
+                                                PHP {formatMoney(item.amountDue || 0)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {formatDate(item.lastPaymentDate)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {outstandingBillingLabel || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-4 flex justify-end text-sm font-semibold text-slate-700">
+                            Grand Total: PHP {formatMoney(filteredOutstandingItems.reduce((sum, item) => sum + Number(item.amountDue || 0), 0))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showQuarterDueModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowQuarterDueModal(false)} />
+                    <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Net Collection (This Quarter)</h2>
+                                <p className="text-xs text-slate-500">Quarter: Q{quarter} {year}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Classification
+                                    <select
+                                        value={quarterDueFilter}
+                                        onChange={(event) => setQuarterDueFilter(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                    >
+                                        <option value="ALL">All</option>
+                                        <option value="HOMEOWNER">Homeowner</option>
+                                        <option value="LOT OWNER">Lot Owner</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintQuarterDue}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowQuarterDueModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Name</th>
+                                        <th className="px-4 py-3">Address</th>
+                                        <th className="px-4 py-3">Previous Balance</th>
+                                        <th className="px-4 py-3">Total Current Charges</th>
+                                        <th className="px-4 py-3">Amount Due</th>
+                                        <th className="px-4 py-3">Last Payment</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredQuarterDueItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="8" className="px-4 py-6 text-center text-slate-400">
+                                                No matching accounts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {filteredQuarterDueItems.map((item, index) => {
+                                        const address = [item.neighborhood, item.block, item.lot]
+                                            .filter(Boolean)
+                                            .join(' ');
+                                        return (
+                                            <tr key={`${item.accountId}-${index}`}>
+                                                <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                                <td className="px-4 py-3 font-semibold text-slate-700">
+                                                    {item.accountId || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {item.memberName || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {address || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    PHP {formatMoney(item.balanceTotal || 0)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    PHP {formatMoney(item.currentChargesTotal || 0)}
+                                                </td>
+                                                <td className="px-4 py-3 font-semibold text-rose-600">
+                                                    PHP {formatMoney(item.amountDue || 0)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {formatDate(item.lastPaymentDate)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-4 flex flex-col items-end gap-1 text-sm font-semibold text-slate-700">
+                            <div>
+                                Total Collectibles (This Quarter): PHP {formatMoney(
+                                    filteredQuarterDueItems.reduce((sum, item) => {
+                                        const currentCharges = Number(item.currentChargesTotal || 0);
+                                        const amountDue = Number(item.amountDue || 0);
+                                        const collectibles = amountDue >= currentCharges ? currentCharges : amountDue;
+                                        return sum + collectibles;
+                                    }, 0),
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

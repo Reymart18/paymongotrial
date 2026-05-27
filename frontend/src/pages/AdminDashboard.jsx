@@ -24,6 +24,12 @@ export default function AdminDashboard() {
     const [settledError, setSettledError] = useState('');
     const [settledBillingLabel, setSettledBillingLabel] = useState('-');
     const [showSettledModal, setShowSettledModal] = useState(false);
+    const [unpaidItems, setUnpaidItems] = useState([]);
+    const [unpaidLoading, setUnpaidLoading] = useState(false);
+    const [unpaidError, setUnpaidError] = useState('');
+    const [unpaidBillingLabel, setUnpaidBillingLabel] = useState('-');
+    const [unpaidBillingEndDateKey, setUnpaidBillingEndDateKey] = useState(null);
+    const [showUnpaidModal, setShowUnpaidModal] = useState(false);
     const [overpaidItems, setOverpaidItems] = useState([]);
     const [overpaidLoading, setOverpaidLoading] = useState(false);
     const [overpaidError, setOverpaidError] = useState('');
@@ -35,6 +41,12 @@ export default function AdminDashboard() {
     const [paymentsReportError, setPaymentsReportError] = useState('');
     const [paymentsBillingLabel, setPaymentsBillingLabel] = useState('-');
     const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+    const [paycatReportItems, setPaycatReportItems] = useState([]);
+    const [paycatReportLoading, setPaycatReportLoading] = useState(false);
+    const [paycatReportError, setPaycatReportError] = useState('');
+    const [paycatBillingLabel, setPaycatBillingLabel] = useState('-');
+    const [selectedPaycat, setSelectedPaycat] = useState('');
+    const [showPaycatModal, setShowPaycatModal] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
@@ -381,6 +393,48 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleGenerateUnpaidReport = async () => {
+        if (unpaidLoading) {
+            return;
+        }
+
+        setUnpaidError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setUnpaidError('Session expired. Please log in again.');
+            return;
+        }
+
+        setUnpaidLoading(true);
+
+        try {
+            const response = await fetch(`${API_URL}/admin/unpaid-accounts`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setUnpaidError(data.message || 'Failed to load unpaid accounts.');
+                return;
+            }
+
+            setUnpaidItems(Array.isArray(data?.items) ? data.items : []);
+            setUnpaidBillingLabel(data?.currentBillingLabel || '-');
+            setUnpaidBillingEndDateKey(data?.billingEndDateKey || null);
+            setShowUnpaidModal(true);
+        } catch (err) {
+            console.error('Unpaid report error:', err);
+            setUnpaidError('Failed to load unpaid accounts. Please try again.');
+        } finally {
+            setUnpaidLoading(false);
+        }
+    };
+
     const handleGeneratePaymentsReport = async () => {
         if (paymentsReportLoading) {
             return;
@@ -419,6 +473,52 @@ export default function AdminDashboard() {
             setPaymentsReportError('Failed to load payments collection. Please try again.');
         } finally {
             setPaymentsReportLoading(false);
+        }
+    };
+
+    const handleGeneratePaycatReport = async (paycat) => {
+        if (paycatReportLoading) {
+            return;
+        }
+
+        const resolvedPaycat = paycat || 'Uncategorized';
+        setSelectedPaycat(resolvedPaycat);
+        setPaycatReportError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setPaycatReportError('Session expired. Please log in again.');
+            return;
+        }
+
+        setPaycatReportLoading(true);
+
+        try {
+            const response = await fetch(
+                `${API_URL}/admin/payments-by-category?paycat=${encodeURIComponent(resolvedPaycat)}`,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                },
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setPaycatReportError(data.message || 'Failed to load payments for this category.');
+                return;
+            }
+
+            setPaycatReportItems(Array.isArray(data?.items) ? data.items : []);
+            setPaycatBillingLabel(data?.currentBillingLabel || paymentsBillingLabel || '-');
+            setShowPaycatModal(true);
+        } catch (err) {
+            console.error('Payments by category error:', err);
+            setPaycatReportError('Failed to load payments for this category. Please try again.');
+        } finally {
+            setPaycatReportLoading(false);
         }
     };
 
@@ -471,6 +571,76 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                         ${rowsHtml || '<tr><td colspan="4">No payments found.</td></tr>'}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
+    const handlePrintPaycat = () => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const rowsHtml = paycatReportItems.map((item, index) => {
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${formatDate(item.paymentDate)}</td>
+                    <td>PHP ${formatMoney(item.amountPaid || 0)}</td>
+                    <td>${item.description || '-'}</td>
+                    <td>${item.referenceNumber || '-'}</td>
+                    <td>${item.paycat || selectedPaycat || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Payments - ${selectedPaycat || 'Category'}</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Payments - ${selectedPaycat || 'Category'}</h1>
+                <p>Current billing period: ${paycatBillingLabel || '-'}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Member Name</th>
+                            <th>Payment Date</th>
+                            <th>Amount Paid</th>
+                            <th>Description</th>
+                            <th>Reference No.</th>
+                            <th>Pay Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="8">No payments found.</td></tr>'}
                     </tbody>
                 </table>
             </body>
@@ -545,6 +715,88 @@ export default function AdminDashboard() {
                     <tbody>
                         ${rowsHtml || '<tr><td colspan="9">No overpaid accounts found.</td></tr>'}
                     </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
+    const handlePrintUnpaid = () => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const totalAmountDue = unpaidItems.reduce((sum, item) => sum + Number(item.amountDue || 0), 0);
+
+        const rowsHtml = unpaidItems.map((item, index) => {
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${item.neighborhood || '-'}</td>
+                    <td>${item.block || '-'}</td>
+                    <td>${item.lot || '-'}</td>
+                    <td>PHP ${formatMoney(item.amountDue || 0)}</td>
+                    <td>${formatDate(item.lastPaymentDate)}</td>
+                    <td>${unpaidBillingLabel || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const formattedAsOf = formatDateKey(unpaidBillingEndDateKey);
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Unpaid Accounts</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Unpaid Accounts</h1>
+                <p>Amount Due as of ${formattedAsOf}.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Name</th>
+                            <th>Neighborhood</th>
+                            <th>Block</th>
+                            <th>Lot</th>
+                            <th>Amount Due</th>
+                            <th>Last Payment</th>
+                            <th>Current Billing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="9">No unpaid accounts found.</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6"></td>
+                            <td><strong>PHP ${formatMoney(totalAmountDue)}</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </body>
             </html>
@@ -675,6 +927,8 @@ export default function AdminDashboard() {
                             settledAccountsCount={summary.settledAccountsCount}
                             totalCollectedPayments={summary.totalCollectedPayments}
                             loading={summaryLoading}
+                            onGenerateUnpaidReport={handleGenerateUnpaidReport}
+                            unpaidReportLoading={unpaidLoading}
                             onGenerateSettledReport={handleGenerateSettledReport}
                             settledReportLoading={settledLoading}
                             onGenerateOverpaidReport={handleGenerateOverpaidReport}
@@ -697,10 +951,31 @@ export default function AdminDashboard() {
                             />
                         )}
 
+                        {unpaidError && (
+                            <AdminStatusMessage
+                                variant="error"
+                                message={unpaidError}
+                            />
+                        )}
+
                         {overpaidError && (
                             <AdminStatusMessage
                                 variant="error"
                                 message={overpaidError}
+                            />
+                        )}
+
+                        {paymentsReportError && (
+                            <AdminStatusMessage
+                                variant="error"
+                                message={paymentsReportError}
+                            />
+                        )}
+
+                        {paycatReportError && (
+                            <AdminStatusMessage
+                                variant="error"
+                                message={paycatReportError}
                             />
                         )}
 
@@ -914,6 +1189,93 @@ export default function AdminDashboard() {
                 </div>
             )}
 
+            {showUnpaidModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowUnpaidModal(false)} />
+                    <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Unpaid Accounts</h2>
+                                <p className="text-xs text-slate-500">Amount Due as of {formatDateKey(unpaidBillingEndDateKey)}.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintUnpaid}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowUnpaidModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Name</th>
+                                        <th className="px-4 py-3">Neighborhood</th>
+                                        <th className="px-4 py-3">Block</th>
+                                        <th className="px-4 py-3">Lot</th>
+                                        <th className="px-4 py-3">Amount Due</th>
+                                        <th className="px-4 py-3">Last Payment</th>
+                                        <th className="px-4 py-3">Current Billing</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {unpaidItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="9" className="px-4 py-6 text-center text-slate-400">
+                                                No unpaid accounts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {unpaidItems.map((item, index) => (
+                                        <tr key={`${item.accountId}-${index}`}>
+                                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-700">
+                                                {item.accountId || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.memberName || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.neighborhood || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.block || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.lot || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 font-semibold text-rose-600">
+                                                PHP {formatMoney(item.amountDue || 0)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {formatDate(item.lastPaymentDate)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {unpaidBillingLabel || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-4 flex justify-end text-sm font-semibold text-slate-700">
+                            Grand Total: PHP {formatMoney(unpaidItems.reduce((sum, item) => sum + Number(item.amountDue || 0), 0))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showPaymentsModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
                     <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowPaymentsModal(false)} />
@@ -947,12 +1309,13 @@ export default function AdminDashboard() {
                                         <th className="px-4 py-3">Pay Category</th>
                                         <th className="px-4 py-3">Transactions</th>
                                         <th className="px-4 py-3">Total Collected</th>
+                                        <th className="px-4 py-3">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {paymentsReportItems.length === 0 && (
                                         <tr>
-                                            <td colSpan="4" className="px-4 py-6 text-center text-slate-400">
+                                            <td colSpan="5" className="px-4 py-6 text-center text-slate-400">
                                                 No payments found.
                                             </td>
                                         </tr>
@@ -968,6 +1331,98 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-4 py-3 text-slate-600">
                                                 PHP {formatMoney(item.total || 0)}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleGeneratePaycatReport(item.paycat || 'Uncategorized')}
+                                                    disabled={paycatReportLoading && selectedPaycat === (item.paycat || 'Uncategorized')}
+                                                    className="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {paycatReportLoading && selectedPaycat === (item.paycat || 'Uncategorized')
+                                                        ? 'Generating...'
+                                                        : 'Generate Report'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showPaycatModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowPaycatModal(false)} />
+                    <div className="relative z-10 w-full max-w-6xl rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Payments - {selectedPaycat || '-'}</h2>
+                                <p className="text-xs text-slate-500">Current billing period: {paycatBillingLabel || '-'}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintPaycat}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowPaycatModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Member Name</th>
+                                        <th className="px-4 py-3">Payment Date</th>
+                                        <th className="px-4 py-3">Amount Paid</th>
+                                        <th className="px-4 py-3">Description</th>
+                                        <th className="px-4 py-3">Reference No.</th>
+                                        <th className="px-4 py-3">Pay Category</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paycatReportItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="8" className="px-4 py-6 text-center text-slate-400">
+                                                No payments found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {paycatReportItems.map((item, index) => (
+                                        <tr key={`${item.accountId}-${item.referenceNumber || index}`}>
+                                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-700">
+                                                {item.accountId || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.memberName || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {formatDate(item.paymentDate)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                PHP {formatMoney(item.amountPaid || 0)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.description || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.referenceNumber || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.paycat || selectedPaycat || '-'}
                                             </td>
                                         </tr>
                                     ))}
