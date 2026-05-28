@@ -55,8 +55,6 @@ export class PropertyAccount {
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     balance?: number;
 
-    @Column({ default: 'active' })
-    status?: string;
 
     @OneToMany(() => FoxproPayment, (payment) => payment.account)
     payments?: FoxproPayment[];

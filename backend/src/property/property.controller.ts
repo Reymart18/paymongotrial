@@ -64,7 +64,8 @@ export class PropertyController {
         }
 
         const { password, ...result } = account;
-        return result;
+        const goodStandingStatus = await this.propertyService.getGoodStandingStatus(accountId);
+        return { ...result, goodStandingStatus };
     }
 
     @UseGuards(JwtAuthGuard)

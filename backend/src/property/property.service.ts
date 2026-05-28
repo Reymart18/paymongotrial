@@ -33,6 +33,9 @@ interface MasterlistRecord {
 
 @Injectable()
 export class PropertyService {
+    private static readonly GOOD_STANDING = 'In Good Standing';
+    private static readonly NOT_GOOD_STANDING = 'Not in Good Standing';
+
     constructor(
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
@@ -60,7 +63,6 @@ export class PropertyService {
             password: hashedPassword,
             passwordChanged,
             balance: 0,
-            status: 'active',
         });
 
         return this.propertyRepo.save(homeowner);
@@ -147,7 +149,6 @@ export class PropertyService {
                     password: hashedPassword,
                     passwordChanged: false,
                     balance: 0,
-                    status: 'active',
                 });
 
                 await propertyRepo.save(homeowner);
@@ -160,6 +161,80 @@ export class PropertyService {
 
     async getByAccountId(accountId: string): Promise<PropertyAccount | null> {
         return this.propertyRepo.findOne({ where: { accountId } });
+    }
+
+    async getGoodStandingStatus(accountId: string): Promise<string> {
+        if (!accountId) {
+            return PropertyService.GOOD_STANDING;
+        }
+
+        const latestBilling = await this.billingRepo.findOne({
+            where: { accountId },
+            order: { dueDate: 'DESC' },
+        });
+
+        if (!latestBilling) {
+            return PropertyService.GOOD_STANDING;
+        }
+
+        const currentCharges =
+            Number(latestBilling.prinCurr || 0) +
+            Number(latestBilling.intCurr || 0) +
+            Number(latestBilling.penCurr || 0);
+
+        const carryingBalance =
+            Number(latestBilling.prinBal || 0) +
+            Number(latestBilling.intBal || 0) +
+            Number(latestBilling.penBal || 0);
+
+        const startDate = latestBilling.dateFrom ? new Date(latestBilling.dateFrom) : null;
+        const endDate = latestBilling.dateTo ? new Date(latestBilling.dateTo) : null;
+        const hasValidRange =
+            startDate &&
+            endDate &&
+            !Number.isNaN(startDate.getTime()) &&
+            !Number.isNaN(endDate.getTime());
+
+        let paidTotal = 0;
+        if (hasValidRange) {
+            const raw = await this.paymentRepo
+                .createQueryBuilder('payment')
+                .select('COALESCE(SUM(payment.amountPaid), 0)', 'totalPaid')
+                .where('payment.accountId = :accountId', { accountId })
+                .andWhere('payment.paymentDate BETWEEN :start AND :end', {
+                    start: startDate,
+                    end: endDate,
+                })
+                .andWhere('LOWER(TRIM(payment.paycat)) = :paycat', { paycat: 'membership dues' })
+                .getRawOne();
+
+            paidTotal = Number(raw?.totalPaid ?? 0);
+        }
+
+        const amountDue = carryingBalance + currentCharges - paidTotal;
+
+        if (currentCharges <= 0) {
+            return PropertyService.GOOD_STANDING;
+        }
+
+        return amountDue >= currentCharges * 2
+            ? PropertyService.NOT_GOOD_STANDING
+            : PropertyService.GOOD_STANDING;
+    }
+
+    async attachGoodStandingStatus(accounts: PropertyAccount[]) {
+        const enriched = await Promise.all(
+            accounts.map(async (account) => {
+                if (!account.accountId) {
+                    return { ...account, goodStandingStatus: PropertyService.GOOD_STANDING };
+                }
+
+                const goodStandingStatus = await this.getGoodStandingStatus(account.accountId);
+                return { ...account, goodStandingStatus };
+            }),
+        );
+
+        return enriched;
     }
 
     async changePassword(

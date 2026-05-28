@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import * as nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 @Injectable()
 export class AuthService {
@@ -66,6 +67,8 @@ export class AuthService {
         const secure = process.env.SMTP_SECURE
             ? process.env.SMTP_SECURE === 'true'
             : port === 465;
+        const requireTls = process.env.SMTP_REQUIRE_TLS === 'true';
+        const forceIpv4 = process.env.SMTP_FORCE_IPV4 === 'true';
         const user = process.env.SMTP_USER || '';
         const pass = process.env.SMTP_PASS || '';
 
@@ -73,12 +76,22 @@ export class AuthService {
             return null;
         }
 
-        return nodemailer.createTransport({
+        const transportOptions: SMTPTransport.Options & { family?: number } = {
             host,
             port,
             secure,
             auth: { user, pass },
-        });
+        };
+
+        if (requireTls) {
+            transportOptions.requireTLS = true;
+        }
+
+        if (forceIpv4) {
+            transportOptions.family = 4;
+        }
+
+        return nodemailer.createTransport(transportOptions);
     }
 
     private generateOtp(): string {

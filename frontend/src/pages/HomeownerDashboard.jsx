@@ -230,6 +230,27 @@ export default function HomeownerDashboard() {
                 {/* Main Content */}
                 <main className="flex-1 overflow-auto">
                     <div className="space-y-6 px-4 md:px-6 py-6 md:py-8">
+                        {!loading && !error && account?.goodStandingStatus && (
+                            <div
+                                className={`inline-flex w-fit items-center gap-2 rounded-xl border px-4 py-2 text-sm ${account.goodStandingStatus === 'Not in Good Standing'
+                                    ? 'border-rose-200 bg-rose-50 text-rose-800'
+                                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                    }`}
+                            >
+                                {account.goodStandingStatus === 'Not in Good Standing' ? (
+                                    <span>
+                                        <span className="font-semibold">Status:</span>
+                                        {' '}
+                                        <span>Not in Good Standing — due balance has reached 6+ months of billing charges.</span>
+                                    </span>
+                                ) : (
+                                    <>
+                                        <span className="font-semibold">Status:</span>
+                                        <span>{account.goodStandingStatus}</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
                         {!loading && !error && overdueNotice && !overdueLoading && (
                             <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
                                 <div className="flex items-start gap-2">
@@ -248,7 +269,7 @@ export default function HomeownerDashboard() {
                                         />
                                     </svg>
                                     <span>
-                                        You haven&apos;t paid for 12 months, and your total amount due is equivalent to 12 months billing. You will be listed for interest.
+                                        You haven&apos;t paid for 12 months, and your total amount due is equivalent to or greater than 12 months billing charges. You will be listed for interest.
                                     </span>
                                 </div>
                             </div>

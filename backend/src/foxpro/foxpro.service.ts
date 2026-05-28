@@ -178,15 +178,6 @@ export class FoxproService {
 
         await this.dataSource.transaction(async (manager) => {
             const propertyRepo = manager.getRepository(PropertyAccount);
-            const accountIds = records
-                .map((record) => record.accountId)
-                .filter((value): value is string => Boolean(value));
-            const existingAccounts = accountIds.length
-                ? await propertyRepo.find({ where: { accountId: In(accountIds) } })
-                : [];
-            const existingMap = new Map(
-                existingAccounts.map((account) => [account.accountId ?? '', account]),
-            );
 
             for (let index = 0; index < records.length; index += 1) {
                 const record = records[index];
@@ -208,7 +199,7 @@ export class FoxproService {
                     continue;
                 }
 
-                const existing = existingMap.get(record.accountId) ?? null;
+                const existing = await propertyRepo.findOne({ where: { accountId: record.accountId } });
                 if (existing) {
                     let changed = false;
 
@@ -276,7 +267,6 @@ export class FoxproService {
                     password: hashedPassword,
                     passwordChanged: false,
                     balance: 0,
-                    status: 'active',
                 });
 
                 await propertyRepo.save(account);

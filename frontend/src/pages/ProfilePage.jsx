@@ -14,6 +14,7 @@ const defaultPropertyDetails = {
     memberName: 'N/A',
     propertySizeSqm: 'N/A',
     classification: 'N/A',
+    goodStandingStatus: '',
 };
 
 export default function ProfilePage() {
@@ -39,6 +40,16 @@ export default function ProfilePage() {
         ...(propertyDetailsState || {}),
     };
 
+    const hasStoredStatus = Boolean(
+        storedPropertyDetails?.goodStandingStatus
+        && storedPropertyDetails.goodStandingStatus !== 'N/A',
+    );
+
+    const hasLocationStatus = Boolean(
+        location.state?.propertyDetails?.goodStandingStatus
+        && location.state.propertyDetails.goodStandingStatus !== 'N/A',
+    );
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         const storedAccountId = localStorage.getItem('accountId');
@@ -48,7 +59,7 @@ export default function ProfilePage() {
             return;
         }
 
-        if (location.state?.propertyDetails || storedPropertyDetails) {
+        if (hasLocationStatus || hasStoredStatus) {
             return;
         }
 
@@ -88,6 +99,7 @@ export default function ProfilePage() {
                     memberName: data.memberName,
                     propertySizeSqm: data.propertySizeSqm,
                     classification: data.classification,
+                    goodStandingStatus: data.goodStandingStatus,
                 };
 
                 localStorage.setItem('propertyDetails', JSON.stringify(nextDetails));
@@ -111,6 +123,7 @@ export default function ProfilePage() {
         { label: 'Member Name', value: propertySource.memberName },
         { label: 'Property Size (sqm)', value: propertySource.propertySizeSqm },
         { label: 'Classification', value: propertySource.classification || classification },
+        { label: 'Status', value: propertySource.goodStandingStatus || 'Loading...' },
     ];
 
     const profileInfo = profileDetails.map((item) => {

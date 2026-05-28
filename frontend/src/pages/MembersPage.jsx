@@ -836,7 +836,9 @@ export default function MembersPage() {
                                                             {account.classification}
                                                         </td>
                                                         <td className="px-2 md:px-4 py-2 md:py-4 text-xs md:text-sm text-gray-800">
-                                                            ₱{formatBalance(calculatedBalances[account.accountId] ?? account.balance)}
+                                                            {calculatedBalances[account.accountId] === undefined
+                                                                ? 'Calculating...'
+                                                                : `₱${formatBalance(calculatedBalances[account.accountId])}`}
                                                         </td>
                                                         <td className="hidden sm:table-cell px-2 md:px-4 py-2 md:py-4 text-xs md:text-sm">
                                                             <div className="flex flex-col gap-0.5">

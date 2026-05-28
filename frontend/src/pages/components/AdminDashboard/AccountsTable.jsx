@@ -51,7 +51,6 @@ export default function AccountsTable({
                                     <th className="px-3 py-3">Member Name</th>
                                     <th className="px-3 py-3">Property Size (sqm)</th>
                                     <th className="px-3 py-3">Classification</th>
-                                    <th className="px-3 py-3">Status</th>
                                     <th className="px-3 py-3">Balance</th>
                                     <th className="px-3 py-3">Statement</th>
                                     <th className="px-3 py-3">Actions</th>
@@ -60,7 +59,7 @@ export default function AccountsTable({
                             <tbody className="divide-y divide-slate-100">
                                 {accounts.length === 0 && (
                                     <tr>
-                                        <td colSpan="12" className="px-4 py-6 text-center text-slate-400">
+                                        <td colSpan="10" className="px-4 py-6 text-center text-slate-400">
                                             No homeowner accounts found.
                                         </td>
                                     </tr>
@@ -77,11 +76,6 @@ export default function AccountsTable({
                                             <td className="px-3 py-3">{account.memberName}</td>
                                             <td className="px-3 py-3">{account.propertySizeSqm}</td>
                                             <td className="px-3 py-3">{account.classification}</td>
-                                            <td className="px-3 py-3">
-                                                <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                                    {account.status}
-                                                </span>
-                                            </td>
                                             <td className="px-3 py-3">
                                                 {Number(account.balance || 0).toFixed(2)}
                                             </td>
@@ -126,7 +120,7 @@ export default function AccountsTable({
                                         </tr>
                                         {editingAccountId === account.accountId && (
                                             <tr className="bg-slate-50">
-                                                <td colSpan="12" className="px-4 py-4">
+                                                <td colSpan="10" className="px-4 py-4">
                                                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                                                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -173,20 +167,6 @@ export default function AccountsTable({
                                                                     <option value="HOMEOWNER">HOMEOWNER</option>
                                                                     <option value="LOT OWNER">LOT OWNER</option>
                                                                 </select>
-                                                            </label>
-                                                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                                Status
-                                                                <input
-                                                                    type="text"
-                                                                    value={editForm.status}
-                                                                    onChange={(e) =>
-                                                                        onEditChange(
-                                                                            'status',
-                                                                            e.target.value,
-                                                                        )
-                                                                    }
-                                                                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                                                                />
                                                             </label>
                                                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                                                 Balance
@@ -250,7 +230,7 @@ export default function AccountsTable({
                                         )}
                                         {expandedStatementAccountId === account.accountId && (
                                             <tr className="bg-slate-50">
-                                                <td colSpan="12" className="px-4 py-4">
+                                                <td colSpan="10" className="px-4 py-4">
                                                     {statementsLoading[account.accountId] && (
                                                         <AdminStatusMessage
                                                             variant="loading"

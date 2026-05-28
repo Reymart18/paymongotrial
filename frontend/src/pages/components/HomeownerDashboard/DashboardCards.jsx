@@ -30,6 +30,14 @@ export default function DashboardCards({ account, statementRows }) {
         return parsed;
     };
 
+    const isMembershipDues = (row) => {
+        if (!row?.paycat) {
+            return false;
+        }
+
+        return String(row.paycat).trim().toLowerCase() === 'membership dues';
+    };
+
     const formatDate = (value) => {
         if (!value) {
             return '';
@@ -198,7 +206,8 @@ export default function DashboardCards({ account, statementRows }) {
 
     // Calculate recent payment made using the most recent payment date
     const paymentRows = rows.filter((row) => row.type === 'payment');
-    const latestPaymentRow = paymentRows.reduce((latest, row) => {
+    const membershipPayments = paymentRows.filter(isMembershipDues);
+    const latestPaymentRow = membershipPayments.reduce((latest, row) => {
         const dateValue = row?.paymentDate || row?.date;
         if (!dateValue) {
             return latest;
@@ -225,16 +234,35 @@ export default function DashboardCards({ account, statementRows }) {
         : 0;
     const recentPaymentDescription = latestPaymentRow?.description || '';
 
-    const paymentRowsForYear = paymentRows.filter(
-        (row) => getRowYear(row) === selectedBillingYear,
-    );
-    const totalPayments = paymentRowsForYear.reduce(
-        (sum, row) => sum + Number(row.amountPaid || 0),
-        0,
-    );
+    const currentPeriodPayments = (() => {
+        if (!latestBilling?.dateFrom || !latestBilling?.dateTo) {
+            return 0;
+        }
 
-    // Calculate total outstanding (all unpaid charges)
-    const totalOutstanding = currentBillingCharges + carryingBalanceTotal - totalPayments;
+        const start = new Date(latestBilling.dateFrom);
+        const end = new Date(latestBilling.dateTo);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return 0;
+        }
+
+        return membershipPayments
+            .filter((row) => {
+                const dateValue = row?.paymentDate || row?.date;
+                if (!dateValue) {
+                    return false;
+                }
+
+                const paidAt = new Date(dateValue);
+                if (Number.isNaN(paidAt.getTime())) {
+                    return false;
+                }
+
+                return paidAt >= start && paidAt <= end;
+            })
+            .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0);
+    })();
+
+    const amountDue = currentBillingCharges + carryingBalanceTotal - currentPeriodPayments;
 
     const cards = [
         {
@@ -259,7 +287,7 @@ export default function DashboardCards({ account, statementRows }) {
         },
         {
             title: 'Total Outstanding',
-            value: totalOutstanding.toFixed(2),
+            value: amountDue.toFixed(2),
             description: totalOutstandingAsOf,
             icon: toIcon,
             color: 'from-amber-400 to-orange-400',

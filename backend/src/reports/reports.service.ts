@@ -294,11 +294,12 @@ export class ReportsService {
     }
 
     private getPercentChange(current: number, previous: number): number | null {
-        if (previous <= 0) {
+        if (previous === 0) {
             return null;
         }
 
-        return ((current - previous) / previous) * 100;
+        const denominator = Math.abs(previous);
+        return ((current - previous) / denominator) * 100;
     }
 
     private getPreviousQuarter(year: number, quarter: number) {

@@ -60,12 +60,6 @@ export default function PropertyDetailsCard({ account }) {
                     </p>
                 </div>
                 <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Status</p>
-                    <span className="mt-1 inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                        {account.status}
-                    </span>
-                </div>
-                <div>
                     <p className="text-xs uppercase tracking-wide text-slate-400">Current Balance</p>
                     <p className="mt-1 text-sm font-semibold text-slate-800">
                         {Number(account.balance || 0).toFixed(2)}

@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { Admin } from './admin.entity';
 import { AdminActivity } from './admin-activity.entity';
 import { PropertyAccount } from '../property/property.entity';
+import { PropertyService } from '../property/property.service';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
 import * as bcrypt from 'bcrypt';
@@ -21,6 +22,7 @@ export class AdminService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
+        private propertyService: PropertyService,
     ) { }
 
     async logActivity(input: {
@@ -104,8 +106,9 @@ export class AdminService {
         return this.adminRepo.save(admin);
     }
 
-    async getAllPropertyAccounts(): Promise<PropertyAccount[]> {
-        return this.propertyRepo.find();
+    async getAllPropertyAccounts() {
+        const accounts = await this.propertyRepo.find();
+        return this.propertyService.attachGoodStandingStatus(accounts);
     }
 
     async updatePropertyAccount(
@@ -121,7 +124,6 @@ export class AdminService {
             'memberName',
             'propertySizeSqm',
             'classification',
-            'status',
             'balance',
             'username',
             'gmail',
