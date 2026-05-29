@@ -314,6 +314,7 @@ export default function AdminDashboard() {
                     p { margin: 0 0 12px; font-size: 12px; color: #475569; }
                     table { width: 100%; border-collapse: collapse; font-size: 11px; }
                     thead { display: table-header-group; }
+                    tfoot { display: table-row-group; }
                     th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
                     th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
                     tr { page-break-inside: avoid; }
@@ -789,14 +790,12 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                         ${rowsHtml || '<tr><td colspan="9">No unpaid accounts found.</td></tr>'}
-                    </tbody>
-                    <tfoot>
                         <tr>
                             <td colspan="6"></td>
                             <td><strong>PHP ${formatMoney(totalAmountDue)}</strong></td>
                             <td colspan="2"></td>
                         </tr>
-                    </tfoot>
+                    </tbody>
                 </table>
             </body>
             </html>

@@ -644,14 +644,12 @@ export default function ReportsPage() {
                     </thead>
                     <tbody>
                         ${rowsHtml || '<tr><td colspan="9">No outstanding accounts found.</td></tr>'}
-                    </tbody>
-                    <tfoot>
                         <tr>
                             <td colspan="6" style="text-align: right; font-weight: 600;">Grand Total</td>
                             <td style="font-weight: 600;">PHP ${formatMoney(outstandingTotal)}</td>
                             <td colspan="2"></td>
                         </tr>
-                    </tfoot>
+                    </tbody>
                 </table>
             </body>
             </html>
@@ -731,14 +729,12 @@ export default function ReportsPage() {
                     </thead>
                     <tbody>
                         ${rowsHtml || '<tr><td colspan="8">No matching accounts found.</td></tr>'}
-                    </tbody>
-                    <tfoot>
                         <tr>
                             <td colspan="6" style="text-align: right; font-weight: 600;">Total Collectibles (This Quarter)</td>
                             <td style="font-weight: 600;">PHP ${formatMoney(totalCollectibles)}</td>
                             <td></td>
                         </tr>
-                    </tfoot>
+                    </tbody>
                 </table>
             </body>
             </html>
