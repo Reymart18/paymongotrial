@@ -49,6 +49,7 @@ export default function ReportsPage() {
     const [overdueLoading, setOverdueLoading] = useState(false);
     const [overdueError, setOverdueError] = useState('');
     const [showOverdueModal, setShowOverdueModal] = useState(false);
+    const [overdueFilter, setOverdueFilter] = useState('ALL');
     const [outstandingTotal, setOutstandingTotal] = useState(0);
     const [outstandingLoading, setOutstandingLoading] = useState(false);
     const [outstandingError, setOutstandingError] = useState('');
@@ -111,6 +112,21 @@ export default function ReportsPage() {
     const overdueTotal = useMemo(
         () => overdueItems.reduce((sum, item) => sum + Number(item?.amountDue || 0), 0),
         [overdueItems],
+    );
+    const filteredOverdueItems = useMemo(() => {
+        if (overdueFilter === 'ALL') {
+            return overdueItems;
+        }
+
+        const normalizedFilter = overdueFilter.toLowerCase();
+        return overdueItems.filter((item) => {
+            const classification = String(item?.classification || '').toLowerCase();
+            return classification === normalizedFilter;
+        });
+    }, [overdueFilter, overdueItems]);
+    const filteredOverdueTotal = useMemo(
+        () => filteredOverdueItems.reduce((sum, item) => sum + Number(item?.amountDue || 0), 0),
+        [filteredOverdueItems],
     );
     const filteredOutstandingItems = useMemo(() => {
         if (outstandingFilter === 'ALL') {
@@ -501,7 +517,7 @@ export default function ReportsPage() {
             return;
         }
 
-        const rowsHtml = overdueItems.map((item, index) => {
+        const rowsHtml = filteredOverdueItems.map((item, index) => {
             const address = [item.neighborhood, item.block, item.lot]
                 .filter(Boolean)
                 .join(' ');
@@ -521,7 +537,7 @@ export default function ReportsPage() {
             ? `
                 <tr>
                     <td colspan="5" style="text-align: right; font-weight: 600;">Grand Total</td>
-                    <td style="font-weight: 600;">PHP ${formatMoney(overdueTotal)}</td>
+                    <td style="font-weight: 600;">PHP ${formatMoney(filteredOverdueTotal)}</td>
                     <td></td>
                 </tr>
             `
@@ -550,7 +566,7 @@ export default function ReportsPage() {
             </head>
             <body>
                 <h1>Overdue Accounts</h1>
-                <p>Amount due/excess as of latest billing, no payment for 12 months.</p>
+                <p>Amount due/excess as of latest billing, no payment for 12 months. Filter: ${overdueFilter}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -1292,6 +1308,20 @@ export default function ReportsPage() {
                                 <h2 className="text-lg font-semibold text-slate-900">Overdue Accounts</h2>
                                 <p className="text-xs text-slate-500">Amount due/excess as of latest billing, no payment for 12 months.</p>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Classification
+                                    <select
+                                        value={overdueFilter}
+                                        onChange={(event) => setOverdueFilter(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                    >
+                                        <option value="ALL">All</option>
+                                        <option value="HOMEOWNER">Homeowner</option>
+                                        <option value="LOT OWNER">Lot Owner</option>
+                                    </select>
+                                </label>
+                            </div>
                             <div className="flex flex-wrap gap-2 no-print">
                                 <button
                                     onClick={handlePrintOverdue}
@@ -1322,14 +1352,14 @@ export default function ReportsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {overdueItems.length === 0 && (
+                                    {filteredOverdueItems.length === 0 && (
                                         <tr>
                                             <td colSpan="7" className="px-4 py-6 text-center text-slate-400">
                                                 No overdue accounts found.
                                             </td>
                                         </tr>
                                     )}
-                                    {overdueItems.map((item, index) => {
+                                    {filteredOverdueItems.map((item, index) => {
                                         const address = [item.neighborhood, item.block, item.lot]
                                             .filter(Boolean)
                                             .join(' ');
@@ -1357,13 +1387,13 @@ export default function ReportsPage() {
                                             </tr>
                                         );
                                     })}
-                                    {overdueItems.length > 0 && (
+                                    {filteredOverdueItems.length > 0 && (
                                         <tr>
                                             <td colSpan="5" className="px-4 py-3 text-right font-semibold text-slate-700">
                                                 Grand Total
                                             </td>
                                             <td className="px-4 py-3 font-semibold text-slate-900">
-                                                {formatMoney(overdueTotal)}
+                                                {formatMoney(filteredOverdueTotal)}
                                             </td>
                                             <td className="px-4 py-3"></td>
                                         </tr>

@@ -636,7 +636,7 @@ export default function AdminDashboard() {
                             <th>Payment Date</th>
                             <th>Amount Paid</th>
                             <th>Description</th>
-                            <th>Reference No.</th>
+                            <th>OR#</th>
                             <th>Pay Category</th>
                         </tr>
                     </thead>
@@ -1387,7 +1387,7 @@ export default function AdminDashboard() {
                                         <th className="px-4 py-3">Payment Date</th>
                                         <th className="px-4 py-3">Amount Paid</th>
                                         <th className="px-4 py-3">Description</th>
-                                        <th className="px-4 py-3">Reference No.</th>
+                                        <th className="px-4 py-3">OR#</th>
                                         <th className="px-4 py-3">Pay Category</th>
                                     </tr>
                                 </thead>

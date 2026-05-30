@@ -30,6 +30,7 @@ export interface QuarterReport {
 export interface OverdueAccount {
     accountId: string;
     memberName: string | null;
+    classification: string | null;
     neighborhood: string | null;
     block: string | null;
     lot: string | null;
@@ -361,6 +362,7 @@ export class ReportsService {
             })
             .select('billing.accountId', 'accountId')
             .addSelect('account.memberName', 'memberName')
+            .addSelect('account.classification', 'classification')
             .addSelect('account.neighborhood', 'neighborhood')
             .addSelect('account.block', 'block')
             .addSelect('account.lot', 'lot')
@@ -380,6 +382,7 @@ export class ReportsService {
             .addSelect('COALESCE(billing.dateTo, billing.dateFrom)', 'latestBillingDate')
             .groupBy('billing.accountId')
             .addGroupBy('account.memberName')
+            .addGroupBy('account.classification')
             .addGroupBy('account.neighborhood')
             .addGroupBy('account.block')
             .addGroupBy('account.lot')
@@ -412,6 +415,7 @@ export class ReportsService {
                 return {
                     accountId: row.accountId,
                     memberName: row.memberName,
+                    classification: row.classification ?? null,
                     neighborhood: row.neighborhood,
                     block: row.block,
                     lot: row.lot,
@@ -429,6 +433,7 @@ export class ReportsService {
 type OverdueRow = {
     accountId: string;
     memberName: string | null;
+    classification?: string | null;
     neighborhood: string | null;
     block: string | null;
     lot: string | null;
