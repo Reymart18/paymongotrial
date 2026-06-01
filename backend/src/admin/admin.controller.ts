@@ -214,6 +214,19 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('not-good-standing')
+    async getNotGoodStanding(
+        @Request() req: AuthenticatedRequest,
+        @Query('status') status?: string,
+    ) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can access this resource');
+        }
+
+        return this.adminService.getNotGoodStandingReport(status);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('activities')
     async getRecentActivities(
         @Request() req: AuthenticatedRequest,

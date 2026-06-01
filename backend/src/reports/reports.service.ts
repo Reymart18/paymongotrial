@@ -323,23 +323,18 @@ export class ReportsService {
             return null;
         }
 
-        return currentCharges * 12;
+        return currentCharges * 4;
     }
 
-    private isAnnualBalanceMatch(previousBalance: number, annualCharge: number | null): boolean {
-        if (!annualCharge || previousBalance <= 0) {
+    private isAnnualBalanceMatch(amountDue: number, annualCharge: number | null): boolean {
+        if (!annualCharge || amountDue <= 0) {
             return false;
         }
 
-        const tolerance = Math.max(annualCharge * 0.05, 1);
-        return previousBalance + tolerance >= annualCharge;
+        return amountDue >= annualCharge;
     }
 
     private buildOverdueQuery(accountId?: string) {
-        const cutoff = new Date();
-        cutoff.setFullYear(cutoff.getFullYear() - 1);
-        const cutoffKey = cutoff.toISOString().slice(0, 10);
-
         const latestBillingSub = this.billingRepo
             .createQueryBuilder('billing')
             .select('billing.accountId', 'accountId')
@@ -357,7 +352,6 @@ export class ReportsService {
             .leftJoin('billing.account', 'account')
             .setParameters({
                 ...latestBillingSub.getParameters(),
-                cutoff: cutoffKey,
                 accountId,
             })
             .select('billing.accountId', 'accountId')
@@ -378,7 +372,10 @@ export class ReportsService {
                 "SUM(CASE WHEN payment.paymentDate <= latest.latestDate AND LOWER(payment.paycat) = 'membership dues' THEN payment.amountPaid ELSE 0 END)",
                 'paymentsToDate',
             )
-            .addSelect('MAX(payment.paymentDate)', 'lastPaymentDate')
+            .addSelect(
+                "MAX(CASE WHEN LOWER(payment.paycat) = 'membership dues' THEN payment.paymentDate ELSE NULL END)",
+                'lastPaymentDate',
+            )
             .addSelect('COALESCE(billing.dateTo, billing.dateFrom)', 'latestBillingDate')
             .groupBy('billing.accountId')
             .addGroupBy('account.memberName')
@@ -391,7 +388,6 @@ export class ReportsService {
             .addGroupBy('billing.intBal')
             .addGroupBy('billing.penBal')
             .addGroupBy('billing.prinCurr')
-            .having('MAX(payment.paymentDate) IS NULL OR MAX(payment.paymentDate) <= :cutoff')
             .orderBy('previousBalance', 'DESC');
 
         if (accountId) {
@@ -410,7 +406,7 @@ export class ReportsService {
                 const amountDue = previousBalance + currentCharges - paymentsToDate;
 
                 const annualCharge = this.getAnnualCharge(currentCharges);
-                const annualOk = this.isAnnualBalanceMatch(previousBalance, annualCharge);
+                const annualOk = this.isAnnualBalanceMatch(amountDue, annualCharge);
 
                 return {
                     accountId: row.accountId,

@@ -566,7 +566,7 @@ export default function ReportsPage() {
             </head>
             <body>
                 <h1>Overdue Accounts</h1>
-                <p>Amount due/excess as of latest billing, no payment for 12 months. Filter: ${overdueFilter}.</p>
+                <p>Amount due/excess as of latest billing. Equivalent to 12 months’ amount due. Filter: ${overdueFilter}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -1266,7 +1266,7 @@ export default function ReportsPage() {
                             <div className="relative flex flex-col justify-center">
                                 <div className="relative rounded-2xl border border-slate-700 p-5 shadow-sm transition hover:shadow-md" style={{ backgroundColor: '#0E0E0E' }}>
                                     <p className="text-xs text-slate-500 mb-3">
-                                        Disclaimer: No payment for 12 months and equivalent to 12 months’ amount due.
+                                        Disclaimer: Equivalent to 12 months’ amount due.
                                     </p>
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-2">
@@ -1306,7 +1306,7 @@ export default function ReportsPage() {
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Overdue Accounts</h2>
-                                <p className="text-xs text-slate-500">Amount due/excess as of latest billing, no payment for 12 months.</p>
+                                <p className="text-xs text-slate-500">Amount due/excess as of latest billing. Equivalent to 12 months’ amount due.</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">

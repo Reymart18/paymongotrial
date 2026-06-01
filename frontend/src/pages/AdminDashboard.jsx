@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminDashboardCards from './components/AdminDashboard/AdminDashboardCards';
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
@@ -12,6 +12,7 @@ export default function AdminDashboard() {
         unpaidAccountsCount: 0,
         overpaidAccountsCount: 0,
         settledAccountsCount: 0,
+        notGoodStandingCount: 0,
         totalCollectedPayments: 0,
     });
     const [summaryLoading, setSummaryLoading] = useState(false);
@@ -36,6 +37,14 @@ export default function AdminDashboard() {
     const [overpaidBillingLabel, setOverpaidBillingLabel] = useState('-');
     const [overpaidBillingEndDateKey, setOverpaidBillingEndDateKey] = useState(null);
     const [showOverpaidModal, setShowOverpaidModal] = useState(false);
+    const [notGoodStandingItems, setNotGoodStandingItems] = useState([]);
+    const [notGoodStandingLoading, setNotGoodStandingLoading] = useState(false);
+    const [notGoodStandingError, setNotGoodStandingError] = useState('');
+    const [notGoodStandingBillingLabel, setNotGoodStandingBillingLabel] = useState('-');
+    const [notGoodStandingBillingEndDateKey, setNotGoodStandingBillingEndDateKey] = useState(null);
+    const [showNotGoodStandingModal, setShowNotGoodStandingModal] = useState(false);
+    const [notGoodStandingFilter, setNotGoodStandingFilter] = useState('ALL');
+    const [notGoodStandingStatus, setNotGoodStandingStatus] = useState('not');
     const [paymentsReportItems, setPaymentsReportItems] = useState([]);
     const [paymentsReportLoading, setPaymentsReportLoading] = useState(false);
     const [paymentsReportError, setPaymentsReportError] = useState('');
@@ -98,6 +107,7 @@ export default function AdminDashboard() {
                     unpaidAccountsCount: Number(data?.unpaidAccountsCount || 0),
                     overpaidAccountsCount: Number(data?.overpaidAccountsCount || 0),
                     settledAccountsCount: Number(data?.settledAccountsCount || 0),
+                    notGoodStandingCount: Number(data?.notGoodStandingCount || 0),
                     totalCollectedPayments: Number(data?.totalCollectedPayments || 0),
                 });
             } catch (err) {
@@ -211,6 +221,18 @@ export default function AdminDashboard() {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(Number(value || 0));
+
+    const filteredNotGoodStandingItems = useMemo(() => {
+        if (notGoodStandingFilter === 'ALL') {
+            return notGoodStandingItems;
+        }
+
+        const normalizedFilter = notGoodStandingFilter.toLowerCase();
+        return notGoodStandingItems.filter((item) => {
+            const classification = String(item?.classification || '').toLowerCase();
+            return classification === normalizedFilter;
+        });
+    }, [notGoodStandingFilter, notGoodStandingItems]);
 
     const activityTitle = (activity) => {
         switch (activity?.action) {
@@ -436,6 +458,52 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleGenerateNotGoodStandingReport = async (status = notGoodStandingStatus) => {
+        if (notGoodStandingLoading) {
+            return;
+        }
+
+        setNotGoodStandingError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setNotGoodStandingError('Session expired. Please log in again.');
+            return;
+        }
+
+        setNotGoodStandingLoading(true);
+        setNotGoodStandingStatus(status);
+        if (status !== notGoodStandingStatus) {
+            setNotGoodStandingFilter('ALL');
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/admin/not-good-standing?status=${encodeURIComponent(status)}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setNotGoodStandingError(data.message || 'Failed to load not-in-good-standing accounts.');
+                return;
+            }
+
+            setNotGoodStandingItems(Array.isArray(data?.items) ? data.items : []);
+            setNotGoodStandingBillingLabel(data?.currentBillingLabel || '-');
+            setNotGoodStandingBillingEndDateKey(data?.billingEndDateKey || null);
+            setShowNotGoodStandingModal(true);
+        } catch (err) {
+            console.error('Not good standing report error:', err);
+            setNotGoodStandingError('Failed to load not-in-good-standing accounts. Please try again.');
+        } finally {
+            setNotGoodStandingLoading(false);
+        }
+    };
+
     const handleGeneratePaymentsReport = async () => {
         if (paymentsReportLoading) {
             return;
@@ -540,6 +608,9 @@ export default function AdminDashboard() {
             `;
         }).join('');
 
+        const statusLabel = notGoodStandingStatus === 'good'
+            ? 'In Good Standing'
+            : 'Not In Good Standing';
         const html = `
             <!DOCTYPE html>
             <html>
@@ -564,8 +635,8 @@ export default function AdminDashboard() {
                 <table>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Pay Category</th>
+                        <h1>${statusLabel}</h1>
+                        <p>Amount Due / Excess as of ${formattedAsOf}. Status: ${statusLabel}. Filter: ${notGoodStandingFilter}.</p>
                             <th>Transactions</th>
                             <th>Total Collected</th>
                         </tr>
@@ -808,6 +879,89 @@ export default function AdminDashboard() {
         printWindow.print();
     };
 
+    const handlePrintNotGoodStanding = () => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const totalAmountDue = filteredNotGoodStandingItems.reduce(
+            (sum, item) => sum + Number(item.amountDue || 0),
+            0,
+        );
+
+        const rowsHtml = filteredNotGoodStandingItems.map((item, index) => {
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.accountId || '-'}</td>
+                    <td>${item.memberName || '-'}</td>
+                    <td>${item.neighborhood || '-'}</td>
+                    <td>${item.block || '-'}</td>
+                    <td>${item.lot || '-'}</td>
+                    <td>PHP ${formatMoney(item.amountDue || 0)}</td>
+                    <td>${formatDate(item.lastPaymentDate)}</td>
+                    <td>${notGoodStandingBillingLabel || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const formattedAsOf = formatDateKey(notGoodStandingBillingEndDateKey);
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Not In Good Standing</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    thead { display: table-header-group; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Not In Good Standing</h1>
+                <p>Amount Due / Excess as of ${formattedAsOf}. Rule: Amount Due / Excess ≥ (Principal x 2). Filter: ${notGoodStandingFilter}.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Account ID</th>
+                            <th>Name</th>
+                            <th>Neighborhood</th>
+                            <th>Block</th>
+                            <th>Lot</th>
+                            <th>Amount Due / Excess</th>
+                            <th>Last Payment</th>
+                            <th>Current Billing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="9">No not-in-good-standing accounts found.</td></tr>'}
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">Grand Total</td>
+                            <td style="font-weight: 600;">PHP ${formatMoney(totalAmountDue)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
 
 
     return (
@@ -924,6 +1078,7 @@ export default function AdminDashboard() {
                             unpaidAccountsCount={summary.unpaidAccountsCount}
                             overpaidAccountsCount={summary.overpaidAccountsCount}
                             settledAccountsCount={summary.settledAccountsCount}
+                            notGoodStandingCount={summary.notGoodStandingCount}
                             totalCollectedPayments={summary.totalCollectedPayments}
                             loading={summaryLoading}
                             onGenerateUnpaidReport={handleGenerateUnpaidReport}
@@ -932,6 +1087,8 @@ export default function AdminDashboard() {
                             settledReportLoading={settledLoading}
                             onGenerateOverpaidReport={handleGenerateOverpaidReport}
                             overpaidReportLoading={overpaidLoading}
+                            onGenerateNotGoodStandingReport={handleGenerateNotGoodStandingReport}
+                            notGoodStandingReportLoading={notGoodStandingLoading}
                             onGeneratePaymentsReport={handleGeneratePaymentsReport}
                             paymentsReportLoading={paymentsReportLoading}
                         />
@@ -961,6 +1118,13 @@ export default function AdminDashboard() {
                             <AdminStatusMessage
                                 variant="error"
                                 message={overpaidError}
+                            />
+                        )}
+
+                        {notGoodStandingError && (
+                            <AdminStatusMessage
+                                variant="error"
+                                message={notGoodStandingError}
                             />
                         )}
 
@@ -1270,6 +1434,127 @@ export default function AdminDashboard() {
                         </div>
                         <div className="mt-4 flex justify-end text-sm font-semibold text-slate-700">
                             Grand Total: PHP {formatMoney(unpaidItems.reduce((sum, item) => sum + Number(item.amountDue || 0), 0))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showNotGoodStandingModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/50 no-print" onClick={() => setShowNotGoodStandingModal(false)} />
+                    <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">
+                                    {notGoodStandingStatus === 'good' ? 'In Good Standing' : 'Not In Good Standing'}
+                                </h2>
+                                <p className="text-xs text-slate-500">
+                                    Amount Due / Excess as of {formatDateKey(notGoodStandingBillingEndDateKey)}.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Status
+                                    <select
+                                        value={notGoodStandingStatus}
+                                        onChange={(event) => handleGenerateNotGoodStandingReport(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                    >
+                                        <option value="not">Not In Good Standing</option>
+                                        <option value="good">In Good Standing</option>
+                                    </select>
+                                </label>
+                                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Classification
+                                    <select
+                                        value={notGoodStandingFilter}
+                                        onChange={(event) => setNotGoodStandingFilter(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                    >
+                                        <option value="ALL">All</option>
+                                        <option value="HOMEOWNER">Homeowner</option>
+                                        <option value="LOT OWNER">Lot Owner</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div className="flex flex-wrap gap-2 no-print">
+                                <button
+                                    onClick={handlePrintNotGoodStanding}
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Print
+                                </button>
+                                <button
+                                    onClick={() => setShowNotGoodStandingModal(false)}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 max-h-[60vh] overflow-auto rounded-xl border border-slate-100">
+                            <table className="min-w-full divide-y divide-slate-100 text-xs md:text-sm">
+                                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Account ID</th>
+                                        <th className="px-4 py-3">Name</th>
+                                        <th className="px-4 py-3">Neighborhood</th>
+                                        <th className="px-4 py-3">Block</th>
+                                        <th className="px-4 py-3">Lot</th>
+                                        <th className="px-4 py-3">Amount Due</th>
+                                        <th className="px-4 py-3">Last Payment</th>
+                                        <th className="px-4 py-3">Current Billing</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredNotGoodStandingItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="9" className="px-4 py-6 text-center text-slate-400">
+                                                No not-in-good-standing accounts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {filteredNotGoodStandingItems.map((item, index) => (
+                                        <tr key={`${item.accountId}-${index}`}>
+                                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-700">
+                                                {item.accountId || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.memberName || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.neighborhood || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.block || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {item.lot || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 font-semibold text-rose-600">
+                                                PHP {formatMoney(item.amountDue || 0)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {formatDate(item.lastPaymentDate)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {notGoodStandingBillingLabel || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-4 flex justify-end text-sm font-semibold text-slate-700">
+                            Grand Total: PHP {formatMoney(
+                                filteredNotGoodStandingItems.reduce(
+                                    (sum, item) => sum + Number(item.amountDue || 0),
+                                    0,
+                                ),
+                            )}
                         </div>
                     </div>
                 </div>

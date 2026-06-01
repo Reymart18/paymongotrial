@@ -9,6 +9,7 @@ export default function AdminDashboardCards({
     unpaidAccountsCount,
     overpaidAccountsCount,
     settledAccountsCount,
+    notGoodStandingCount,
     totalCollectedPayments,
     loading,
     onGenerateUnpaidReport,
@@ -17,6 +18,8 @@ export default function AdminDashboardCards({
     settledReportLoading,
     onGenerateOverpaidReport,
     overpaidReportLoading,
+    onGenerateNotGoodStandingReport,
+    notGoodStandingReportLoading,
     onGeneratePaymentsReport,
     paymentsReportLoading,
 }) {
@@ -53,6 +56,13 @@ export default function AdminDashboardCards({
             icon: pbIcon,
         },
         {
+            title: 'Not In Good Standing',
+            value: Number.isFinite(notGoodStandingCount)
+                ? String(notGoodStandingCount)
+                : '0',
+            icon: upIcon,
+        },
+        {
             title: 'Total Payments Collected (Current Billing)',
             value: `₱ ${formatMoney(totalCollectedPayments)}`,
             icon: toIcon,
@@ -67,6 +77,7 @@ export default function AdminDashboardCards({
                 const isSettledCard = card.title === 'Settled Accounts';
                 const isUnpaidCard = card.title === 'Unpaid Accounts';
                 const isOverpaidCard = card.title === 'Overpaid Accounts';
+                const isNotGoodStandingCard = card.title === 'Not In Good Standing';
                 const isPaymentsReport = card.isPaymentsReport;
                 const cardClassName = `relative rounded-2xl p-6 pt-10 shadow-sm transition hover:shadow-md ${isCenteredBottomRow ? 'lg:col-span-3' : 'lg:col-span-2'
                     }`;
@@ -115,6 +126,16 @@ export default function AdminDashboardCards({
                                     className="mt-0 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {overpaidReportLoading ? 'Generating...' : 'Generate Report'}
+                                </button>
+                            )}
+                            {isNotGoodStandingCard && onGenerateNotGoodStandingReport && (
+                                <button
+                                    type="button"
+                                    onClick={onGenerateNotGoodStandingReport}
+                                    disabled={notGoodStandingReportLoading}
+                                    className="mt-0 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 transition bg-amber-50 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {notGoodStandingReportLoading ? 'Generating...' : 'Generate Report'}
                                 </button>
                             )}
                             {isPaymentsReport && onGeneratePaymentsReport && (
