@@ -8,6 +8,7 @@ import EmployeesPage from './pages/EmployeesPage';
 import HomeownerDashboard from './pages/HomeownerDashboard';
 import ChangePassword from './pages/ChangePassword';
 import SOAPreview from './pages/SOAPreview';
+import WaterPreview from './pages/WaterPreview';
 import ProfilePage from './pages/ProfilePage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 
@@ -135,6 +136,15 @@ function App() {
           element={
             <ProtectedRoute>
               <SOAPreview />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/water-preview/:accountId"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <WaterPreview />
             </ProtectedRoute>
           }
         />

@@ -35,7 +35,6 @@ export class AdminService {
     }): Promise<AdminActivity | null> {
         // Skip logging for bulk uploads and sync operations per request
         const ignoredActions = new Set([
-            'upload_masterlist',
             'upload_billings',
             'upload_payments',
             'sync_payments_dbf',

@@ -12,10 +12,6 @@ export default function MembersPage() {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [expandedStatementAccountId, setExpandedStatementAccountId] = useState(null);
-    const [statementsByAccount, setStatementsByAccount] = useState({});
-    const [statementsLoading, setStatementsLoading] = useState({});
-    const [statementsError, setStatementsError] = useState({});
     const [calculatedBalances, setCalculatedBalances] = useState({});
     const [calculatedStatuses, setCalculatedStatuses] = useState({});
     const [membersSyncStatus, setMembersSyncStatus] = useState('');
@@ -250,8 +246,11 @@ export default function MembersPage() {
                 return;
             }
 
+            const emailSummary = data.emailed !== undefined
+                ? ` ${data.emailed} credentials emailed${data.emailFailed ? `, ${data.emailFailed} email failed` : ''}.`
+                : '';
             setMembersSyncStatus(
-                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped.`,
+                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped.${emailSummary}`,
             );
 
             const refreshedToken = localStorage.getItem('token');
@@ -302,61 +301,6 @@ export default function MembersPage() {
         }
     };
 
-    const fetchStatements = async (accountId) => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setStatementsError((prev) => ({ ...prev, [accountId]: 'Session expired.' }));
-            return;
-        }
-
-        setStatementsLoading((prev) => ({ ...prev, [accountId]: true }));
-        setStatementsError((prev) => ({ ...prev, [accountId]: '' }));
-
-        try {
-            const response = await fetch(
-                `${API_URL}/statements/${accountId}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                },
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                setStatementsError((prev) => ({
-                    ...prev,
-                    [accountId]: data.message || 'Failed to load statements.',
-                }));
-                return;
-            }
-
-            setStatementsByAccount((prev) => ({ ...prev, [accountId]: data }));
-        } catch (err) {
-            console.error('Fetch statements error:', err);
-            setStatementsError((prev) => ({
-                ...prev,
-                [accountId]: 'Failed to load statements.',
-            }));
-        } finally {
-            setStatementsLoading((prev) => ({ ...prev, [accountId]: false }));
-        }
-    };
-
-    const toggleStatements = (accountId) => {
-        if (expandedStatementAccountId === accountId) {
-            setExpandedStatementAccountId(null);
-            return;
-        }
-
-        setExpandedStatementAccountId(accountId);
-
-        if (!statementsByAccount[accountId]) {
-            fetchStatements(accountId);
-        }
-    };
-
     const handleDeleteAccount = async (accountId) => {
         if (!isSuperAdmin) {
             return;
@@ -400,6 +344,10 @@ export default function MembersPage() {
         navigate(`/soa-preview/${id}`);
     };
 
+    const handlePreviewWater = (id) => {
+        navigate(`/water-preview/${id}`);
+    };
+
     const handleViewAccount = (account) => {
         setViewAccount(account);
     };
@@ -407,7 +355,6 @@ export default function MembersPage() {
     const closeViewAccount = () => {
         setViewAccount(null);
     };
-
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -653,7 +600,7 @@ export default function MembersPage() {
                                                 <th className="hidden lg:table-cell px-2 md:px-4 py-2 md:py-4 text-left text-xs md:text-sm font-semibold text-white">Size (SQM)</th>
                                                 <th className="hidden sm:table-cell px-2 md:px-4 py-2 md:py-4 text-left text-xs md:text-sm font-semibold text-white">Classification</th>
                                                 <th className="px-2 md:px-4 py-2 md:py-4 text-left text-xs md:text-sm font-semibold text-white">Balance</th>
-                                                <th className="hidden sm:table-cell px-2 md:px-4 py-2 md:py-4 text-left text-xs md:text-sm font-semibold text-white">Statement</th>
+                                                <th className="hidden sm:table-cell px-2 md:px-4 py-2 md:py-4 text-left text-xs md:text-sm font-semibold text-white">Billing Preview</th>
                                                 <th className="px-2 md:px-4 py-2 md:py-4 text-center text-xs md:text-sm font-semibold text-white">Action</th>
                                             </tr>
                                         </thead>
@@ -729,9 +676,9 @@ export default function MembersPage() {
                                                                         Preview SOA
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => toggleStatements(account.accountId)}
+                                                                        onClick={() => handlePreviewWater(account.accountId)}
                                                                         className="text-[#E89B58] hover:underline font-medium text-xs">
-                                                                        View
+                                                                        Preview Water
                                                                     </button>
                                                                 </div>
                                                             </td>
@@ -744,10 +691,10 @@ export default function MembersPage() {
                                                                         Preview SOA
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => toggleStatements(account.accountId)}
+                                                                        onClick={() => handlePreviewWater(account.accountId)}
                                                                         className="text-[#E89B58] hover:underline font-medium text-xs"
                                                                     >
-                                                                        View
+                                                                        Preview Water
                                                                     </button>
                                                                 </div>
                                                                 {isSuperAdmin ? (
@@ -792,92 +739,6 @@ export default function MembersPage() {
                                                                 )}
                                                             </td>
                                                         </tr>
-
-                                                        {/* Statements Row */}
-                                                        {expandedStatementAccountId === account.accountId && (
-                                                            <tr className="bg-slate-50">
-                                                                <td colSpan="10" className="px-4 py-4">
-                                                                    {statementsLoading[account.accountId] && (
-                                                                        <AdminStatusMessage
-                                                                            variant="loading"
-                                                                            message="Loading statement..."
-                                                                        />
-                                                                    )}
-                                                                    {statementsError[account.accountId] && (
-                                                                        <AdminStatusMessage
-                                                                            variant="error"
-                                                                            message={statementsError[account.accountId]}
-                                                                        />
-                                                                    )}
-                                                                    {!statementsLoading[account.accountId] &&
-                                                                        !statementsError[account.accountId] && (
-                                                                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm overflow-x-auto">
-                                                                                <table className="min-w-full divide-y divide-slate-200 text-xs md:text-sm">
-                                                                                    <thead className="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                                                        <tr>
-                                                                                            <th className="px-3 py-3">Type</th>
-                                                                                            <th className="px-3 py-3">Previous Balance</th>
-                                                                                            <th className="px-3 py-3">Amount Due</th>
-                                                                                            <th className="px-3 py-3">Interest</th>
-                                                                                            <th className="px-3 py-3">Penalty</th>
-                                                                                            <th className="px-3 py-3">Amount Paid</th>
-                                                                                            <th className="px-3 py-3">Total Balance</th>
-                                                                                            <th className="px-3 py-3">Description</th>
-                                                                                            <th className="px-3 py-3">Due Date</th>
-                                                                                        </tr>
-                                                                                    </thead>
-                                                                                    <tbody className="divide-y divide-slate-100">
-                                                                                        {(statementsByAccount[account.accountId] || [])
-                                                                                            .length === 0 && (
-                                                                                                <tr>
-                                                                                                    <td
-                                                                                                        colSpan="9"
-                                                                                                        className="px-4 py-6 text-center text-slate-400"
-                                                                                                    >
-                                                                                                        No statement entries found.
-                                                                                                    </td>
-                                                                                                </tr>
-                                                                                            )}
-                                                                                        {(statementsByAccount[account.accountId] || []).map(
-                                                                                            (row) => (
-                                                                                                <tr key={`${row.date}-${row.type}`}>
-                                                                                                    <td className="px-3 py-3 font-semibold text-slate-700">
-                                                                                                        {row.type}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3">
-                                                                                                        {Number(row.previousBalance || 0).toFixed(2)}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3">
-                                                                                                        {Number(row.amountDue || 0).toFixed(2)}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3">
-                                                                                                        {Number(row.interest || 0).toFixed(2)}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3">
-                                                                                                        {Number(row.penalty || 0).toFixed(2)}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3">
-                                                                                                        {Number(row.amountPaid || 0).toFixed(2)}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3 font-semibold text-slate-700">
-                                                                                                        {Number(row.totalBalance || 0).toFixed(2)}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3 text-slate-600">
-                                                                                                        {row.description || '-'}
-                                                                                                    </td>
-                                                                                                    <td className="px-3 py-3">
-                                                                                                        {new Date(row.date).toLocaleDateString()}
-                                                                                                    </td>
-                                                                                                </tr>
-                                                                                            ),
-                                                                                        )}
-                                                                                    </tbody>
-                                                                                </table>
-                                                                            </div>
-                                                                        )}
-                                                                </td>
-                                                            </tr>
-                                                        )}
                                                     </React.Fragment>
                                                 ))}
                                         </tbody>

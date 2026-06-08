@@ -240,8 +240,6 @@ export default function AdminDashboard() {
                 return 'Payments upload completed';
             case 'upload_billings':
                 return 'Billings upload completed';
-            case 'upload_masterlist':
-                return 'Masterlist updated';
             case 'update_member':
                 return 'Member updated';
             case 'delete_member':

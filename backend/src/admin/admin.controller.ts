@@ -11,14 +11,10 @@ import {
     Param,
     Query,
     Delete,
-    UploadedFile,
-    UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import type { Request as ExpressRequest } from 'express';
-import { PropertyService } from '../property/property.service';
 
 interface AuthenticatedRequest extends ExpressRequest {
     user: {
@@ -32,7 +28,6 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class AdminController {
     constructor(
         private adminService: AdminService,
-        private propertyService: PropertyService,
     ) { }
 
     @UseGuards(JwtAuthGuard)
@@ -311,42 +306,4 @@ export class AdminController {
         return result;
     }
 
-    @UseGuards(JwtAuthGuard)
-    @Post('masterlist/upload')
-    @UseInterceptors(
-        FileInterceptor('file', {
-            limits: { fileSize: 10 * 1024 * 1024 },
-            fileFilter: (_req, file, cb) => {
-                const allowed =
-                    file.originalname.toLowerCase().endsWith('.csv') ||
-                    file.originalname.toLowerCase().endsWith('.xlsx') ||
-                    file.originalname.toLowerCase().endsWith('.xls');
-
-                if (!allowed) {
-                    return cb(new BadRequestException('Only CSV or XLSX files are allowed'), false);
-                }
-
-                return cb(null, true);
-            },
-        }),
-    )
-    async uploadMasterlist(
-        @UploadedFile() file: Express.Multer.File,
-        @Request() req: AuthenticatedRequest,
-    ) {
-        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-            throw new ForbiddenException('Only admins can upload masterlists');
-        }
-
-        const result = await this.propertyService.uploadMasterlist(file);
-        await this.adminService.logActivity({
-            actorId: req.user.id,
-            actorUsername: req.user.username,
-            action: 'upload_masterlist',
-            targetType: 'masterlist',
-            targetId: file?.originalname ?? null,
-            details: `Inserted ${result.inserted}, skipped ${result.skipped}.`,
-        });
-        return result;
-    }
 }

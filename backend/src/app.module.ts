@@ -9,6 +9,7 @@ import { FoxproPayment } from './foxpro/foxpro-payment.entity';
 import { AdminActivity } from './admin/admin-activity.entity';
 import { Announcement } from './announcements/announcement.entity';
 import { QuarterlyReportSnapshot } from './reports/quarterly-report.entity';
+import { WaterBilling } from './water-bills/water-billing.entity';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { PropertyModule } from './property/property.module';
@@ -17,6 +18,8 @@ import { BillingModule } from './billing/billing.module';
 import { FoxproModule } from './foxpro/foxpro.module';
 import { ReportsModule } from './reports/reports.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { WaterBillsModule } from './water-bills/water-bills.module';
+
 
 @Module({
   imports: [
@@ -37,6 +40,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
         FoxproPayment,
         Announcement,
         QuarterlyReportSnapshot,
+        WaterBilling,
       ],
       synchronize: true, // auto create tables
     }),
@@ -49,6 +53,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
       FoxproPayment,
       Announcement,
       QuarterlyReportSnapshot,
+      WaterBilling,
     ]),
     AuthModule,
     AdminModule,
@@ -58,6 +63,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     FoxproModule,
     ReportsModule,
     AnnouncementsModule,
+    WaterBillsModule,
   ],
 })
 export class AppModule { }

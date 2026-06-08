@@ -6,9 +6,12 @@ import { DBFFile } from 'dbffile';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { randomBytes } from 'crypto';
 import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import * as bcrypt from 'bcrypt';
+import * as nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
 import { PropertyAccount } from '../property/property.entity';
@@ -174,7 +177,20 @@ export class FoxproService {
         }
 
         const records = await this.parseMembersDbf(dbfPath);
-        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
+        const result = {
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
+            emailed: 0,
+            emailFailed: 0,
+            errors: [] as string[],
+        };
+        const createdCredentials: Array<{
+            accountId: string;
+            memberName: string;
+            gmail: string;
+            temporaryPassword: string;
+        }> = [];
 
         await this.dataSource.transaction(async (manager) => {
             const propertyRepo = manager.getRepository(PropertyAccount);
@@ -250,7 +266,14 @@ export class FoxproService {
                     continue;
                 }
 
-                const hashedPassword = await bcrypt.hash(record.accountId, 10);
+                if (!record.gmail) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Gmail is required to create a new account (${record.accountId})`);
+                    continue;
+                }
+
+                const temporaryPassword = this.generateTemporaryPassword();
+                const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
                 const account = propertyRepo.create({
                     accountId: record.accountId,
                     neighborhood: record.neighborhood,
@@ -270,9 +293,28 @@ export class FoxproService {
                 });
 
                 await propertyRepo.save(account);
+                createdCredentials.push({
+                    accountId: record.accountId,
+                    memberName: record.memberName,
+                    gmail: record.gmail,
+                    temporaryPassword,
+                });
                 result.inserted += 1;
             }
         });
+
+        for (const credentials of createdCredentials) {
+            try {
+                await this.sendMemberCredentialsEmail(credentials);
+                result.emailed += 1;
+            } catch (err) {
+                result.emailFailed += 1;
+                result.errors.push(
+                    `Account ${credentials.accountId}: Failed to email credentials to ${credentials.gmail}`,
+                );
+                console.error('Member credentials email error:', err);
+            }
+        }
 
         return result;
     }
@@ -472,7 +514,7 @@ export class FoxproService {
         const resolvedBlock = block || fallbackSegments.block;
         const resolvedLot = lot || fallbackSegments.lot;
         const memberName = this.buildMemberName(normalized);
-        const propertySizeSqm = this.toNumberOrNull(normalized.area ?? normalized.lotsize);
+        const propertySizeSqm = this.toNumberOrNull(normalized.lotsize);
         const classificationRaw = normalized.holo || normalized.classification || '';
         const gmail = this.cleanText(
             normalized.gmail
@@ -842,6 +884,70 @@ export class FoxproService {
         }
 
         return new Date(Date.UTC(2025, 9, 1));
+    }
+
+    private generateTemporaryPassword(): string {
+        return randomBytes(6).toString('hex');
+    }
+
+    private getMailer() {
+        const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+        const port = Number(process.env.SMTP_PORT || 465);
+        const secure = process.env.SMTP_SECURE
+            ? process.env.SMTP_SECURE === 'true'
+            : port === 465;
+        const requireTls = process.env.SMTP_REQUIRE_TLS === 'true';
+        const forceIpv4 = process.env.SMTP_FORCE_IPV4 === 'true';
+        const user = process.env.SMTP_USER || '';
+        const pass = process.env.SMTP_PASS || '';
+
+        if (!user || !pass) {
+            throw new BadRequestException('Email service is not configured.');
+        }
+
+        const transportOptions: SMTPTransport.Options & { family?: number } = {
+            host,
+            port,
+            secure,
+            auth: { user, pass },
+        };
+
+        if (requireTls) {
+            transportOptions.requireTLS = true;
+        }
+
+        if (forceIpv4) {
+            transportOptions.family = 4;
+        }
+
+        return nodemailer.createTransport(transportOptions);
+    }
+
+    private async sendMemberCredentialsEmail(credentials: {
+        accountId: string;
+        memberName: string;
+        gmail: string;
+        temporaryPassword: string;
+    }) {
+        const transporter = this.getMailer();
+        const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
+
+        await transporter.sendMail({
+            from,
+            to: credentials.gmail,
+            subject: 'Your HOA Portal Account Credentials',
+            text: [
+                `Hello ${credentials.memberName || 'Member'},`,
+                '',
+                'Your HOA Portal account has been created.',
+                '',
+                'Portal link: https://parkplacevillage.com',
+                `Username / Account ID: ${credentials.accountId}`,
+                `Temporary password: ${credentials.temporaryPassword}`,
+                '',
+                'Please log in and change your password immediately.',
+            ].join('\n'),
+        });
     }
 
     private async snapshotQuarterlyBillings(
