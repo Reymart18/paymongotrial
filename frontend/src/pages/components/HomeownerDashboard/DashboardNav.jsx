@@ -10,7 +10,9 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
 
     // Determine the current page title based on location
     const getPageTitle = () => {
-        if (location.pathname.includes('reports')) {
+        if (location.pathname.includes('water-dashboard')) {
+            return 'Water Dashboard';
+        } else if (location.pathname.includes('reports')) {
             return 'Reports';
         } else if (location.pathname.includes('members')) {
             return 'Members';
@@ -18,6 +20,8 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
             return 'Employees';
         } else if (location.pathname.includes('announcements')) {
             return 'Announcements';
+        } else if (location.pathname === '/homeowner/dashboard') {
+            return 'SOA Dashboard';
         } else {
             return 'Dashboard';
         }

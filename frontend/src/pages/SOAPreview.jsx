@@ -369,17 +369,46 @@ export default function SOAPreview() {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#ffffff',
+                windowWidth: 1440,
                 onclone: (clonedDoc) => {
                     const exportRoot = clonedDoc.querySelector('[data-export-root="true"]');
                     if (exportRoot) {
                         exportRoot.classList.add('export-safe');
-                        exportRoot.style.transform = 'scale(1.2)';
+                        exportRoot.style.transform = 'none';
                         exportRoot.style.transformOrigin = 'top left';
-                        exportRoot.style.width = '83.3333%';
+                        exportRoot.style.width = '900px';
+                        exportRoot.style.minWidth = '900px';
+                        exportRoot.style.maxWidth = '900px';
+                        exportRoot.style.margin = '0';
                     }
 
                     const style = clonedDoc.createElement('style');
                     style.textContent = `
+                        .export-safe {
+                            width: 900px !important;
+                            min-width: 900px !important;
+                            max-width: 900px !important;
+                            box-sizing: border-box !important;
+                            padding-bottom: 24px !important;
+                        }
+
+                        .export-safe .md\\:grid-cols-2 {
+                            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                        }
+
+                        .export-safe .md\\:block {
+                            display: block !important;
+                        }
+
+                        .export-safe .md\\:flex-row {
+                            flex-direction: row !important;
+                        }
+
+                        .export-safe .md\\:px-6 {
+                            padding-left: 1.5rem !important;
+                            padding-right: 1.5rem !important;
+                        }
+
                         .export-safe, .export-safe * {
                             color: #0f172a !important;
                             border-color: #e2e8f0 !important;
@@ -420,9 +449,14 @@ export default function SOAPreview() {
                         }
 
                         .export-safe .soa-contact-email {
-                            display: inline-block;
-                            line-height: 1.4 !important;
-                            padding-bottom: 2px !important;
+                            display: block !important;
+                            width: fit-content !important;
+                            overflow: visible !important;
+                            white-space: nowrap !important;
+                            line-height: 1.8 !important;
+                            padding-top: 2px !important;
+                            padding-bottom: 8px !important;
+                            margin-bottom: 8px !important;
                         }
 
                         .export-safe table,
@@ -441,21 +475,16 @@ export default function SOAPreview() {
             const basePdf = new jsPDF('p', 'pt', 'a4');
             const pageWidth = basePdf.internal.pageSize.getWidth();
             const pageHeight = basePdf.internal.pageSize.getHeight();
-            const imgWidth = pageWidth;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const margin = 8;
+            const availableWidth = pageWidth - margin * 2;
+            const availableHeight = pageHeight - margin * 2;
+            const ratio = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
+            const imgWidth = canvas.width * ratio;
+            const imgHeight = canvas.height * ratio;
+            const x = (pageWidth - imgWidth) / 2;
+            const y = (pageHeight - imgHeight) / 2;
 
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            basePdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                basePdf.addPage();
-                basePdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
+            basePdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
 
             basePdf.save(`soa-${accountId || 'account'}.pdf`);
         } catch (exportError) {
@@ -474,6 +503,14 @@ export default function SOAPreview() {
                     className="rounded-md border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600"
                 >
                     Back
+                </button>
+                <button
+                    type="button"
+                    onClick={handleExportPdf}
+                    disabled={isExporting}
+                    className="rounded-md bg-slate-900 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    {isExporting ? 'Exporting...' : 'Export PDF'}
                 </button>
             </div>
             <div
@@ -506,8 +543,6 @@ export default function SOAPreview() {
                             dueDate={latestBillingRow?.dueDate}
                             duesRate={latestBillingRow?.duesRate}
                             formatDate={formatDate}
-                            onExportPdf={handleExportPdf}
-                            isExporting={isExporting}
                         />
                         <SummaryCard
                             selectedBillingYear={selectedBillingYear}

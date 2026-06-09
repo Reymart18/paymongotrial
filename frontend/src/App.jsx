@@ -6,6 +6,7 @@ import ReportsPage from './pages/ReportsPage';
 import MembersPage from './pages/MembersPage';
 import EmployeesPage from './pages/EmployeesPage';
 import HomeownerDashboard from './pages/HomeownerDashboard';
+import MemberWater from './pages/MemberWater';
 import ChangePassword from './pages/ChangePassword';
 import SOAPreview from './pages/SOAPreview';
 import WaterPreview from './pages/WaterPreview';
@@ -141,9 +142,18 @@ function App() {
         />
 
         <Route
+          path="/homeowner/water-dashboard"
+          element={
+            <ProtectedRoute requiredRole="homeowner">
+              <MemberWater />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/water-preview/:accountId"
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute requiredRole={['homeowner', 'admin']}>
               <WaterPreview />
             </ProtectedRoute>
           }

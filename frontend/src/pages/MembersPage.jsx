@@ -5,6 +5,8 @@ import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
 import pvhaiImg from '../images/pvhai.png';
 
+const MAX_CONCURRENT_BALANCE_REQUESTS = 4;
+
 export default function MembersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [ownershipType, setOwnershipType] = useState('');
@@ -440,7 +442,7 @@ export default function MembersPage() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedAccounts = sortedAccounts.slice(startIndex, startIndex + itemsPerPage);
 
-    // Preload all account balances for accurate filtering
+    // Load balances through a small request pool to avoid exhausting browser/server connections.
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token || accounts.length === 0) {
@@ -448,40 +450,33 @@ export default function MembersPage() {
         }
 
         const controller = new AbortController();
+        const pendingAccountIds = accounts
+            .map((account) => account.accountId)
+            .filter(Boolean)
+            .filter(
+                (accountId) =>
+                    calculatedBalances[accountId] === undefined
+                    || calculatedStatuses[accountId] === undefined,
+            );
+        let nextIndex = 0;
 
-        accounts.forEach((account) => {
-            const alreadyLoaded =
-                calculatedBalances[account.accountId] !== undefined
-                && calculatedStatuses[account.accountId] !== undefined;
+        const worker = async () => {
+            while (!controller.signal.aborted && nextIndex < pendingAccountIds.length) {
+                const accountId = pendingAccountIds[nextIndex];
+                nextIndex += 1;
+                await fetchAndCalculateBalance(accountId, token, controller.signal);
+            }
+        };
 
-            if (!alreadyLoaded) {
-                fetchAndCalculateBalance(account.accountId, token, controller.signal);
+        const workerCount = Math.min(MAX_CONCURRENT_BALANCE_REQUESTS, pendingAccountIds.length);
+        Promise.all(Array.from({ length: workerCount }, () => worker())).catch((err) => {
+            if (err.name !== 'AbortError') {
+                console.error('Failed to load member balances:', err);
             }
         });
 
         return () => controller.abort();
-    }, [accounts, calculatedBalances, calculatedStatuses]);
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token || paginatedAccounts.length === 0) {
-            return;
-        }
-
-        const controller = new AbortController();
-
-        paginatedAccounts.forEach((account) => {
-            const alreadyLoaded =
-                calculatedBalances[account.accountId] !== undefined
-                && calculatedStatuses[account.accountId] !== undefined;
-
-            if (!alreadyLoaded) {
-                fetchAndCalculateBalance(account.accountId, token, controller.signal);
-            }
-        });
-
-        return () => controller.abort();
-    }, [paginatedAccounts, calculatedBalances, calculatedStatuses]);
+    }, [accounts]);
 
     // Reset to first page when filters change
     React.useEffect(() => {

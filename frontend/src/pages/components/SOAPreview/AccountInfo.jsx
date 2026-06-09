@@ -8,8 +8,6 @@ export default function AccountInfo({
     dueDate,
     duesRate,
     formatDate,
-    onExportPdf,
-    isExporting,
 }) {
     return (
         <div className="mx-auto mt-3 md:mt-6 max-w-[1060px] px-3 md:px-0 text-[9px] md:text-[10px] text-slate-900">
@@ -77,19 +75,6 @@ export default function AccountInfo({
                     </span>
                 </div>
             </div>
-
-            {onExportPdf && (
-                <div className="mt-3 flex justify-start">
-                    <button
-                        type="button"
-                        onClick={onExportPdf}
-                        disabled={isExporting}
-                        className="no-print rounded-md border border-slate-200 px-2 py-0.5 md:px-3 md:py-1 text-[11px] md:text-[13px] font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {isExporting ? 'Exporting...' : 'Export PDF'}
-                    </button>
-                </div>
-            )}
         </div>
     );
 }

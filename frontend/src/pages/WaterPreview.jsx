@@ -41,8 +41,19 @@ export default function WaterPreview() {
     useEffect(() => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
+        const storedAccountId = localStorage.getItem('accountId');
 
-        if (!token || !accountId || (role !== 'admin' && role !== 'super_admin')) {
+        if (!token || !accountId) {
+            navigate('/login');
+            return;
+        }
+
+        if (role === 'homeowner' && storedAccountId !== accountId) {
+            navigate('/homeowner/water-dashboard');
+            return;
+        }
+
+        if (role !== 'homeowner' && role !== 'admin' && role !== 'super_admin') {
             navigate('/login');
             return;
         }
@@ -117,6 +128,11 @@ export default function WaterPreview() {
             maximumFractionDigits: 2,
         });
 
+    const formatWholeNumber = (value) =>
+        Number(value || 0).toLocaleString('en-PH', {
+            maximumFractionDigits: 0,
+        });
+
     const formatMoney = (value) => `PHP ${formatNumber(value)}`;
 
     const handleExportPdf = async () => {
@@ -130,14 +146,38 @@ export default function WaterPreview() {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#ffffff',
+                windowWidth: 1440,
                 onclone: (clonedDoc) => {
                     const exportRoot = clonedDoc.querySelector('[data-export-root="true"]');
                     if (exportRoot) {
                         exportRoot.classList.add('export-safe');
+                        exportRoot.style.width = '794px';
+                        exportRoot.style.maxWidth = '794px';
+                        exportRoot.style.minWidth = '794px';
+                        exportRoot.style.margin = '0';
                     }
 
                     const style = clonedDoc.createElement('style');
                     style.textContent = `
+                        .export-safe {
+                            width: 794px !important;
+                            max-width: 794px !important;
+                            min-width: 794px !important;
+                        }
+
+                        .export-safe .md\\:grid-cols-2 {
+                            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                        }
+
+                        .export-safe .md\\:block {
+                            display: block !important;
+                        }
+
+                        .export-safe .md\\:px-12 {
+                            padding-left: 3rem !important;
+                            padding-right: 3rem !important;
+                        }
+
                         .export-safe, .export-safe * {
                             color: #0f172a !important;
                             border-color: #cbd5e1 !important;
@@ -299,15 +339,15 @@ export default function WaterPreview() {
                                 <div className="divide-y divide-slate-200 text-sm">
                                     <div className="flex justify-between px-4 py-3">
                                         <span>Current Reading</span>
-                                        <span className="font-semibold">{formatNumber(selectedBilling.currentReading)}</span>
+                                        <span className="font-semibold">{formatWholeNumber(selectedBilling.currentReading)}</span>
                                     </div>
                                     <div className="flex justify-between px-4 py-3">
                                         <span>Previous Reading</span>
-                                        <span className="font-semibold">{formatNumber(selectedBilling.previousReading)}</span>
+                                        <span className="font-semibold">{formatWholeNumber(selectedBilling.previousReading)}</span>
                                     </div>
                                     <div className="flex justify-between px-4 py-3">
                                         <span>Consumption</span>
-                                        <span className="font-semibold">{formatNumber(selectedBilling.consumption)}</span>
+                                        <span className="font-semibold">{formatWholeNumber(selectedBilling.consumption)}</span>
                                     </div>
                                     <div className="water-muted flex justify-between bg-slate-50 px-4 py-3 font-bold">
                                         <span>Total Current Charges</span>

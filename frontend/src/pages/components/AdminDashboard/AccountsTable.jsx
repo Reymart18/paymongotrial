@@ -273,8 +273,8 @@ export default function AccountsTable({
                                                                                 </tr>
                                                                             )}
                                                                         {(statementsByAccount[account.accountId] || []).map(
-                                                                            (row) => (
-                                                                                <tr key={`${row.date}-${row.type}`}>
+                                                                            (row, index) => (
+                                                                                <tr key={row.id || `${row.date}-${row.type}-${row.description || ''}-${index}`}>
                                                                                     <td className="px-3 py-3 font-semibold text-slate-700">
                                                                                         {row.type}
                                                                                     </td>

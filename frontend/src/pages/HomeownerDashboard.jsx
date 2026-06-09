@@ -149,14 +149,23 @@ export default function HomeownerDashboard() {
                     signal: controller.signal,
                 });
 
-                const data = await response.json();
+                const responseText = await response.text();
+                let data = null;
+
+                if (responseText.trim()) {
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Overdue notice response parse error:', parseError);
+                    }
+                }
 
                 if (!response.ok) {
                     if (response.status === 401) {
                         return;
                     }
 
-                    console.error('Overdue notice error:', data.message || 'Failed to load overdue notice.');
+                    console.error('Overdue notice error:', data?.message || 'Failed to load overdue notice.');
                     return;
                 }
 

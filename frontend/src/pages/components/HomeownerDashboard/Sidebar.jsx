@@ -16,7 +16,9 @@ export default function Sidebar({ isOpen = false, onToggle }) {
     const isSuperAdmin = role === 'super_admin';
 
     useEffect(() => {
-        if (location.pathname.includes('reports')) {
+        if (location.pathname.includes('water-dashboard')) {
+            setActiveItem('water-dashboard');
+        } else if (location.pathname.includes('reports')) {
             setActiveItem('reports');
         } else if (location.pathname.includes('members')) {
             setActiveItem('members');
@@ -101,7 +103,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             navigate(isAdmin ? '/admin/dashboard' : '/homeowner/dashboard');
                         }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'dashboard'
-                            ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
+                            ? `bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 ${isAdmin ? 'md:pr-20' : 'md:pr-8'}`
                             : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                     >
@@ -117,8 +119,39 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 d="M3 12l2-3m0 0l7-4 7 4M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9m-9 3l3 3m0 0l3-3m-3 3V7"
                             />
                         </svg>
-                        <span className="font-medium">Dashboard</span>
+                        <span className="whitespace-nowrap font-medium">
+                            {isAdmin ? 'Dashboard' : 'SOA Dashboard'}
+                        </span>
                     </a>
+
+                    {!isAdmin && (
+                        <a
+                            href="#"
+                            onClick={(event) => {
+                                event.preventDefault();
+                                setActiveItem('water-dashboard');
+                                navigate('/homeowner/water-dashboard');
+                            }}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'water-dashboard'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-8'
+                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            <svg
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'water-dashboard' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 3.5S6.5 9.5 6.5 14a5.5 5.5 0 0011 0C17.5 9.5 12 3.5 12 3.5z"
+                                />
+                            </svg>
+                            <span className="whitespace-nowrap font-medium">Water Dashboard</span>
+                        </a>
+                    )}
 
                     {isAdmin && (
                         <a

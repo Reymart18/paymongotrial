@@ -75,7 +75,7 @@ export default function StatementSection({
                                         </td>
                                     </tr>
                                 )}
-                                {paginatedRows.map((row) => {
+                                {paginatedRows.map((row, index) => {
                                     let rowClass = '';
                                     if (row.type && row.type.toLowerCase().includes('payment')) {
                                         rowClass = 'bg-[#766D65]/27';
@@ -84,7 +84,10 @@ export default function StatementSection({
                                     }
 
                                     return (
-                                        <tr key={`${row.date}-${row.type}`} className={rowClass}>
+                                        <tr
+                                            key={row.id || `${row.date}-${row.type}-${row.description || ''}-${index}`}
+                                            className={rowClass}
+                                        >
                                             <td className="px-3 py-3 font-semibold text-slate-900">
                                                 {row.type}
                                             </td>
