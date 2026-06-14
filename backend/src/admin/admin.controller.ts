@@ -287,21 +287,20 @@ export class AdminController {
     @Post('property-accounts/:accountId/reset-password')
     async resetPropertyAccountPassword(
         @Param('accountId') accountId: string,
-        @Body() body: { newPassword: string },
         @Request() req: AuthenticatedRequest,
     ) {
         if (req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only super admins can reset passwords');
         }
 
-        const result = await this.adminService.resetPropertyAccountPassword(accountId, body.newPassword);
+        const result = await this.adminService.resetPropertyAccountPassword(accountId);
         await this.adminService.logActivity({
             actorId: req.user.id,
             actorUsername: req.user.username,
             action: 'reset_password',
             targetType: 'property_account',
             targetId: accountId,
-            details: 'Reset member password.',
+            details: 'Generated and emailed a new temporary member password.',
         });
         return result;
     }

@@ -8,7 +8,7 @@ export default function PaymentsTable({ paymentRows, formatDate, formatMoney }) 
     );
 
     return (
-        <div className="mt-2 overflow-x-auto rounded-md border border-slate-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-md border border-slate-200 bg-white md:mt-2">
             <div className="flex items-center justify-end border-b border-slate-100 bg-slate-50 px-3 py-2">
                 {paymentRows.length > 5 && (
                     <button
@@ -22,7 +22,7 @@ export default function PaymentsTable({ paymentRows, formatDate, formatMoney }) 
                     </button>
                 )}
             </div>
-            <table className="w-full border-collapse text-xs md:text-sm">
+            <table className="min-w-[620px] w-full border-collapse text-xs md:min-w-0 md:text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                     <tr>
                         <th className="px-2 md:px-3 py-2 text-left">OR#</th>

@@ -6,17 +6,21 @@ export default function Sidebar({ isOpen = false, onToggle }) {
     const [activeItem, setActiveItem] = useState('dashboard');
     const [announcementCount, setAnnouncementCount] = useState(0);
     const [bodAnnouncementCount, setBodAnnouncementCount] = useState(0);
+    const [serviceSubmissionCount, setServiceSubmissionCount] = useState(0);
     const navigate = useNavigate();
     const location = useLocation();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const role = localStorage.getItem('userRole');
     const accountId = localStorage.getItem('accountId') || role || 'unknown';
     const announcementReadKey = `announcementsLastReadAt:${accountId}`;
+    const serviceSubmissionReadKey = `serviceSubmissionsLastReadAt:${accountId}`;
     const isAdmin = role === 'admin' || role === 'super_admin';
     const isSuperAdmin = role === 'super_admin';
 
     useEffect(() => {
-        if (location.pathname.includes('water-dashboard')) {
+        if (location.pathname.includes('requests-complaints')) {
+            setActiveItem('requests-complaints');
+        } else if (location.pathname.includes('water-dashboard')) {
             setActiveItem('water-dashboard');
         } else if (location.pathname.includes('reports')) {
             setActiveItem('reports');
@@ -72,6 +76,76 @@ export default function Sidebar({ isOpen = false, onToggle }) {
         fetchAnnouncementCount();
     }, [API_URL, location.pathname, announcementReadKey]);
 
+    useEffect(() => {
+        const fetchServiceSubmissionCount = async () => {
+            const servicePagePath = isAdmin
+                ? '/admin/requests-complaints'
+                : '/homeowner/requests-complaints';
+
+            if (location.pathname === servicePagePath) {
+                localStorage.setItem(serviceSubmissionReadKey, new Date().toISOString());
+                setServiceSubmissionCount(0);
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { Authorization: `Bearer ${token}` };
+                const [requestsResponse, complaintsResponse] = await Promise.all([
+                    fetch(`${API_URL}/service-requests${isAdmin ? '' : '/self'}`, { headers }),
+                    fetch(`${API_URL}/service-requests/complaints${isAdmin ? '' : '/self'}`, { headers }),
+                ]);
+
+                if (!requestsResponse.ok || !complaintsResponse.ok) {
+                    return;
+                }
+
+                const [requests, complaints] = await Promise.all([
+                    requestsResponse.json(),
+                    complaintsResponse.json(),
+                ]);
+                const lastReadRaw = localStorage.getItem(serviceSubmissionReadKey);
+                const lastReadTime = lastReadRaw ? new Date(lastReadRaw).getTime() : 0;
+                const safeLastReadTime = Number.isNaN(lastReadTime) ? 0 : lastReadTime;
+                const submissions = [
+                    ...(Array.isArray(requests) ? requests : []),
+                    ...(Array.isArray(complaints) ? complaints : []),
+                ];
+
+                setServiceSubmissionCount(submissions.filter((item) => {
+                    const createdTime = item?.createdAt ? new Date(item.createdAt).getTime() : 0;
+                    const updatedTime = item?.updatedAt ? new Date(item.updatedAt).getTime() : createdTime;
+
+                    if (isAdmin) {
+                        return createdTime > safeLastReadTime;
+                    }
+
+                    const statusChanged = updatedTime > createdTime
+                        || String(item?.status || '').toLowerCase() !== 'under review';
+                    return statusChanged && updatedTime > safeLastReadTime;
+                }).length);
+            } catch (err) {
+                console.error('Service submission count fetch error:', err);
+            }
+        };
+
+        fetchServiceSubmissionCount();
+        const intervalId = window.setInterval(fetchServiceSubmissionCount, 30000);
+        return () => window.clearInterval(intervalId);
+    }, [API_URL, isAdmin, location.pathname, serviceSubmissionReadKey]);
+
+    useEffect(() => {
+        if (isAdmin) {
+            return;
+        }
+
+        const count = announcementCount + serviceSubmissionCount;
+        localStorage.setItem('homeownerSidebarNotificationCount', String(count));
+        window.dispatchEvent(new CustomEvent('homeowner-sidebar-notifications', {
+            detail: { count },
+        }));
+    }, [announcementCount, isAdmin, serviceSubmissionCount]);
+
     return (
         <aside className={`fixed left-0 top-0 h-screen w-64 z-40 rounded-r-[40px] transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
             style={{ backgroundColor: 'rgba(232, 155, 88, 0.97)' }}>
@@ -95,7 +169,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
 
                 <div className="mb-8 h-px bg-[#FFFAFA]/19 -mx-6"></div>
 
-                <nav className="space-y-2">
+                <nav className="flex flex-col gap-2">
                     <a
                         href="#"
                         onClick={() => {
@@ -150,6 +224,84 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 />
                             </svg>
                             <span className="whitespace-nowrap font-medium">Water Dashboard</span>
+                        </a>
+                    )}
+
+                    {!isAdmin && (
+                        <a
+                            href="#"
+                            onClick={(event) => {
+                                event.preventDefault();
+                                setActiveItem('requests-complaints');
+                                localStorage.setItem(serviceSubmissionReadKey, new Date().toISOString());
+                                setServiceSubmissionCount(0);
+                                navigate('/homeowner/requests-complaints');
+                            }}
+                            className={`order-last flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'requests-complaints'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-8'
+                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            <svg
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'requests-complaints' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 6h8M8 10h8m-8 4h5m-7 7l-3-3V5a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2H9l-3 3z"
+                                />
+                            </svg>
+                            <div className="flex min-w-0 items-center gap-2">
+                                <span className="whitespace-nowrap font-medium">Request & Complaint</span>
+                                {serviceSubmissionCount > 0 && (
+                                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white">
+                                        {serviceSubmissionCount}
+                                    </span>
+                                )}
+                            </div>
+                        </a>
+                    )}
+
+                    {isAdmin && (
+                        <a
+                            href="#"
+                            onClick={(event) => {
+                                event.preventDefault();
+                                setActiveItem('requests-complaints');
+                                localStorage.setItem(serviceSubmissionReadKey, new Date().toISOString());
+                                setServiceSubmissionCount(0);
+                                navigate('/admin/requests-complaints');
+                            }}
+                            className={`order-last flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'requests-complaints'
+                                ? 'bg-white text-[#8C4100] md:rounded-l-[40px] md:-mr-7 md:pr-20'
+                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            <svg
+                                className={`w-5 h-5 shrink-0 ${activeItem === 'requests-complaints' ? 'stroke-[#8C4100]' : 'stroke-white'}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 6h8M8 10h8m-8 4h5m-7 7l-3-3V5a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2H9l-3 3z"
+                                />
+                            </svg>
+                            <div className="flex min-w-0 items-center gap-2">
+                                <span className="whitespace-nowrap font-medium">Request & Complaint</span>
+                                {serviceSubmissionCount > 0 && (
+                                    <span
+                                        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white"
+                                    >
+                                        {serviceSubmissionCount}
+                                    </span>
+                                )}
+                            </div>
                         </a>
                     )}
 

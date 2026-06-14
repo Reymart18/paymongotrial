@@ -37,6 +37,12 @@ export class PropertyAccount {
     @Column({ nullable: true })
     gmail?: string;
 
+    @Column({ nullable: true })
+    telno?: string;
+
+    @Column({ nullable: true })
+    celno?: string;
+
     @Column()
     password?: string;
 

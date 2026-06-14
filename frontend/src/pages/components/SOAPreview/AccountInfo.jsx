@@ -10,10 +10,10 @@ export default function AccountInfo({
     formatDate,
 }) {
     return (
-        <div className="mx-auto mt-3 md:mt-6 max-w-[1060px] px-3 md:px-0 text-[9px] md:text-[10px] text-slate-900">
-            <div className="flex items-baseline justify-between gap-4 mb-3">
+        <div className="mx-auto mt-5 max-w-[1060px] px-4 text-[9px] text-slate-900 md:mt-6 md:px-0 md:text-[10px]">
+            <div className="mb-4 flex flex-wrap items-baseline justify-end gap-x-1 gap-y-0.5 md:mb-3 md:flex-nowrap md:justify-between md:gap-4">
                 <div className="flex-1" />
-                <div className="flex items-baseline gap-1">
+                <div className="flex flex-wrap items-baseline justify-end gap-1 text-right">
                     <span className="text-xs md:text-sm font-medium text-slate-500">
                         {soaPrefix}
                     </span>
@@ -23,54 +23,54 @@ export default function AccountInfo({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                <div className="flex items-baseline gap-1 md:gap-2">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3 md:gap-x-6 md:gap-y-2">
+                <div className="flex min-w-0 items-baseline gap-1 md:gap-2">
                     <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
                         Name:
                     </span>
-                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                    <span className="min-w-0 flex-1 break-words border-b border-slate-900 pb-0.5 text-[11px] font-semibold md:text-[12px]">
                         {account?.memberName || ''}
                     </span>
                 </div>
-                <div className="flex items-baseline gap-1 md:gap-2">
+                <div className="flex min-w-0 items-baseline gap-1 md:gap-2">
                     <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
                         Lot No/HOA ID:
                     </span>
-                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                    <span className="min-w-0 flex-1 break-words border-b border-slate-900 pb-0.5 text-[11px] font-semibold md:text-[12px]">
                         {accountId || ''}
                     </span>
                 </div>
 
-                <div className="flex items-baseline gap-1 md:gap-2">
+                <div className="flex min-w-0 items-baseline gap-1 md:gap-2">
                     <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
                         Lot Size:
                     </span>
-                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                    <span className="min-w-0 flex-1 break-words border-b border-slate-900 pb-0.5 text-[11px] font-semibold md:text-[12px]">
                         {lotSizeLabel}
                     </span>
                 </div>
-                <div className="flex items-baseline gap-1 md:gap-2">
+                <div className="flex min-w-0 items-baseline gap-1 md:gap-2">
                     <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
                         Billing Date:
                     </span>
-                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                    <span className="min-w-0 flex-1 break-words border-b border-slate-900 pb-0.5 text-[11px] font-semibold md:text-[12px]">
                         {formatDate(billingDate)}
                     </span>
                 </div>
 
-                <div className="flex items-baseline gap-1 md:gap-2">
+                <div className="flex min-w-0 items-baseline gap-1 md:gap-2">
                     <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
                         Due Date:
                     </span>
-                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                    <span className="min-w-0 flex-1 break-words border-b border-slate-900 pb-0.5 text-[11px] font-semibold md:text-[12px]">
                         {formatDate(dueDate)}
                     </span>
                 </div>
-                <div className="flex items-baseline gap-1 md:gap-2">
+                <div className="flex min-w-0 items-baseline gap-1 md:gap-2">
                     <span className="uppercase tracking-[0.15em] text-[8px] md:text-[9px] text-slate-500 min-w-fit">
                         Dues Rate:
                     </span>
-                    <span className="flex-1 border-b border-slate-900 pb-0.5 text-[11px] md:text-[12px] font-semibold">
+                    <span className="min-w-0 flex-1 break-words border-b border-slate-900 pb-0.5 text-[11px] font-semibold md:text-[12px]">
                         {Number.isFinite(duesRate) ? duesRate.toFixed(2) : '-'}
                     </span>
                 </div>

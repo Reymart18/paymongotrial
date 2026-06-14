@@ -1,16 +1,32 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import avatarImg from '../../../images/avatar.png';
 
 export default function DashboardNav({ onLogout, onProfile, accountId, classification, onSidebarToggle, avatarImage }) {
     const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-    const navigate = useNavigate();
+    const [sidebarNotificationCount, setSidebarNotificationCount] = useState(() => {
+        const savedCount = Number(localStorage.getItem('homeownerSidebarNotificationCount') || 0);
+        return Number.isFinite(savedCount) ? savedCount : 0;
+    });
     const location = useLocation();
     const displayAvatar = avatarImage || avatarImg;
+    const isHomeowner = localStorage.getItem('userRole') === 'homeowner';
+
+    useEffect(() => {
+        const handleSidebarNotifications = (event) => {
+            const count = Number(event.detail?.count || 0);
+            setSidebarNotificationCount(Number.isFinite(count) ? count : 0);
+        };
+
+        window.addEventListener('homeowner-sidebar-notifications', handleSidebarNotifications);
+        return () => window.removeEventListener('homeowner-sidebar-notifications', handleSidebarNotifications);
+    }, []);
 
     // Determine the current page title based on location
     const getPageTitle = () => {
-        if (location.pathname.includes('water-dashboard')) {
+        if (location.pathname.includes('requests-complaints')) {
+            return 'Request & Complaint';
+        } else if (location.pathname.includes('water-dashboard')) {
             return 'Water Dashboard';
         } else if (location.pathname.includes('reports')) {
             return 'Reports';
@@ -36,12 +52,17 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                 {onSidebarToggle && (
                     <button
                         onClick={onSidebarToggle}
-                        className="md:hidden text-slate-900 hover:bg-slate-100 p-2 rounded-lg transition"
+                        className="relative md:hidden text-slate-900 hover:bg-slate-100 p-2 rounded-lg transition"
                         aria-label="Toggle sidebar"
                     >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
+                        {isHomeowner && sidebarNotificationCount > 0 && (
+                            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
+                                {sidebarNotificationCount}
+                            </span>
+                        )}
                     </button>
                 )}
                 <h1 className="text-lg md:text-xl font-bold text-slate-900">{pageTitle}</h1>

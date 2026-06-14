@@ -496,7 +496,7 @@ export default function SOAPreview() {
 
     return (
         <div className="min-h-screen w-full bg-white text-slate-900">
-            <div className="no-print flex items-center gap-2 px-4 py-3 md:px-4 md:pt-4">
+            <div className="no-print flex items-center gap-2 border-b border-slate-100 px-4 py-3 md:border-0 md:px-4 md:pt-4">
                 <button
                     type="button"
                     onClick={() => navigate(-1)}
@@ -558,7 +558,7 @@ export default function SOAPreview() {
                             amountDueAsOfLabel={amountDueAsOfLabel}
                             formatSignedMoney={formatSignedMoney}
                         />
-                        <div className="mx-auto mt-6 max-w-265 text-[11px] md:text-xs text-slate-900">
+                        <div className="mx-auto mt-7 max-w-265 px-4 pb-7 text-[11px] leading-5 text-slate-900 md:mt-6 md:px-0 md:pb-0 md:text-xs md:leading-normal">
                             <div className="font-semibold">
                                 You may send your payment thru bank account:
                             </div>

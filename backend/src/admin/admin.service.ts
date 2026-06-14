@@ -8,6 +8,9 @@ import { PropertyService } from '../property/property.service';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
+import * as nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 @Injectable()
 export class AdminService {
@@ -126,6 +129,8 @@ export class AdminService {
             'balance',
             'username',
             'gmail',
+            'telno',
+            'celno',
         ];
 
         for (const field of allowedFields) {
@@ -157,17 +162,89 @@ export class AdminService {
         return { deleted: true };
     }
 
-    async resetPropertyAccountPassword(accountId: string, newPassword: string): Promise<PropertyAccount> {
+    async resetPropertyAccountPassword(accountId: string): Promise<{ success: boolean; emailedTo: string }> {
         const account = await this.propertyRepo.findOne({ where: { accountId } });
         if (!account) {
             throw new NotFoundException('Account not found');
         }
 
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        if (!account.gmail) {
+            throw new BadRequestException('Gmail is not set for this account. Sync or update the member Gmail first.');
+        }
+
+        const temporaryPassword = randomBytes(6).toString('hex');
+        const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+        const previousPassword = account.password;
+        const previousPasswordChanged = account.passwordChanged;
         account.password = hashedPassword;
         account.passwordChanged = false;
 
-        return this.propertyRepo.save(account);
+        await this.propertyRepo.save(account);
+
+        try {
+            await this.sendResetCredentialsEmail({
+                accountId: account.accountId || accountId,
+                memberName: account.memberName || 'Member',
+                gmail: account.gmail,
+                temporaryPassword,
+            });
+        } catch {
+            account.password = previousPassword;
+            account.passwordChanged = previousPasswordChanged;
+            await this.propertyRepo.save(account);
+            throw new BadRequestException('Password reset was cancelled because the credentials email could not be sent.');
+        }
+
+        return { success: true, emailedTo: account.gmail };
+    }
+
+    private getMailer() {
+        const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+        const port = Number(process.env.SMTP_PORT || 465);
+        const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465;
+        const user = process.env.SMTP_USER || '';
+        const pass = process.env.SMTP_PASS || '';
+
+        if (!user || !pass) {
+            throw new BadRequestException('Email service is not configured.');
+        }
+
+        const options: SMTPTransport.Options & { family?: number } = {
+            host,
+            port,
+            secure,
+            auth: { user, pass },
+        };
+        if (process.env.SMTP_REQUIRE_TLS === 'true') options.requireTLS = true;
+        if (process.env.SMTP_FORCE_IPV4 === 'true') options.family = 4;
+        return nodemailer.createTransport(options);
+    }
+
+    private async sendResetCredentialsEmail(credentials: {
+        accountId: string;
+        memberName: string;
+        gmail: string;
+        temporaryPassword: string;
+    }) {
+        const transporter = this.getMailer();
+        const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
+
+        await transporter.sendMail({
+            from,
+            to: credentials.gmail,
+            subject: 'Your HOA Portal Password Has Been Reset',
+            text: [
+                `Hello ${credentials.memberName},`,
+                '',
+                'Your HOA Portal password has been reset by the HOA office.',
+                '',
+                'Portal link: https://parkplacevillage.com',
+                `Username / Account ID: ${credentials.accountId}`,
+                `Temporary password: ${credentials.temporaryPassword}`,
+                '',
+                'Please log in and change your password immediately.',
+            ].join('\n'),
+        });
     }
 
     async getDashboardSummary(): Promise<{

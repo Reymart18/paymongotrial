@@ -51,6 +51,8 @@ interface FoxproMemberRecord {
     propertySizeSqm?: number | null;
     classification?: string | null;
     gmail?: string | null;
+    telno?: string | null;
+    celno?: string | null;
 }
 
 @Injectable()
@@ -244,6 +246,16 @@ export class FoxproService {
                         changed = true;
                     }
 
+                    if (record.telno && existing.telno !== record.telno) {
+                        existing.telno = record.telno;
+                        changed = true;
+                    }
+
+                    if (record.celno && existing.celno !== record.celno) {
+                        existing.celno = record.celno;
+                        changed = true;
+                    }
+
                     if (record.propertySizeSqm !== null && record.propertySizeSqm !== undefined) {
                         const existingSize = existing.propertySizeSqm ?? null;
                         if (existingSize === null || Number(existingSize) !== Number(record.propertySizeSqm)) {
@@ -281,6 +293,8 @@ export class FoxproService {
                     lot: record.lot,
                     memberName: record.memberName,
                     gmail: record.gmail || undefined,
+                    telno: record.telno || undefined,
+                    celno: record.celno || undefined,
                     propertySizeSqm:
                         record.propertySizeSqm !== undefined && record.propertySizeSqm !== null
                             ? Number(record.propertySizeSqm)
@@ -490,6 +504,10 @@ export class FoxproService {
         const normalized = this.normalizeKeys(raw);
         const referenceNumber = normalized.orno ? String(normalized.orno).trim() : '';
         const paycat = normalized.paycat ? String(normalized.paycat).trim() : '';
+        const normalizedPaycat = paycat.toLowerCase();
+        const descriptionSource = normalizedPaycat === 'membership dues'
+            ? normalized.applicable
+            : normalized.particula3;
 
         const accountId = String(normalized.keysearch || '').trim();
 
@@ -497,7 +515,7 @@ export class FoxproService {
             accountId: accountId ? accountId : null,
             paymentDate: this.parseFoxProDate(normalized.paydate),
             amountPaid: this.toNumber(normalized.amtpaid),
-            description: normalized.applicable ? String(normalized.applicable).trim() : '',
+            description: descriptionSource ? String(descriptionSource).trim() : '',
             paycat: paycat ? paycat : null,
             referenceNumber: referenceNumber ? referenceNumber : null,
         };
@@ -525,6 +543,8 @@ export class FoxproService {
             || normalized.mailadd
             || normalized.mailaddress,
         );
+        const telno = this.cleanText(normalized.telno);
+        const celno = this.cleanText(normalized.celno);
 
         return {
             accountId,
@@ -535,6 +555,8 @@ export class FoxproService {
             propertySizeSqm,
             classification: classificationRaw ? String(classificationRaw).trim() : null,
             gmail: gmail || null,
+            telno: telno || null,
+            celno: celno || null,
         };
     }
 

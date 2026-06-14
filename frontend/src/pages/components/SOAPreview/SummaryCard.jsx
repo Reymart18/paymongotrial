@@ -19,7 +19,7 @@ export default function SummaryCard({
     );
 
     return (
-        <div className="mx-auto mt-5 max-w-[1060px] rounded-lg border border-slate-200 bg-slate-50/40 p-4 md:p-5 px-4 md:px-5 text-sm shadow-sm">
+        <div className="mx-3 mt-6 max-w-[1060px] rounded-lg border border-slate-200 bg-slate-50/40 px-4 py-5 text-sm shadow-sm md:mx-auto md:mt-5 md:p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
                 Balance (as of {balanceAsOfLabel})
             </div>

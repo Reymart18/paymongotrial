@@ -10,6 +10,8 @@ import { AdminActivity } from './admin/admin-activity.entity';
 import { Announcement } from './announcements/announcement.entity';
 import { QuarterlyReportSnapshot } from './reports/quarterly-report.entity';
 import { WaterBilling } from './water-bills/water-billing.entity';
+import { ServiceRequest } from './service-requests/service-request.entity';
+import { ServiceComplaint } from './service-requests/service-complaint.entity';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { PropertyModule } from './property/property.module';
@@ -19,7 +21,7 @@ import { FoxproModule } from './foxpro/foxpro.module';
 import { ReportsModule } from './reports/reports.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { WaterBillsModule } from './water-bills/water-bills.module';
-
+import { ServiceRequestsModule } from './service-requests/service-requests.module';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { WaterBillsModule } from './water-bills/water-bills.module';
         Announcement,
         QuarterlyReportSnapshot,
         WaterBilling,
+        ServiceRequest,
+        ServiceComplaint,
       ],
       synchronize: true, // auto create tables
     }),
@@ -54,6 +58,8 @@ import { WaterBillsModule } from './water-bills/water-bills.module';
       Announcement,
       QuarterlyReportSnapshot,
       WaterBilling,
+      ServiceRequest,
+      ServiceComplaint,
     ]),
     AuthModule,
     AdminModule,
@@ -64,6 +70,7 @@ import { WaterBillsModule } from './water-bills/water-bills.module';
     ReportsModule,
     AnnouncementsModule,
     WaterBillsModule,
+    ServiceRequestsModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

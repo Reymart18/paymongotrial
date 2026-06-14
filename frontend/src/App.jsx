@@ -7,6 +7,8 @@ import MembersPage from './pages/MembersPage';
 import EmployeesPage from './pages/EmployeesPage';
 import HomeownerDashboard from './pages/HomeownerDashboard';
 import MemberWater from './pages/MemberWater';
+import RequestComplaint from './pages/RequestComplaint';
+import AdminRequestsComplaints from './pages/AdminRequestsComplaints';
 import ChangePassword from './pages/ChangePassword';
 import SOAPreview from './pages/SOAPreview';
 import WaterPreview from './pages/WaterPreview';
@@ -142,10 +144,28 @@ function App() {
         />
 
         <Route
+          path="/admin/requests-complaints"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminRequestsComplaints />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/homeowner/water-dashboard"
           element={
             <ProtectedRoute requiredRole="homeowner">
               <MemberWater />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/homeowner/requests-complaints"
+          element={
+            <ProtectedRoute requiredRole="homeowner">
+              <RequestComplaint />
             </ProtectedRoute>
           }
         />
