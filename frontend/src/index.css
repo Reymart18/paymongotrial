@@ -66,6 +66,12 @@
     color: #dc2626;
 }
 
+.must-change-password-overlay {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @media print {
     .no-print {
         display: none !important;

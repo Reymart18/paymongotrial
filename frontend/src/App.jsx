@@ -14,6 +14,7 @@ import SOAPreview from './pages/SOAPreview';
 import WaterPreview from './pages/WaterPreview';
 import ProfilePage from './pages/ProfilePage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import PortalAccessGuide from './pages/PortalAccessGuide';
 
 /**
  * Protected Route Component
@@ -51,6 +52,7 @@ function App() {
         {/* Public route */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/portal-access-guide" element={<PortalAccessGuide />} />
 
         {/* Protected routes */}
         <Route

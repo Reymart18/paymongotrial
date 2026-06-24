@@ -25,8 +25,8 @@ export default function ChangePassword() {
             return;
         }
 
-        if (newPassword.length < 6) {
-            setError('New password must be at least 6 characters.');
+        if (newPassword.length < 8) {
+            setError('New password must be at least 8 characters.');
             return;
         }
 
@@ -136,12 +136,13 @@ export default function ChangePassword() {
                                     <input
                                         id="new-password"
                                         type="password"
-                                        placeholder="Enter new password"
+                                        placeholder="Enter new password (8+ characters)"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         disabled={loading}
                                         className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-100"
                                     />
+                                    <p className="mt-1.5 text-xs text-slate-500">Use at least 8 characters.</p>
                                 </div>
                                 <div>
                                     <label htmlFor="confirm-password" className="text-sm font-medium text-slate-700">

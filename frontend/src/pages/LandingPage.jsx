@@ -220,6 +220,7 @@ export default function LandingPage() {
                                 width="100%"
                                 height="450"
                                 style={{ border: 0, borderRadius: '12px' }}
+                                allow="accelerometer; gyroscope; magnetometer"
                                 allowFullScreen=""
                                 loading="lazy"
                                 referrerPolicy="no-referrer-when-downgrade"
@@ -273,6 +274,7 @@ export default function LandingPage() {
                                 width="100%"
                                 height="450"
                                 style={{ border: 0, borderRadius: '12px' }}
+                                allow="accelerometer; gyroscope; magnetometer"
                                 allowFullScreen=""
                                 loading="lazy"
                                 referrerPolicy="no-referrer-when-downgrade"

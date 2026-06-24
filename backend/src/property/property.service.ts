@@ -147,8 +147,8 @@ export class PropertyService {
             throw new BadRequestException('Current password is incorrect');
         }
 
-        if (newPassword.trim().length < 6) {
-            throw new BadRequestException('New password must be at least 6 characters');
+        if (newPassword.trim().length < 8) {
+            throw new BadRequestException('New password must be at least 8 characters');
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
