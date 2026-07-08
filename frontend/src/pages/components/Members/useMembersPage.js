@@ -18,6 +18,7 @@ export default function useMembersPage() {
     const [syncStatus, setSyncStatus] = useState('');
     const [syncError, setSyncError] = useState('');
     const [syncLoading, setSyncLoading] = useState(false);
+    const [syncRequestId, setSyncRequestId] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewAccount, setViewAccount] = useState(null);
     const [resetLoading, setResetLoading] = useState(false);
@@ -94,6 +95,56 @@ export default function useMembersPage() {
         return () => controller.abort();
     }, [accounts]);
 
+    useEffect(() => {
+        if (!syncRequestId) return undefined;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setSyncError('Session expired. Please log in again.');
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const pollStatus = async () => {
+            try {
+                const response = await fetch(`${API_URL}/sync/status`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal: controller.signal,
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Failed to load sync status.');
+
+                if (data.lastSyncedTable !== 'members') {
+                    return;
+                }
+
+                if (data.syncStatus === 'pending') {
+                    setSyncStatus('Members sync requested. Waiting for Server PC.');
+                } else if (data.syncStatus === 'processing') {
+                    setSyncStatus('Members sync in progress.');
+                } else if (data.syncStatus === 'completed') {
+                    setSyncStatus(`Members sync complete: ${Number(data.recordsUpdated || 0)} records updated.`);
+                    setSyncRequestId(null);
+                    await refreshAccounts(token);
+                } else if (data.syncStatus === 'failed') {
+                    setSyncError(data.errorMessage || 'Members sync failed.');
+                    setSyncRequestId(null);
+                }
+            } catch (pollError) {
+                if (pollError.name !== 'AbortError') {
+                    setSyncError(pollError.message || 'Failed to load sync status.');
+                }
+            }
+        };
+
+        pollStatus();
+        const interval = window.setInterval(pollStatus, 5000);
+        return () => {
+            window.clearInterval(interval);
+            controller.abort();
+        };
+    }, [refreshAccounts, syncRequestId]);
+
     const filteredAccounts = useMemo(() => accounts.filter((account) => {
         const query = searchQuery.toLowerCase();
         const searchMatch = account.accountId?.toLowerCase().includes(query)
@@ -123,17 +174,14 @@ export default function useMembersPage() {
         if (!token) return setSyncError('Session expired. Please log in again.');
         setSyncLoading(true);
         try {
-            const response = await fetch(`${API_URL}/foxpro/members/sync`, {
+            const response = await fetch(`${API_URL}/sync/request/members`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'Sync failed. Please try again.');
-            const emailSummary = data.emailed !== undefined
-                ? ` ${data.emailed} credentials emailed${data.emailFailed ? `, ${data.emailFailed} email failed` : ''}.`
-                : '';
-            setSyncStatus(`Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped.${emailSummary}`);
-            await refreshAccounts(token);
+            setSyncRequestId(data.id);
+            setSyncStatus('Members sync requested. Waiting for Server PC.');
         } catch (syncFailure) {
             setSyncError(syncFailure.message || 'Sync failed. Please try again.');
         } finally {

@@ -6,6 +6,7 @@ import PaycatPaymentsModal from './components/AdminDashboard/PaycatPaymentsModal
 import PaymentsCollectionModal from './components/AdminDashboard/PaymentsCollectionModal';
 import RecentAdminActivity from './components/AdminDashboard/RecentAdminActivity';
 import StandingReportModal from './components/AdminDashboard/StandingReportModal';
+import SyncStatusPanel from './components/AdminDashboard/SyncStatusPanel';
 import useAdminDashboardController from './components/AdminDashboard/useAdminDashboardController';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
@@ -51,6 +52,14 @@ export default function AdminDashboard() {
                             notGoodStandingReportLoading={dashboard.notGoodStandingLoading}
                             onGeneratePaymentsReport={dashboard.handleGeneratePaymentsReport}
                             paymentsReportLoading={dashboard.paymentsReportLoading}
+                        />
+                        <SyncStatusPanel
+                            syncInfo={dashboard.syncInfo}
+                            loading={dashboard.syncStatusLoading}
+                            requestLoading={dashboard.syncRequestLoading}
+                            requestStatus={dashboard.syncRequestStatus}
+                            onRequestSync={dashboard.requestSync}
+                            formatTimestamp={dashboard.formatTimestamp}
                         />
                         <AdminDashboardAlerts messages={dashboard.alertMessages} />
                         <RecentAdminActivity

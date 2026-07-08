@@ -12,10 +12,11 @@ async function bootstrap() {
     dns.setDefaultResultOrder('ipv4first');
   }
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   app.enableCors({
-    origin: 'http://localhost:5173',
+    origin: corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   });
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads',

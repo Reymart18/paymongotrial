@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { FoxproService } from './foxpro.service';
+import { isLocalDbfMode } from '../sync/sync-mode.util';
 
 @Injectable()
 export class FoxproSyncService {
@@ -12,6 +13,10 @@ export class FoxproSyncService {
 
     @Interval(60000)
     async syncPayments() {
+        if (!isLocalDbfMode()) {
+            return;
+        }
+
         const intervalMs = this.getSyncIntervalMs();
         const now = Date.now();
         if (now - this.lastPaymentRun < intervalMs) {

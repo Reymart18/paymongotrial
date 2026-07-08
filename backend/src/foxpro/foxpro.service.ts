@@ -17,8 +17,9 @@ import { FoxproPayment } from './foxpro-payment.entity';
 import { PropertyAccount } from '../property/property.entity';
 import { PropertyService } from '../property/property.service';
 import { QuarterlyReportSnapshot } from '../reports/quarterly-report.entity';
+import { assertLocalDbfMode } from '../sync/sync-mode.util';
 
-interface FoxproBillingRecord {
+export interface FoxproBillingRecord {
     accountId: string;
     billDate?: Date | null;
     dateFrom?: Date | null;
@@ -33,7 +34,7 @@ interface FoxproBillingRecord {
     duesRate: number;
 }
 
-interface FoxproPaymentRecord {
+export interface FoxproPaymentRecord {
     accountId?: string | null;
     paymentDate?: Date | null;
     amountPaid: number;
@@ -42,7 +43,7 @@ interface FoxproPaymentRecord {
     referenceNumber?: string | null;
 }
 
-interface FoxproMemberRecord {
+export interface FoxproMemberRecord {
     accountId: string;
     neighborhood: string;
     block: string;
@@ -71,6 +72,7 @@ export class FoxproService {
     ) { }
 
     async uploadBillings(file: Express.Multer.File) {
+        assertLocalDbfMode();
         if (!file) {
             throw new BadRequestException('No file uploaded');
         }
@@ -144,6 +146,7 @@ export class FoxproService {
     }
 
     async uploadPayments(file: Express.Multer.File) {
+        assertLocalDbfMode();
         if (!file) {
             throw new BadRequestException('No file uploaded');
         }
@@ -153,6 +156,7 @@ export class FoxproService {
     }
 
     async syncBillingsFromDbf(filePath?: string) {
+        assertLocalDbfMode();
         const dbfPath = filePath ?? this.getBillingsDbfPath();
         if (!fs.existsSync(dbfPath)) {
             throw new BadRequestException(`billing.dbf not found at ${dbfPath}`);
@@ -163,6 +167,7 @@ export class FoxproService {
     }
 
     async syncPaymentsFromDbf(filePath?: string) {
+        assertLocalDbfMode();
         const dbfPath = filePath ?? this.getPaymentsDbfPath();
         if (!fs.existsSync(dbfPath)) {
             throw new BadRequestException(`payments.dbf not found at ${dbfPath}`);
@@ -173,12 +178,35 @@ export class FoxproService {
     }
 
     async syncMembersFromDbf(filePath?: string) {
+        assertLocalDbfMode();
         const dbfPath = filePath ?? this.getMembersDbfPath();
         if (!fs.existsSync(dbfPath)) {
             throw new BadRequestException(`members.dbf not found at ${dbfPath}`);
         }
 
         const records = await this.parseMembersDbf(dbfPath);
+        return this.saveMemberRecords(records);
+    }
+
+    async syncBillingsFromJson(records: Array<Record<string, unknown>>) {
+        return this.saveBillingRecords(
+            records.map((record) => this.normalizePushedBillingRecord(record)),
+            false,
+        );
+    }
+
+    async syncPaymentsFromJson(records: Array<Record<string, unknown>>) {
+        return this.savePaymentRecords(
+            records.map((record) => this.normalizePushedPaymentRecord(record)),
+            false,
+        );
+    }
+
+    async syncMembersFromJson(records: Array<Record<string, unknown>>) {
+        return this.saveMemberRecords(records.map((record) => this.normalizePushedMemberRecord(record)));
+    }
+
+    private async saveMemberRecords(records: FoxproMemberRecord[]) {
         const result = {
             inserted: 0,
             updated: 0,
@@ -560,9 +588,83 @@ export class FoxproService {
         };
     }
 
-    private async savePaymentRecords(records: FoxproPaymentRecord[]) {
+    private normalizePushedBillingRecord(raw: Record<string, unknown>): FoxproBillingRecord {
+        const normalized = this.normalizeKeys(raw);
+
+        return {
+            accountId: this.cleanText(normalized.accountid || normalized.keysearch),
+            billDate: this.parseFoxProDate(normalized.billdate),
+            dateFrom: this.parseFoxProDate(normalized.datefrom),
+            dateTo: this.parseFoxProDate(normalized.dateto),
+            dueDate: this.parseFoxProDate(normalized.duedate),
+            prinBal: this.toNumber(normalized.prinbal),
+            intBal: this.toNumber(normalized.intbal),
+            penBal: this.toNumber(normalized.penbal),
+            prinCurr: this.toNumber(normalized.princurr),
+            intCurr: this.toNumber(normalized.intcurr),
+            penCurr: this.toNumber(normalized.pencurr),
+            duesRate: this.toNumber(normalized.duesrate),
+        };
+    }
+
+    private normalizePushedPaymentRecord(raw: Record<string, unknown>): FoxproPaymentRecord {
+        const normalized = this.normalizeKeys(raw);
+        const paycat = this.cleanText(normalized.paycat);
+        const descriptionSource = normalized.description
+            || (paycat.toLowerCase() === 'membership dues'
+                ? normalized.applicable
+                : normalized.particula3);
+        const accountId = this.cleanText(normalized.accountid || normalized.keysearch);
+        const referenceNumber = this.cleanText(normalized.referencenumber || normalized.orno);
+
+        return {
+            accountId: accountId || null,
+            paymentDate: this.parseFoxProDate(normalized.paymentdate || normalized.paydate),
+            amountPaid: this.toNumber(normalized.amountpaid || normalized.amtpaid),
+            description: descriptionSource ? String(descriptionSource).trim() : '',
+            paycat: paycat || null,
+            referenceNumber: referenceNumber || null,
+        };
+    }
+
+    private normalizePushedMemberRecord(raw: Record<string, unknown>): FoxproMemberRecord {
+        const normalized = this.normalizeKeys(raw);
+        const hasNormalizedShape = normalized.accountid || normalized.membername;
+        if (!hasNormalizedShape) {
+            return this.normalizeMemberRecord(raw);
+        }
+
+        const accountId = this.cleanText(normalized.accountid || normalized.keysearch);
+        const fallbackSegments = this.parseMemberSegmentsFromAccountId(accountId);
+        const neighborhood = this.cleanText(normalized.neighborhood || normalized.neighbor) || fallbackSegments.neighborhood;
+        const block = this.formatMemberSegment(normalized.block || normalized.block1, 3) || fallbackSegments.block;
+        const lot = this.formatMemberSegment(normalized.lot || normalized.lotno, 3) || fallbackSegments.lot;
+        const gmail = this.cleanText(
+            normalized.gmail
+            || normalized.email
+            || normalized.emailadd
+            || normalized.emailaddress,
+        );
+
+        return {
+            accountId,
+            neighborhood,
+            block,
+            lot,
+            memberName: this.cleanText(normalized.membername || normalized.name),
+            propertySizeSqm: this.toNumberOrNull(normalized.propertysizesqm || normalized.lotsize),
+            classification: normalized.classification || normalized.holo
+                ? String(normalized.classification || normalized.holo).trim()
+                : null,
+            gmail: gmail || null,
+            telno: this.cleanText(normalized.telno) || null,
+            celno: this.cleanText(normalized.celno) || null,
+        };
+    }
+
+    private async savePaymentRecords(records: FoxproPaymentRecord[], applyLocalFilters = true) {
         const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
-        const paymentCutoff = this.getPaymentsCutoffDate();
+        const paymentCutoff = applyLocalFilters ? this.getPaymentsCutoffDate() : null;
         const batchSize = 500;
 
         await this.dataSource.transaction(async (manager) => {
@@ -581,7 +683,7 @@ export class FoxproService {
                     continue;
                 }
 
-                if (record.paymentDate < paymentCutoff) {
+                if (paymentCutoff && record.paymentDate < paymentCutoff) {
                     result.skipped += 1;
                     continue;
                 }
@@ -710,9 +812,9 @@ export class FoxproService {
         return result;
     }
 
-    private async saveBillingRecords(records: FoxproBillingRecord[]) {
+    private async saveBillingRecords(records: FoxproBillingRecord[], applyLocalFilters = true) {
         const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
-        const startDate = this.getBillingsStartDate();
+        const startDate = applyLocalFilters ? this.getBillingsStartDate() : null;
 
         await this.dataSource.transaction(async (manager) => {
             const billingRepo = manager.getRepository(FoxproBilling);

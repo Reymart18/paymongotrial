@@ -1,0 +1,13 @@
+# Environment files with real secrets
+**/.env
+**/.env.*
+
+# Dependencies and build outputs
+**/node_modules/
+**/dist/
+**/build/
+
+# Logs and runtime state
+**/logs/
+*.log
+server-pc-sync-service/state.json

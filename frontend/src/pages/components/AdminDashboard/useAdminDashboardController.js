@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function useAdminDashboardController() {
@@ -51,12 +51,58 @@ export default function useAdminDashboardController() {
     const [paycatBillingLabel, setPaycatBillingLabel] = useState('-');
     const [selectedPaycat, setSelectedPaycat] = useState('');
     const [showPaycatModal, setShowPaycatModal] = useState(false);
+    const [syncInfo, setSyncInfo] = useState(null);
+    const [syncStatusLoading, setSyncStatusLoading] = useState(false);
+    const [syncStatusError, setSyncStatusError] = useState('');
+    const [syncRequestStatus, setSyncRequestStatus] = useState('');
+    const [syncRequestError, setSyncRequestError] = useState('');
+    const [syncRequestLoading, setSyncRequestLoading] = useState({
+        members: false,
+        payments: false,
+        billing: false,
+    });
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const userRole = localStorage.getItem('userRole');
     const adminLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
+
+    const fetchSyncStatus = useCallback(async (signal) => {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('userRole');
+
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
+            return;
+        }
+
+        setSyncStatusLoading(true);
+        setSyncStatusError('');
+
+        try {
+            const response = await fetch(`${API_URL}/sync/status`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                signal,
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                setSyncStatusError(data.message || 'Failed to load sync status.');
+                return;
+            }
+
+            setSyncInfo(data);
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                setSyncStatusError('Failed to load sync status.');
+            }
+        } finally {
+            setSyncStatusLoading(false);
+        }
+    }, [API_URL]);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -173,6 +219,19 @@ export default function useAdminDashboardController() {
         return () => controller.abort();
     }, [API_URL]);
 
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchSyncStatus(controller.signal);
+        const interval = window.setInterval(() => {
+            fetchSyncStatus(controller.signal);
+        }, 5000);
+
+        return () => {
+            window.clearInterval(interval);
+            controller.abort();
+        };
+    }, [fetchSyncStatus]);
+
     const formatTimestamp = (value) => {
         if (!value) {
             return '';
@@ -251,6 +310,42 @@ export default function useAdminDashboardController() {
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
         navigate('/login');
+    };
+
+    const requestSync = async (type) => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setSyncRequestError('Session expired. Please log in again.');
+            return;
+        }
+
+        const endpoint = type === 'billing' ? 'billing' : type;
+        setSyncRequestLoading((current) => ({ ...current, [type]: true }));
+        setSyncRequestError('');
+        setSyncRequestStatus('');
+
+        try {
+            const response = await fetch(`${API_URL}/sync/request/${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to request sync.');
+            }
+
+            const label = type === 'billing' ? 'Billing' : type.charAt(0).toUpperCase() + type.slice(1);
+            setSyncRequestStatus(`${label} sync requested.`);
+            await fetchSyncStatus();
+        } catch (err) {
+            setSyncRequestError(err.message || 'Failed to request sync.');
+        } finally {
+            setSyncRequestLoading((current) => ({ ...current, [type]: false }));
+        }
     };
 
     const handleGenerateSettledReport = async () => {
@@ -966,6 +1061,8 @@ export default function useAdminDashboardController() {
         { key: 'not-good-standing', value: notGoodStandingError },
         { key: 'payments', value: paymentsReportError },
         { key: 'paycat', value: paycatReportError },
+        { key: 'sync-status', value: syncStatusError },
+        { key: 'sync-request', value: syncRequestError },
     ].filter((message) => message.value);
 
     return {
@@ -975,6 +1072,11 @@ export default function useAdminDashboardController() {
         setSidebarOpen,
         summary,
         summaryLoading,
+        syncInfo,
+        syncStatusLoading,
+        syncRequestLoading,
+        syncRequestStatus,
+        requestSync,
         activityItems,
         activityLoading,
         activityError,

@@ -12,6 +12,7 @@ import { QuarterlyReportSnapshot } from './reports/quarterly-report.entity';
 import { WaterBilling } from './water-bills/water-billing.entity';
 import { ServiceRequest } from './service-requests/service-request.entity';
 import { ServiceComplaint } from './service-requests/service-complaint.entity';
+import { SyncRequest } from './sync/sync-request.entity';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { PropertyModule } from './property/property.module';
@@ -22,6 +23,19 @@ import { ReportsModule } from './reports/reports.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { WaterBillsModule } from './water-bills/water-bills.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
+import { SyncModule } from './sync/sync.module';
+
+function shouldSynchronizeDatabase(): boolean {
+  const configured = String(process.env.TYPEORM_SYNCHRONIZE || '').trim().toLowerCase();
+  if (configured === 'true') {
+    return true;
+  }
+  if (configured === 'false') {
+    return false;
+  }
+
+  return process.env.NODE_ENV !== 'production';
+}
 
 @Module({
   imports: [
@@ -45,8 +59,9 @@ import { ServiceRequestsModule } from './service-requests/service-requests.modul
         WaterBilling,
         ServiceRequest,
         ServiceComplaint,
+        SyncRequest,
       ],
-      synchronize: true, // auto create tables
+      synchronize: shouldSynchronizeDatabase(),
     }),
     TypeOrmModule.forFeature([
       Admin,
@@ -60,6 +75,7 @@ import { ServiceRequestsModule } from './service-requests/service-requests.modul
       WaterBilling,
       ServiceRequest,
       ServiceComplaint,
+      SyncRequest,
     ]),
     AuthModule,
     AdminModule,
@@ -71,6 +87,7 @@ import { ServiceRequestsModule } from './service-requests/service-requests.modul
     AnnouncementsModule,
     WaterBillsModule,
     ServiceRequestsModule,
+    SyncModule,
   ],
 })
 export class AppModule {}
