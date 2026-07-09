@@ -29,6 +29,8 @@ export default function OutstandingAccountsModal({
                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Classification
                             <select
+                                id="outstanding-accounts-classification-filter"
+                                name="outstandingAccountsClassificationFilter"
                                 value={filter}
                                 onChange={(event) => onFilterChange(event.target.value)}
                                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"

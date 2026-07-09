@@ -16,12 +16,18 @@ export default function ReportsHeader({ year, quarter, onYearChange, onQuarterCh
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
                 <input
+                    id="reports-year"
+                    name="reportsYear"
                     type="number"
+                    aria-label="Report year"
                     className="w-full sm:w-28 rounded-lg px-3 py-2 text-sm bg-[#F3E4C9]"
                     value={year}
                     onChange={(event) => onYearChange(Number(event.target.value))}
                 />
                 <select
+                    id="reports-quarter"
+                    name="reportsQuarter"
+                    aria-label="Report quarter"
                     className="w-full sm:w-52 rounded-lg  px-3 py-2 text-sm bg-[#F3E4C9]"
                     value={quarter}
                     onChange={(event) => onQuarterChange(Number(event.target.value))}

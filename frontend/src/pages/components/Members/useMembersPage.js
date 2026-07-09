@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { calculateAccountSummary, getBalanceStatus } from './memberBalanceUtils.js';
 
@@ -24,6 +24,9 @@ export default function useMembersPage() {
     const [resetLoading, setResetLoading] = useState(false);
     const [resetStatus, setResetStatus] = useState('');
     const [resetError, setResetError] = useState('');
+    const [previewingWaterAccountId, setPreviewingWaterAccountId] = useState(null);
+    const balanceRequestsControllerRef = useRef(null);
+    const previewWaterInProgressRef = useRef(false);
     const navigate = useNavigate();
     const isSuperAdmin = localStorage.getItem('userRole') === 'super_admin';
 
@@ -69,6 +72,7 @@ export default function useMembersPage() {
         if (!token || !accounts.length) return undefined;
 
         const controller = new AbortController();
+        balanceRequestsControllerRef.current = controller;
         let nextIndex = 0;
         const accountIds = accounts.map((account) => account.accountId).filter(Boolean);
         const worker = async () => {
@@ -92,7 +96,12 @@ export default function useMembersPage() {
         };
         const workerCount = Math.min(MAX_CONCURRENT_BALANCE_REQUESTS, accountIds.length);
         Promise.all(Array.from({ length: workerCount }, worker)).catch(() => {});
-        return () => controller.abort();
+        return () => {
+            controller.abort();
+            if (balanceRequestsControllerRef.current === controller) {
+                balanceRequestsControllerRef.current = null;
+            }
+        };
     }, [accounts]);
 
     useEffect(() => {
@@ -248,6 +257,24 @@ export default function useMembersPage() {
         setResetError('');
     };
 
+    const stopBalanceRequests = useCallback(() => {
+        balanceRequestsControllerRef.current?.abort();
+        balanceRequestsControllerRef.current = null;
+    }, []);
+
+    const previewSoa = useCallback((id) => {
+        stopBalanceRequests();
+        navigate(`/soa-preview/${id}`);
+    }, [navigate, stopBalanceRequests]);
+
+    const previewWater = useCallback((id) => {
+        if (previewWaterInProgressRef.current) return;
+        previewWaterInProgressRef.current = true;
+        setPreviewingWaterAccountId(id);
+        stopBalanceRequests();
+        navigate(`/water-preview/${id}`);
+    }, [navigate, stopBalanceRequests]);
+
     return {
         balances,
         closeViewAccount,
@@ -259,8 +286,9 @@ export default function useMembersPage() {
         loading,
         ownershipType,
         paginatedAccounts,
-        previewSoa: (id) => navigate(`/soa-preview/${id}`),
-        previewWater: (id) => navigate(`/water-preview/${id}`),
+        previewSoa,
+        previewWater,
+        previewingWaterAccountId,
         resetError,
         resetLoading,
         resetPassword,

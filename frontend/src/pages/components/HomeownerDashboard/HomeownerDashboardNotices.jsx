@@ -18,7 +18,7 @@ export default function HomeownerDashboardNotices({
                         <span>
                             <span className="font-semibold">Status:</span>
                             {' '}
-                            <span>Not in Good Standing â€” due balance has reached 6+ months of billing charges.</span>
+                            <span>Not in Good Standing. Due balance has reached 6+ months of billing charges.</span>
                         </span>
                     ) : (
                         <>

@@ -67,6 +67,7 @@ export default function MembersPage() {
                                 onPageChange={members.setCurrentPage}
                                 onPreviewSoa={members.previewSoa}
                                 onPreviewWater={members.previewWater}
+                                previewingWaterAccountId={members.previewingWaterAccountId}
                                 onView={members.viewDetails}
                                 sortedCount={members.sortedCount}
                                 startIndex={members.startIndex}

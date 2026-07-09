@@ -62,6 +62,8 @@ export default function SubmissionDetailsModal({
                             <label className="min-w-0 flex-1">
                                 <span className="text-xs font-bold uppercase text-slate-500">Change Status</span>
                                 <select
+                                    id="admin-submission-status"
+                                    name="adminSubmissionStatus"
                                     value={statusDraft}
                                     onChange={(event) => onStatusDraftChange(event.target.value)}
                                     className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E89B58] focus:ring-2 focus:ring-orange-100"

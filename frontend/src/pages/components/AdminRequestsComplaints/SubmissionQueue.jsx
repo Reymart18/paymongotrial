@@ -41,6 +41,10 @@ export default function SubmissionQueue({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <input
+                        id="admin-submissions-search"
+                        name="adminSubmissionsSearch"
+                        type="search"
+                        aria-label="Search submissions"
                         value={search}
                         onChange={(event) => onSearchChange(event.target.value)}
                         placeholder="Search account, homeowner, subject, or type"
@@ -48,6 +52,9 @@ export default function SubmissionQueue({
                     />
                 </label>
                 <select
+                    id="admin-submissions-status-filter"
+                    name="adminSubmissionsStatusFilter"
+                    aria-label="Filter submissions by status"
                     value={statusFilter}
                     onChange={(event) => onStatusFilterChange(event.target.value)}
                     className="rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#E89B58]"

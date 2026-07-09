@@ -17,11 +17,18 @@ function DeleteIcon() {
     );
 }
 
-function PreviewButtons({ accountId, onPreviewSoa, onPreviewWater }) {
+function PreviewButtons({ accountId, isWaterPreviewing, onPreviewSoa, onPreviewWater }) {
     return (
         <div className="flex flex-col gap-0.5">
             <button type="button" onClick={() => onPreviewSoa(accountId)} className="text-xs font-medium text-[#E89B58] hover:underline">Preview SOA</button>
-            <button type="button" onClick={() => onPreviewWater(accountId)} className="text-xs font-medium text-[#E89B58] hover:underline">Preview Water</button>
+            <button
+                type="button"
+                onClick={() => onPreviewWater(accountId)}
+                disabled={isWaterPreviewing}
+                className="text-xs font-medium text-[#E89B58] hover:underline disabled:cursor-wait disabled:text-slate-400 disabled:no-underline"
+            >
+                {isWaterPreviewing ? 'Opening...' : 'Preview Water'}
+            </button>
         </div>
     );
 }
@@ -39,6 +46,7 @@ export default function MembersTable({
     onPageChange,
     onPreviewSoa,
     onPreviewWater,
+    previewingWaterAccountId,
     onView,
     sortedCount,
     startIndex,
@@ -69,9 +77,9 @@ export default function MembersTable({
                                 <td className="hidden whitespace-nowrap px-1 py-2 text-xs text-gray-800 lg:table-cell md:px-3 md:py-4 md:text-sm">{account.propertySizeSqm}</td>
                                 <td className="hidden px-2 py-2 text-xs text-gray-800 sm:table-cell md:px-4 md:py-4 md:text-sm">{account.classification}</td>
                                 <td className="px-2 py-2 text-xs text-gray-800 md:px-4 md:py-4 md:text-sm">{balances[account.accountId] === undefined ? 'Calculating...' : `\u20B1${formatBalance(balances[account.accountId])}`}</td>
-                                <td className="hidden px-2 py-2 text-xs sm:table-cell md:px-4 md:py-4 md:text-sm"><PreviewButtons accountId={account.accountId} onPreviewSoa={onPreviewSoa} onPreviewWater={onPreviewWater} /></td>
+                                <td className="hidden px-2 py-2 text-xs sm:table-cell md:px-4 md:py-4 md:text-sm"><PreviewButtons accountId={account.accountId} isWaterPreviewing={previewingWaterAccountId === account.accountId} onPreviewSoa={onPreviewSoa} onPreviewWater={onPreviewWater} /></td>
                                 <td className="px-2 py-2 text-center text-xs md:px-4 md:py-4 md:text-sm">
-                                    <div className="mb-1 flex flex-col items-center sm:hidden"><PreviewButtons accountId={account.accountId} onPreviewSoa={onPreviewSoa} onPreviewWater={onPreviewWater} /></div>
+                                    <div className="mb-1 flex flex-col items-center sm:hidden"><PreviewButtons accountId={account.accountId} isWaterPreviewing={previewingWaterAccountId === account.accountId} onPreviewSoa={onPreviewSoa} onPreviewWater={onPreviewWater} /></div>
                                     {isSuperAdmin ? (
                                         <div className="flex items-center justify-center gap-0.5">
                                             <button type="button" onClick={() => onView(account)} className="p-2 text-[#E89B58] transition hover:text-[#d88a47]" title="View"><ViewIcon /></button>

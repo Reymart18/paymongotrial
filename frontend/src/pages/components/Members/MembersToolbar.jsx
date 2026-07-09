@@ -16,19 +16,22 @@ export default function MembersToolbar({
         <>
             <div className="mb-8 flex flex-col items-stretch gap-3 rounded-lg p-4 md:flex-row md:items-center md:gap-4 md:p-6" style={{ backgroundColor: 'rgba(232, 155, 88, 0.32)' }}>
                 <input
+                    id="members-search"
+                    name="membersSearch"
                     type="text"
+                    aria-label="Search members"
                     placeholder="Search members..."
                     value={searchQuery}
                     onChange={(event) => onSearchChange(event.target.value)}
                     className="w-full rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58] md:w-sm"
                     style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}
                 />
-                <select value={ownershipType} onChange={(event) => onOwnershipChange(event.target.value)} className="cursor-pointer rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58] md:ml-auto" style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}>
+                <select id="members-ownership-filter" name="membersOwnershipFilter" aria-label="Filter members by ownership type" value={ownershipType} onChange={(event) => onOwnershipChange(event.target.value)} className="cursor-pointer rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58] md:ml-auto" style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}>
                     <option value="">Ownership Type</option>
                     <option value="homeowner">Homeowner</option>
                     <option value="lot owner">Lot Owner</option>
                 </select>
-                <select value={statusType} onChange={(event) => onStatusChange(event.target.value)} className="cursor-pointer rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58]" style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}>
+                <select id="members-status-filter" name="membersStatusFilter" aria-label="Filter members by payment status" value={statusType} onChange={(event) => onStatusChange(event.target.value)} className="cursor-pointer rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58]" style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}>
                     <option value="">Status</option>
                     <option value="underpaid">Unpaid</option>
                     <option value="overpaid">Overpaid</option>
