@@ -1,12 +1,11 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import * as dotenv from 'dotenv';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import dns from 'dns';
 import { AppModule } from './app.module';
 import { join } from 'path';
 
 async function bootstrap() {
-  dotenv.config();
   if (typeof dns.setDefaultResultOrder === 'function') {
     // Prefer IPv4 to avoid IPv6 SMTP timeouts in some networks.
     dns.setDefaultResultOrder('ipv4first');

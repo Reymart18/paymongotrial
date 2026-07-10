@@ -90,11 +90,24 @@ export default function Sidebar({ isOpen = false, onToggle }) {
 
             try {
                 const token = localStorage.getItem('token');
+                if (!token) {
+                    setServiceSubmissionCount(0);
+                    return;
+                }
+
                 const headers = { Authorization: `Bearer ${token}` };
                 const [requestsResponse, complaintsResponse] = await Promise.all([
                     fetch(`${API_URL}/service-requests${isAdmin ? '' : '/self'}`, { headers }),
                     fetch(`${API_URL}/service-requests/complaints${isAdmin ? '' : '/self'}`, { headers }),
                 ]);
+
+                if (requestsResponse.status === 401 || complaintsResponse.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('userRole');
+                    localStorage.removeItem('accountId');
+                    navigate('/login');
+                    return;
+                }
 
                 if (!requestsResponse.ok || !complaintsResponse.ok) {
                     return;
@@ -132,7 +145,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
         fetchServiceSubmissionCount();
         const intervalId = window.setInterval(fetchServiceSubmissionCount, 30000);
         return () => window.clearInterval(intervalId);
-    }, [API_URL, isAdmin, location.pathname, serviceSubmissionReadKey]);
+    }, [API_URL, isAdmin, location.pathname, navigate, serviceSubmissionReadKey]);
 
     useEffect(() => {
         if (isAdmin) {
