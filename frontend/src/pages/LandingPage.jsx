@@ -7,8 +7,6 @@ import aboutImage from '../images/about.png';
 import coverImage from '../images/cover.png';
 import contactImage from '../images/contact.png';
 import phoneImage from '../images/phone.png';
-import bubbleThoughtImage from '../images/bubblethought.png';
-import bubbleThought1Image from '../images/bubblethought1.png';
 import loginImage from '../images/login.png';
 import bottomImage from '../images/bottom.png';
 
@@ -72,25 +70,25 @@ export default function LandingPage() {
     return (
         <>
             <div className="relative min-h-[70vh] w-full overflow-hidden bg-[#C49554] sm:min-h-screen" id="home">
-                <div className="absolute left-1/2 top-4 z-10 flex w-[min(92vw,1100px)] -translate-x-1/2 items-center justify-between gap-4 text-[#363232]">
-                    <div className="flex items-center gap-6 text-sm font-abhaya sm:gap-10 sm:text-base md:gap-12 md:text-xl">
+                <div className="absolute left-1/2 top-4 z-10 flex w-[min(96vw,1100px)] -translate-x-1/2 items-center justify-between gap-1 text-[#363232] sm:gap-4">
+                    <div className="flex min-w-0 flex-1 items-center justify-center gap-4 text-xs font-abhaya sm:gap-10 sm:text-base md:justify-start md:gap-12 md:text-xl">
                         <button onClick={() => scrollToSection('home')} className="cursor-pointer hover:opacity-70 transition">Home</button>
                         <button onClick={() => scrollToSection('about')} className="cursor-pointer hover:opacity-70 transition">About</button>
                     </div>
-                    <div className="relative w-30 sm:w-50 md:w-60 -top-4.5">
+                    <div className="relative -top-3 w-32 shrink-0 sm:-top-4 sm:w-50 md:w-60">
                         <img
                             src={rectangleImage}
                             alt=""
                             aria-hidden="true"
                             className="w-full"
                         />
-                        <div className="absolute inset-0 flex items-start justify-center pt-3 sm:pt-4">
+                        <div className="absolute inset-0 flex items-start justify-center pt-2.5 sm:pt-4">
                             <span className="font-allison text-xl text-[white] sm:text-3xl md:text-4xl">
                                 Parkplace Village
                             </span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-6 text-sm font-abhaya sm:gap-10 sm:text-base md:gap-12 md:text-xl">
+                    <div className="flex min-w-0 flex-1 items-center justify-center gap-4 text-xs font-abhaya sm:gap-10 sm:text-base md:justify-end md:gap-12 md:text-xl">
                         <button onClick={() => scrollToSection('contacts')} className="cursor-pointer hover:opacity-70 transition">Contacts</button>
                         <button onClick={() => scrollToSection('location')} className="cursor-pointer hover:opacity-70 transition">Location</button>
                     </div>
@@ -172,24 +170,12 @@ export default function LandingPage() {
                     <h2 className="font-abhaya text-4xl font-medium sm:text-5xl md:text-7xl text-black text-center">
                         How to Contact Us
                     </h2>
-                    <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
                         <div className="relative flex items-center justify-center lg:w-5/12">
                             <img
                                 src={phoneImage}
                                 alt="Phone"
-                                className="w-full max-w-sm"
-                            />
-                            <img
-                                src={bubbleThoughtImage}
-                                alt=""
-                                aria-hidden="true"
-                                className="absolute right-0 top-[18%] w-28 sm:w-40 md:w-48"
-                            />
-                            <img
-                                src={bubbleThought1Image}
-                                alt=""
-                                aria-hidden="true"
-                                className="absolute bottom-8 left-0 w-28 sm:w-40 md:w-48"
+                                className="w-full max-w-xs sm:max-w-sm md:max-w-md"
                             />
                         </div>
                         <div className="flex flex-col gap-6 text-white lg:w-5/12 lg:items-start">
@@ -203,7 +189,7 @@ export default function LandingPage() {
                     src={bottomImage}
                     alt=""
                     aria-hidden="true"
-                    className="absolute bottom-0 left-1/2 w-full max-w-none -translate-x-1/2"
+                    className="absolute bottom-0 left-1/2 h-24 w-full max-w-none -translate-x-1/2 object-fill sm:h-28 md:h-32 lg:h-36 xl:h-40"
                 />
             </section>
             <section className="bg-[#F0E8E8] px-6 py-16 sm:px-10 lg:px-11" id="location">
