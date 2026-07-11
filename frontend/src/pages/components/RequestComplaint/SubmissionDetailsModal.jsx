@@ -11,74 +11,180 @@ export default function SubmissionDetailsModal({ apiUrl, onClose, submission }) 
     const isComplaint = submission.submissionKind === 'complaint';
     const referenceNumber = requestReference(submission);
 
-    const addWrappedText = (doc, label, value, x, y, width) => {
-        doc.setFont('helvetica', 'bold');
-        doc.text(label, x, y);
-        doc.setFont('helvetica', 'normal');
-        const lines = doc.splitTextToSize(value || '-', width);
-        doc.text(lines, x, y + 14);
-        return y + 18 + lines.length * 12;
-    };
-
     const handleExportPdf = () => {
         const doc = new jsPDF('p', 'pt', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 48;
-        const contentWidth = doc.internal.pageSize.getWidth() - margin * 2;
-        let y = 54;
+        const contentWidth = pageWidth - margin * 2;
+        const colors = {
+            ink: [15, 23, 42],
+            muted: [100, 116, 139],
+            border: [226, 232, 240],
+            soft: [248, 250, 252],
+            brand: isComplaint ? [159, 18, 57] : [6, 95, 70],
+            brandDark: isComplaint ? [136, 19, 55] : [4, 78, 56],
+            brandSoft: isComplaint ? [255, 241, 242] : [236, 253, 245],
+        };
+        const status = submission.status || '-';
+        let y = 0;
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text('HOA Submission Receipt', margin, y);
-        y += 28;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Reference: ${referenceNumber}`, margin, y);
-        y += 16;
-        doc.text(`Status: ${submission.status || '-'}`, margin, y);
-        y += 16;
-        doc.text(`Submitted: ${submission.createdAt ? formatDate(new Date(submission.createdAt)) : '-'}`, margin, y);
-        y += 26;
-
-        y = addWrappedText(doc, 'Type', submission.complaintType || submission.requestType, margin, y, contentWidth);
-        y = addWrappedText(doc, 'Subject', submission.subject, margin, y, contentWidth);
-        y = addWrappedText(doc, 'Description', submission.description, margin, y, contentWidth);
-
-        if (isComplaint) {
-            y = addWrappedText(doc, 'Location of Incident', submission.location, margin, y, contentWidth);
-            y = addWrappedText(
-                doc,
-                'Incident Date and Time',
-                `${submission.incidentDate ? formatDate(new Date(`${submission.incidentDate}T00:00:00`)) : '-'} ${submission.incidentTime || ''}`.trim(),
-                margin,
-                y,
-                contentWidth,
-            );
-        } else {
-            y = addWrappedText(
-                doc,
-                'Preferred Date',
-                submission.preferredDate ? formatDate(new Date(`${submission.preferredDate}T00:00:00`)) : '-',
-                margin,
-                y,
-                contentWidth,
-            );
-        }
-
-        y = addWrappedText(
-            doc,
-            'HOA Reply',
-            submission.adminReply || 'No reply message yet.',
-            margin,
-            y + 6,
-            contentWidth,
-        );
-
-        if (submission.adminReplyAt) {
+        const setText = (color = colors.ink) => doc.setTextColor(...color);
+        const formatOptionalDate = (value) => (value ? formatDate(new Date(value)) : '-');
+        const footer = () => {
+            doc.setDrawColor(...colors.border);
+            doc.line(margin, pageHeight - 48, pageWidth - margin, pageHeight - 48);
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.text(`Reply date: ${formatDate(new Date(submission.adminReplyAt))}`, margin, y + 4);
-        }
+            doc.setFontSize(8);
+            setText(colors.muted);
+            doc.text('This PDF confirms that the submission was recorded in the HOA Portal.', margin, pageHeight - 31);
+            doc.text(`Generated ${formatDate(new Date())}`, pageWidth - margin, pageHeight - 31, { align: 'right' });
+        };
+        const newPageIfNeeded = (neededHeight) => {
+            if (y + neededHeight <= pageHeight - 70) return;
+            footer();
+            doc.addPage();
+            y = margin;
+        };
+        const wrappedHeight = (value, width, lineHeight = 12) => (
+            doc.splitTextToSize(value || '-', width).length * lineHeight
+        );
+        const drawHeader = () => {
+            doc.setFillColor(...colors.brandDark);
+            doc.rect(0, 0, pageWidth, 118, 'F');
+            doc.setFillColor(...colors.brand);
+            doc.rect(0, 0, pageWidth, 12, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(209, 250, 229);
+            doc.text('PARK PLACE VILLAGE HOA', margin, 44);
+            doc.setFontSize(22);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Submission Receipt', margin, 72);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text(isComplaint ? 'Complaint acknowledgement and HOA response' : 'Request acknowledgement and HOA response', margin, 94);
+
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(pageWidth - margin - 154, 38, 154, 46, 7, 7, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(...colors.muted);
+            doc.text('CURRENT STATUS', pageWidth - margin - 138, 56);
+            doc.setFontSize(12);
+            doc.setTextColor(...colors.brand);
+            doc.text(status.toUpperCase(), pageWidth - margin - 138, 74, { maxWidth: 122 });
+
+            y = 148;
+        };
+        const drawMetaCard = () => {
+            const cardHeight = 106;
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(...colors.border);
+            doc.roundedRect(margin, y, contentWidth, cardHeight, 8, 8, 'FD');
+            doc.setFillColor(...colors.brandSoft);
+            doc.roundedRect(margin + 14, y + 18, 128, 44, 6, 6, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(...colors.muted);
+            doc.text('REFERENCE NUMBER', margin + 28, y + 35);
+            doc.setFontSize(14);
+            doc.setTextColor(...colors.brand);
+            doc.text(referenceNumber, margin + 28, y + 55);
+
+            const metaStart = margin + 172;
+            const metaWidth = (contentWidth - 194) / 2;
+            const meta = [
+                ['Submission Type', isComplaint ? 'Complaint' : 'Request'],
+                ['Submitted', formatOptionalDate(submission.createdAt)],
+                ['Account ID', submission.accountId || '-'],
+                ['Receipt Generated', formatDate(new Date())],
+            ];
+
+            meta.forEach(([label, value], index) => {
+                const col = index % 2;
+                const row = Math.floor(index / 2);
+                const x = metaStart + col * metaWidth;
+                const rowY = y + 31 + row * 42;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.setTextColor(...colors.muted);
+                doc.text(label.toUpperCase(), x, rowY);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(...colors.ink);
+                doc.text(value || '-', x, rowY + 16, { maxWidth: metaWidth - 14 });
+            });
+
+            y += cardHeight + 18;
+        };
+        const drawSection = (title, fields) => {
+            doc.setFontSize(10);
+            const innerWidth = contentWidth - 36;
+            const fieldHeights = fields.map((field) => 25 + wrappedHeight(field.value, innerWidth, 12));
+            const sectionHeight = 46 + fieldHeights.reduce((sum, height) => sum + height, 0);
+            newPageIfNeeded(sectionHeight);
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(...colors.border);
+            doc.roundedRect(margin, y, contentWidth, sectionHeight, 8, 8, 'FD');
+            doc.setFillColor(...colors.soft);
+            doc.roundedRect(margin, y, contentWidth, 34, 8, 8, 'F');
+            doc.setFillColor(...colors.soft);
+            doc.rect(margin, y + 20, contentWidth, 14, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(...colors.ink);
+            doc.text(title.toUpperCase(), margin + 18, y + 22);
+
+            let rowY = y + 56;
+            fields.forEach((field, index) => {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.setTextColor(...colors.muted);
+                doc.text(field.label.toUpperCase(), margin + 18, rowY);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(field.large ? 11 : 10);
+                doc.setTextColor(...colors.ink);
+                const lines = doc.splitTextToSize(field.value || '-', innerWidth);
+                doc.text(lines, margin + 18, rowY + 15);
+                rowY += fieldHeights[index];
+            });
+
+            y += sectionHeight + 16;
+        };
+
+        drawHeader();
+        drawMetaCard();
+        drawSection('Submission Details', [
+            { label: 'Type', value: submission.complaintType || submission.requestType },
+            { label: 'Subject', value: submission.subject, large: true },
+            { label: 'Description', value: submission.description, large: true },
+        ]);
+        drawSection(isComplaint ? 'Incident Information' : 'Request Schedule', isComplaint ? [
+            { label: 'Location of Incident', value: submission.location },
+            {
+                label: 'Incident Date and Time',
+                value: `${submission.incidentDate ? formatDate(new Date(`${submission.incidentDate}T00:00:00`)) : '-'} ${submission.incidentTime || ''}`.trim(),
+            },
+            {
+                label: 'Evidence Attachment',
+                value: submission.evidenceOriginalName || (submission.evidenceAttachment ? 'Attached' : 'No evidence attached'),
+            },
+        ] : [
+            {
+                label: 'Preferred Date',
+                value: submission.preferredDate ? formatDate(new Date(`${submission.preferredDate}T00:00:00`)) : '-',
+            },
+        ]);
+        drawSection('HOA Office Reply', [
+            { label: 'Reply Message', value: submission.adminReply || 'No reply message yet.', large: true },
+            { label: 'Reply Date', value: formatOptionalDate(submission.adminReplyAt) },
+        ]);
+        footer();
 
         doc.save(`${referenceNumber.toLowerCase()}-receipt.pdf`);
     };
