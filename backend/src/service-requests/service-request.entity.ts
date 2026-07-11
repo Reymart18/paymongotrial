@@ -38,6 +38,12 @@ export class ServiceRequest {
   @Column({ type: 'varchar', length: 30, default: 'Under Review' })
   status?: string;
 
+  @Column({ type: 'text', nullable: true })
+  adminReply?: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  adminReplyAt?: Date | null;
+
   @CreateDateColumn({ type: 'datetime' })
   createdAt?: Date;
 

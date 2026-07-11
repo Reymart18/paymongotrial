@@ -4,13 +4,18 @@ export default function SubmissionDetailsModal({
     apiUrl,
     item,
     onClose,
+    onReplyDraftChange,
     onSaveStatus,
     onStatusDraftChange,
+    replyDraft,
     statusDraft,
     statusError,
     statusUpdating,
 }) {
     if (!item) return null;
+    const isUnchanged =
+        statusDraft === item.status &&
+        replyDraft.trim() === String(item.adminReply || '').trim();
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center">
@@ -58,7 +63,7 @@ export default function SubmissionDetailsModal({
                     <div><p className="text-xs font-bold uppercase text-slate-400">Current Status</p><span className={`mt-1 inline-block rounded-full px-2 py-1 text-xs font-semibold ${statusClass(item.status)}`}>{item.status}</span></div>
 
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 sm:col-span-2">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                        <div className="space-y-4">
                             <label className="min-w-0 flex-1">
                                 <span className="text-xs font-bold uppercase text-slate-500">Change Status</span>
                                 <select
@@ -77,14 +82,30 @@ export default function SubmissionDetailsModal({
                                     ) : <option value="Resolved">Resolved</option>}
                                 </select>
                             </label>
-                            <button
-                                type="button"
-                                onClick={onSaveStatus}
-                                disabled={statusUpdating || statusDraft === item.status}
-                                className="rounded-lg bg-[#8C4100] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#6f3300] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {statusUpdating ? 'Saving...' : 'Save Status'}
-                            </button>
+                            <label className="block">
+                                <span className="text-xs font-bold uppercase text-slate-500">Reply Message to Homeowner</span>
+                                <textarea
+                                    id="admin-submission-reply"
+                                    name="adminSubmissionReply"
+                                    value={replyDraft}
+                                    onChange={(event) => onReplyDraftChange(event.target.value)}
+                                    rows={5}
+                                    maxLength={2000}
+                                    placeholder="Add the office reply, instructions, or resolution notes shown to the homeowner."
+                                    className="mt-2 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none focus:border-[#E89B58] focus:ring-2 focus:ring-orange-100"
+                                />
+                                <span className="mt-1 block text-right text-xs text-slate-400">{replyDraft.length}/2000</span>
+                            </label>
+                            <div className="flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={onSaveStatus}
+                                    disabled={statusUpdating || isUnchanged}
+                                    className="rounded-lg bg-[#8C4100] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#6f3300] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {statusUpdating ? 'Saving...' : 'Save Update'}
+                                </button>
+                            </div>
                         </div>
                         {statusError && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">{statusError}</p>}
                     </div>

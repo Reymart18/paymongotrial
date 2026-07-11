@@ -134,7 +134,7 @@ export class ServiceRequestsController {
   @Patch('complaints/:id/status')
   async updateComplaintStatus(
     @Param('id') id: string,
-    @Body() body: { status: string },
+    @Body() body: { status: string; adminReply?: string },
     @Request() req: AuthenticatedRequest,
   ) {
     if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
@@ -149,6 +149,7 @@ export class ServiceRequestsController {
     return this.serviceRequestsService.updateComplaintStatus(
       complaintId,
       body.status,
+      body.adminReply,
     );
   }
 
@@ -156,7 +157,7 @@ export class ServiceRequestsController {
   @Patch(':id/status')
   async updateRequestStatus(
     @Param('id') id: string,
-    @Body() body: { status: string },
+    @Body() body: { status: string; adminReply?: string },
     @Request() req: AuthenticatedRequest,
   ) {
     if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
@@ -171,6 +172,7 @@ export class ServiceRequestsController {
     return this.serviceRequestsService.updateRequestStatus(
       requestId,
       body.status,
+      body.adminReply,
     );
   }
 

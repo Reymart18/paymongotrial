@@ -11,6 +11,7 @@ export default function useAdminSubmissions() {
     const [search, setSearch] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
     const [statusDraft, setStatusDraft] = useState('');
+    const [replyDraft, setReplyDraft] = useState('');
     const [statusUpdating, setStatusUpdating] = useState(false);
     const [statusError, setStatusError] = useState('');
     const [loading, setLoading] = useState(true);
@@ -102,11 +103,21 @@ export default function useAdminSubmissions() {
     const openDetails = (item) => {
         setSelectedItem(item);
         setStatusDraft(item.status || 'Under Review');
+        setReplyDraft(item.adminReply || '');
         setStatusError('');
     };
 
     const handleStatusUpdate = async () => {
-        if (!selectedItem || statusDraft === selectedItem.status) return;
+        if (!selectedItem) return;
+
+        const normalizedReply = replyDraft.trim();
+        const currentReply = String(selectedItem.adminReply || '').trim();
+        if (statusDraft === selectedItem.status && normalizedReply === currentReply) return;
+
+        if (normalizedReply.length > 2000) {
+            setStatusError('Reply message must be 2000 characters or less.');
+            return;
+        }
 
         setStatusUpdating(true);
         setStatusError('');
@@ -120,7 +131,7 @@ export default function useAdminSubmissions() {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                 },
-                body: JSON.stringify({ status: statusDraft }),
+                body: JSON.stringify({ status: statusDraft, adminReply: normalizedReply }),
             });
             const updated = await response.json();
             if (!response.ok) throw new Error(updated.message || 'Failed to update status.');
@@ -140,6 +151,11 @@ export default function useAdminSubmissions() {
 
     const handleStatusDraftChange = (status) => {
         setStatusDraft(status);
+        setStatusError('');
+    };
+
+    const handleReplyDraftChange = (reply) => {
+        setReplyDraft(reply);
         setStatusError('');
     };
 
@@ -164,8 +180,10 @@ export default function useAdminSubmissions() {
         modalProps: {
             item: selectedItem,
             onClose: () => setSelectedItem(null),
+            onReplyDraftChange: handleReplyDraftChange,
             onSaveStatus: handleStatusUpdate,
             onStatusDraftChange: handleStatusDraftChange,
+            replyDraft,
             statusDraft,
             statusError,
             statusUpdating,

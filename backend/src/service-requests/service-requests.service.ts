@@ -44,6 +44,7 @@ const COMPLAINT_TYPES = [
 
 const REQUEST_STATUSES = ['Under Review', 'Accepted', 'Rejected'];
 const COMPLAINT_STATUSES = ['Under Review', 'Resolved'];
+const MAX_ADMIN_REPLY_LENGTH = 2000;
 
 @Injectable()
 export class ServiceRequestsService {
@@ -225,7 +226,7 @@ export class ServiceRequestsService {
     }));
   }
 
-  async updateRequestStatus(id: number, status: string) {
+  async updateRequestStatus(id: number, status: string, adminReply?: string) {
     const normalizedStatus = String(status || '').trim();
     if (!REQUEST_STATUSES.includes(normalizedStatus)) {
       throw new BadRequestException('Invalid request status');
@@ -237,10 +238,11 @@ export class ServiceRequestsService {
     }
 
     request.status = normalizedStatus;
+    this.applyAdminReply(request, adminReply);
     return this.serviceRequestRepo.save(request);
   }
 
-  async updateComplaintStatus(id: number, status: string) {
+  async updateComplaintStatus(id: number, status: string, adminReply?: string) {
     const normalizedStatus = String(status || '').trim();
     if (!COMPLAINT_STATUSES.includes(normalizedStatus)) {
       throw new BadRequestException('Invalid complaint status');
@@ -254,6 +256,27 @@ export class ServiceRequestsService {
     }
 
     complaint.status = normalizedStatus;
+    this.applyAdminReply(complaint, adminReply);
     return this.serviceComplaintRepo.save(complaint);
+  }
+
+  private applyAdminReply(
+    submission: { adminReply?: string | null; adminReplyAt?: Date | null },
+    adminReply?: string,
+  ) {
+    if (adminReply === undefined) {
+      return;
+    }
+
+    const normalizedReply = String(adminReply || '').trim();
+    if (normalizedReply.length > MAX_ADMIN_REPLY_LENGTH) {
+      throw new BadRequestException('Reply message must be 2000 characters or less');
+    }
+
+    const previousReply = submission.adminReply || '';
+    submission.adminReply = normalizedReply || null;
+    submission.adminReplyAt = normalizedReply && normalizedReply !== previousReply
+      ? new Date()
+      : submission.adminReplyAt || null;
   }
 }
