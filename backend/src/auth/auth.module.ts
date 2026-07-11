@@ -7,13 +7,14 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { Admin } from '../admin/admin.entity';
 import { PropertyAccount } from '../property/property.entity';
+import { getJwtSecret } from './jwt-secret';
 
 @Module({
   imports: [
     PassportModule,
     TypeOrmModule.forFeature([Admin, PropertyAccount]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
+      secret: getJwtSecret(),
       signOptions: { expiresIn: '7d' },
     }),
   ],
