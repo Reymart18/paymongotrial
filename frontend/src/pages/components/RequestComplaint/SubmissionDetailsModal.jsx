@@ -58,7 +58,7 @@ export default function SubmissionDetailsModal({ apiUrl, onClose, submission }) 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(209, 250, 229);
-            doc.text('PARK PLACE VILLAGE HOA', margin, 44);
+            doc.text('Parkplace Village Homeowners Association Inc.', margin, 44);
             doc.setFontSize(22);
             doc.setTextColor(255, 255, 255);
             doc.text('Submission Receipt', margin, 72);
