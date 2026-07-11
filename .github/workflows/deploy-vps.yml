@@ -1,0 +1,45 @@
+name: Deploy VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Pull, build, and restart on VPS
+    runs-on: ubuntu-latest
+
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+      VPS_APP_PATH: ${{ secrets.VPS_APP_PATH || '/var/www/hoaportal' }}
+
+    steps:
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/hoaportal_deploy_key
+          chmod 600 ~/.ssh/hoaportal_deploy_key
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy latest main branch
+        run: |
+          ssh -i ~/.ssh/hoaportal_deploy_key -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "APP_PATH='$VPS_APP_PATH' bash -s" <<'EOF'
+          set -e
+
+          cd "$APP_PATH"
+          git pull --ff-only origin main
+
+          cd backend
+          npm ci
+          npm run build
+          pm2 restart hoaportal-api --update-env
+          pm2 save
+
+          cd ../frontend
+          npm ci
+          npm run build
+
+          nginx -t
+          systemctl reload nginx
+          EOF
