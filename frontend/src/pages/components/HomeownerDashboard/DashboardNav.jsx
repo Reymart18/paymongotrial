@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import avatarImg from '../../../images/avatar.png';
 
+function formatNotificationCount(count) {
+    return count > 99 ? '99+' : count;
+}
+
 export default function DashboardNav({ onLogout, onProfile, accountId, classification, onSidebarToggle, avatarImage }) {
     const [showProfileDropdown, setShowProfileDropdown] = useState(false);
     const [sidebarNotificationCount, setSidebarNotificationCount] = useState(() => {
@@ -59,8 +63,8 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                         {isHomeowner && sidebarNotificationCount > 0 && (
-                            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
-                                {sidebarNotificationCount}
+                            <span className="absolute right-0 top-0 z-10 inline-flex h-6 min-w-6 translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-bold text-white shadow-md ring-2 ring-white">
+                                {formatNotificationCount(sidebarNotificationCount)}
                             </span>
                         )}
                     </button>

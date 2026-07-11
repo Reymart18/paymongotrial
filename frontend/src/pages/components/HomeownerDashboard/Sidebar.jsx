@@ -2,8 +2,37 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logoImg from '../../../images/pvhai.png';
 
+function formatNotificationCount(count) {
+    return count > 99 ? '99+' : count;
+}
+
+function SidebarNotificationBadge({ count, active }) {
+    if (!count) return null;
+
+    return (
+        <span
+            className={`z-10 inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-xs font-bold shadow-sm ring-2 ring-white md:h-5 md:min-w-5 md:px-1 md:text-[11px] ${active
+                ? 'bg-[#8C4100] text-white'
+                : 'bg-red-600 text-white'
+                }`}
+        >
+            {formatNotificationCount(count)}
+        </span>
+    );
+}
+
+function getActiveItemFromPath(pathname) {
+    if (pathname.includes('requests-complaints')) return 'requests-complaints';
+    if (pathname.includes('water-dashboard')) return 'water-dashboard';
+    if (pathname.includes('reports')) return 'reports';
+    if (pathname.includes('members')) return 'members';
+    if (pathname.includes('employees')) return 'employees';
+    if (pathname.includes('bod-announcements')) return 'bod-announcements';
+    if (pathname.includes('announcements')) return 'announcements';
+    return 'dashboard';
+}
+
 export default function Sidebar({ isOpen = false, onToggle }) {
-    const [activeItem, setActiveItem] = useState('dashboard');
     const [announcementCount, setAnnouncementCount] = useState(0);
     const [bodAnnouncementCount, setBodAnnouncementCount] = useState(0);
     const [serviceSubmissionCount, setServiceSubmissionCount] = useState(0);
@@ -16,26 +45,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
     const serviceSubmissionReadKey = `serviceSubmissionsLastReadAt:${accountId}`;
     const isAdmin = role === 'admin' || role === 'super_admin';
     const isSuperAdmin = role === 'super_admin';
-
-    useEffect(() => {
-        if (location.pathname.includes('requests-complaints')) {
-            setActiveItem('requests-complaints');
-        } else if (location.pathname.includes('water-dashboard')) {
-            setActiveItem('water-dashboard');
-        } else if (location.pathname.includes('reports')) {
-            setActiveItem('reports');
-        } else if (location.pathname.includes('members')) {
-            setActiveItem('members');
-        } else if (location.pathname.includes('employees')) {
-            setActiveItem('employees');
-        } else if (location.pathname.includes('bod-announcements')) {
-            setActiveItem('bod-announcements');
-        } else if (location.pathname.includes('announcements')) {
-            setActiveItem('announcements');
-        } else {
-            setActiveItem('dashboard');
-        }
-    }, [location.pathname]);
+    const activeItem = getActiveItemFromPath(location.pathname);
 
     useEffect(() => {
         const fetchAnnouncementCount = async () => {
@@ -74,7 +84,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
         };
 
         fetchAnnouncementCount();
-    }, [API_URL, location.pathname, announcementReadKey]);
+    }, [API_URL, location.pathname, announcementReadKey, role]);
 
     useEffect(() => {
         const fetchServiceSubmissionCount = async () => {
@@ -160,7 +170,7 @@ export default function Sidebar({ isOpen = false, onToggle }) {
     }, [announcementCount, isAdmin, serviceSubmissionCount]);
 
     return (
-        <aside className={`fixed left-0 top-0 h-screen w-64 z-40 rounded-r-[40px] transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        <aside className={`fixed left-0 top-0 h-screen w-64 z-40 rounded-r-[40px] transition-transform duration-300 ${isOpen ? 'translate-x-0 overflow-visible' : '-translate-x-full overflow-x-hidden md:translate-x-0 md:overflow-visible'}`}
             style={{ backgroundColor: 'rgba(232, 155, 88, 0.97)' }}>
             <div className="p-6">
                 {/* Close button for mobile */}
@@ -186,7 +196,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                     <a
                         href="#"
                         onClick={() => {
-                            setActiveItem('dashboard');
                             navigate(isAdmin ? '/admin/dashboard' : '/homeowner/dashboard');
                         }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'dashboard'
@@ -216,7 +225,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             href="#"
                             onClick={(event) => {
                                 event.preventDefault();
-                                setActiveItem('water-dashboard');
                                 navigate('/homeowner/water-dashboard');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'water-dashboard'
@@ -245,7 +253,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             href="#"
                             onClick={(event) => {
                                 event.preventDefault();
-                                setActiveItem('requests-complaints');
                                 localStorage.setItem(serviceSubmissionReadKey, new Date().toISOString());
                                 setServiceSubmissionCount(0);
                                 navigate('/homeowner/requests-complaints');
@@ -267,13 +274,9 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                     d="M8 6h8M8 10h8m-8 4h5m-7 7l-3-3V5a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2H9l-3 3z"
                                 />
                             </svg>
-                            <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
                                 <span className="whitespace-nowrap font-medium">Request & Complaint</span>
-                                {serviceSubmissionCount > 0 && (
-                                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white">
-                                        {serviceSubmissionCount}
-                                    </span>
-                                )}
+                                <SidebarNotificationBadge count={serviceSubmissionCount} active={activeItem === 'requests-complaints'} />
                             </div>
                         </a>
                     )}
@@ -283,7 +286,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                             href="#"
                             onClick={(event) => {
                                 event.preventDefault();
-                                setActiveItem('requests-complaints');
                                 localStorage.setItem(serviceSubmissionReadKey, new Date().toISOString());
                                 setServiceSubmissionCount(0);
                                 navigate('/admin/requests-complaints');
@@ -305,15 +307,9 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                     d="M8 6h8M8 10h8m-8 4h5m-7 7l-3-3V5a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2H9l-3 3z"
                                 />
                             </svg>
-                            <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
                                 <span className="whitespace-nowrap font-medium">Request & Complaint</span>
-                                {serviceSubmissionCount > 0 && (
-                                    <span
-                                        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white"
-                                    >
-                                        {serviceSubmissionCount}
-                                    </span>
-                                )}
+                                <SidebarNotificationBadge count={serviceSubmissionCount} active={activeItem === 'requests-complaints'} />
                             </div>
                         </a>
                     )}
@@ -322,7 +318,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         <a
                             href="#"
                             onClick={() => {
-                                setActiveItem('members');
                                 navigate('/admin/members');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'members'
@@ -350,7 +345,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         <a
                             href="#"
                             onClick={() => {
-                                setActiveItem('employees');
                                 navigate('/admin/employees');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'employees'
@@ -377,7 +371,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                     <a
                         href="#"
                         onClick={() => {
-                            setActiveItem('announcements');
                             navigate('/announcements');
                         }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'announcements'
@@ -397,18 +390,9 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                             />
                         </svg>
-                        <div className="flex items-center gap-2">
-                            <span className="font-medium">Announcements</span>
-                            {announcementCount > 0 && (
-                                <span
-                                    className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-semibold rounded-full ${activeItem === 'announcements'
-                                        ? 'bg-[#8C4100] text-white'
-                                        : 'bg-red-600 text-white'
-                                        }`}
-                                >
-                                    {announcementCount}
-                                </span>
-                            )}
+                        <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                            <span className="whitespace-nowrap font-medium">Announcements</span>
+                            <SidebarNotificationBadge count={announcementCount} active={activeItem === 'announcements'} />
                         </div>
                     </a>
 
@@ -416,7 +400,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         <a
                             href="#"
                             onClick={() => {
-                                setActiveItem('bod-announcements');
                                 navigate('/admin/bod-announcements');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'bod-announcements'
@@ -436,18 +419,9 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                                 />
                             </svg>
-                            <div className="flex items-center gap-2">
-                                <span className="font-medium">BOD Updates</span>
-                                {bodAnnouncementCount > 0 && (
-                                    <span
-                                        className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-semibold rounded-full ${activeItem === 'bod-announcements'
-                                            ? 'bg-[#8C4100] text-white'
-                                            : 'bg-red-600 text-white'
-                                            }`}
-                                    >
-                                        {bodAnnouncementCount}
-                                    </span>
-                                )}
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                                <span className="whitespace-nowrap font-medium">BOD Updates</span>
+                                <SidebarNotificationBadge count={bodAnnouncementCount} active={activeItem === 'bod-announcements'} />
                             </div>
                         </a>
                     )}
@@ -456,7 +430,6 @@ export default function Sidebar({ isOpen = false, onToggle }) {
                         <a
                             href="#"
                             onClick={() => {
-                                setActiveItem('reports');
                                 navigate('/admin/reports');
                             }}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeItem === 'reports'
