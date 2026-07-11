@@ -91,8 +91,7 @@ export class ReportsService {
     }
 
     async getOverdueAccounts(): Promise<OverdueAccount[]> {
-        const rows = await this.buildOverdueQuery().getRawMany<OverdueRow>();
-        return this.mapOverdueRows(rows);
+        return this.getOverdueAccountsFromRecords();
     }
 
     async getOverdueAccount(accountId: string): Promise<OverdueAccount | null> {
@@ -100,8 +99,7 @@ export class ReportsService {
             return null;
         }
 
-        const rows = await this.buildOverdueQuery(accountId).getRawMany<OverdueRow>();
-        return this.mapOverdueRows(rows)[0] ?? null;
+        return (await this.getOverdueAccountsFromRecords(accountId))[0] ?? null;
     }
 
     async getQuarterDueCharges(
@@ -334,108 +332,116 @@ export class ReportsService {
         return amountDue >= annualCharge;
     }
 
-    private buildOverdueQuery(accountId?: string) {
-        const latestBillingSub = this.billingRepo
-            .createQueryBuilder('billing')
-            .select('billing.accountId', 'accountId')
-            .addSelect('MAX(COALESCE(billing.dateTo, billing.dateFrom))', 'latestDate')
-            .groupBy('billing.accountId');
+    private async getOverdueAccountsFromRecords(accountId?: string): Promise<OverdueAccount[]> {
+        const [billings, payments] = await Promise.all([
+            this.billingRepo.find({
+                where: accountId ? { accountId } : undefined,
+                relations: ['account'],
+                order: { dueDate: 'DESC' },
+            }),
+            this.paymentRepo.find({
+                where: accountId ? { accountId } : undefined,
+            }),
+        ]);
 
-        const query = this.billingRepo
-            .createQueryBuilder('billing')
-            .innerJoin(
-                `(${latestBillingSub.getQuery()})`,
-                'latest',
-                'latest.accountId = billing.accountId AND COALESCE(billing.dateTo, billing.dateFrom) = latest.latestDate',
-            )
-            .leftJoin(FoxproPayment, 'payment', 'payment.accountId = billing.accountId')
-            .leftJoin('billing.account', 'account')
-            .setParameters({
-                ...latestBillingSub.getParameters(),
-                accountId,
-            })
-            .select('billing.accountId', 'accountId')
-            .addSelect('account.memberName', 'memberName')
-            .addSelect('account.classification', 'classification')
-            .addSelect('account.neighborhood', 'neighborhood')
-            .addSelect('account.block', 'block')
-            .addSelect('account.lot', 'lot')
-            .addSelect(
-                'COALESCE(billing.prinBal, 0) + COALESCE(billing.intBal, 0) + COALESCE(billing.penBal, 0)',
-                'previousBalance',
-            )
-            .addSelect(
-                'COALESCE(billing.prinCurr, 0)',
-                'currentCharges',
-            )
-            .addSelect(
-                "SUM(CASE WHEN payment.paymentDate <= latest.latestDate AND LOWER(payment.paycat) = 'membership dues' THEN payment.amountPaid ELSE 0 END)",
-                'paymentsToDate',
-            )
-            .addSelect(
-                "MAX(CASE WHEN LOWER(payment.paycat) = 'membership dues' THEN payment.paymentDate ELSE NULL END)",
-                'lastPaymentDate',
-            )
-            .addSelect('COALESCE(billing.dateTo, billing.dateFrom)', 'latestBillingDate')
-            .groupBy('billing.accountId')
-            .addGroupBy('account.memberName')
-            .addGroupBy('account.classification')
-            .addGroupBy('account.neighborhood')
-            .addGroupBy('account.block')
-            .addGroupBy('account.lot')
-            .addGroupBy('latest.latestDate')
-            .addGroupBy('billing.prinBal')
-            .addGroupBy('billing.intBal')
-            .addGroupBy('billing.penBal')
-            .addGroupBy('billing.prinCurr')
-            .orderBy('previousBalance', 'DESC');
+        const parseDate = (value: unknown) => {
+            if (!value) {
+                return null;
+            }
 
-        if (accountId) {
-            query.andWhere('billing.accountId = :accountId');
+            const date = value instanceof Date ? value : new Date(value as string);
+            return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const dateKey = (value: unknown) => {
+            const parsed = parseDate(value);
+            return parsed ? parsed.toISOString().slice(0, 10) : null;
+        };
+
+        const latestBillingsByAccount = new Map<string, FoxproBilling>();
+        for (const billing of billings) {
+            if (!billing.accountId) {
+                continue;
+            }
+
+            const billingDate = parseDate(billing.dateTo || billing.dateFrom || billing.dueDate);
+            if (!billingDate) {
+                continue;
+            }
+
+            const existing = latestBillingsByAccount.get(billing.accountId);
+            const existingDate = existing ? parseDate(existing.dateTo || existing.dateFrom || existing.dueDate) : null;
+            if (!existingDate || billingDate > existingDate) {
+                latestBillingsByAccount.set(billing.accountId, billing);
+            }
         }
 
-        return query;
-    }
+        const paymentsByAccount = new Map<string, FoxproPayment[]>();
+        for (const payment of payments) {
+            if (!payment.accountId) {
+                continue;
+            }
 
-    private mapOverdueRows(rows: OverdueRow[]): OverdueAccount[] {
-        return rows
-            .map((row) => {
-                const previousBalance = Number(row.previousBalance || 0);
-                const currentCharges = Number(row.currentCharges || 0);
-                const paymentsToDate = Number(row.paymentsToDate || 0);
-                const amountDue = previousBalance + currentCharges - paymentsToDate;
+            if (!paymentsByAccount.has(payment.accountId)) {
+                paymentsByAccount.set(payment.accountId, []);
+            }
+            paymentsByAccount.get(payment.accountId)?.push(payment);
+        }
 
-                const annualCharge = this.getAnnualCharge(currentCharges);
-                const annualOk = this.isAnnualBalanceMatch(amountDue, annualCharge);
+        const items: OverdueAccount[] = [];
+        for (const [billingAccountId, billing] of latestBillingsByAccount) {
+            const latestBillingDate = parseDate(billing.dateTo || billing.dateFrom || billing.dueDate);
+            if (!latestBillingDate) {
+                continue;
+            }
 
-                return {
-                    accountId: row.accountId,
-                    memberName: row.memberName,
-                    classification: row.classification ?? null,
-                    neighborhood: row.neighborhood,
-                    block: row.block,
-                    lot: row.lot,
-                    amountDue,
-                    lastPaymentDate: row.lastPaymentDate ?? null,
-                    latestBillingDate: row.latestBillingDate ?? null,
-                    annualOk,
-                };
-            })
-            .filter((row) => row.amountDue > 0 && row.annualOk)
-            .map(({ annualOk, ...row }) => row);
+            const previousBalance =
+                Number(billing.prinBal || 0) +
+                Number(billing.intBal || 0) +
+                Number(billing.penBal || 0);
+            const currentCharges = Number(billing.prinCurr || 0);
+            let paymentsToDate = 0;
+            let lastPaymentDate: Date | null = null;
+
+            for (const payment of paymentsByAccount.get(billingAccountId) || []) {
+                const paycat = String(payment.paycat || '').trim().toLowerCase();
+                if (paycat !== 'membership dues') {
+                    continue;
+                }
+
+                const paymentDate = parseDate(payment.paymentDate);
+                if (!paymentDate) {
+                    continue;
+                }
+
+                if (!lastPaymentDate || paymentDate > lastPaymentDate) {
+                    lastPaymentDate = paymentDate;
+                }
+
+                if (paymentDate <= latestBillingDate) {
+                    paymentsToDate += Number(payment.amountPaid || 0);
+                }
+            }
+
+            const amountDue = previousBalance + currentCharges - paymentsToDate;
+            const annualCharge = this.getAnnualCharge(currentCharges);
+            if (!this.isAnnualBalanceMatch(amountDue, annualCharge)) {
+                continue;
+            }
+
+            items.push({
+                accountId: billingAccountId,
+                memberName: billing.account?.memberName ?? null,
+                classification: billing.account?.classification ?? null,
+                neighborhood: billing.account?.neighborhood ?? null,
+                block: billing.account?.block ?? null,
+                lot: billing.account?.lot ?? null,
+                amountDue,
+                lastPaymentDate: lastPaymentDate ? lastPaymentDate.toISOString().slice(0, 10) : null,
+                latestBillingDate: dateKey(latestBillingDate),
+            });
+        }
+
+        return items.sort((a, b) => b.amountDue - a.amountDue);
     }
 }
-
-type OverdueRow = {
-    accountId: string;
-    memberName: string | null;
-    classification?: string | null;
-    neighborhood: string | null;
-    block: string | null;
-    lot: string | null;
-    previousBalance: string | number;
-    currentCharges: string | number;
-    paymentsToDate: string | number;
-    lastPaymentDate: string | null;
-    latestBillingDate: string | null;
-};

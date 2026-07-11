@@ -5,6 +5,8 @@ import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
 import pvhaiImg from '../images/pvhai.png';
 
+const getAdminRoleLabel = (role) => (role === 'super_admin' ? 'Super admin' : 'BOD');
+
 export default function EmployeesPage() {
     const [admins, setAdmins] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -106,6 +108,7 @@ export default function EmployeesPage() {
         }
 
         setFormLoading(true);
+        const selectedRoleLabel = getAdminRoleLabel(formValues.role);
 
         try {
             const response = await fetch(`${API_URL}/admin/create`, {
@@ -125,11 +128,11 @@ export default function EmployeesPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                setFormError(data.message || 'Failed to create BOD account.');
+                setFormError(data.message || `Failed to create ${selectedRoleLabel} account.`);
                 return;
             }
 
-            setFormStatus('BOD account created successfully.');
+            setFormStatus(`${selectedRoleLabel} account created successfully.`);
             setFormValues({
                 username: '',
                 fullName: '',
@@ -139,7 +142,7 @@ export default function EmployeesPage() {
             await loadAdmins(token);
         } catch (err) {
             console.error('Create admin error:', err);
-            setFormError('Failed to create BOD account. Please try again.');
+            setFormError(`Failed to create ${selectedRoleLabel} account. Please try again.`);
         } finally {
             setFormLoading(false);
         }

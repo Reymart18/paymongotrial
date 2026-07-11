@@ -1007,7 +1007,7 @@ export class FoxproService {
             }
         }
 
-        return new Date(Date.UTC(2025, 9, 1));
+        return new Date(Date.UTC(2025, 2, 31));
     }
 
     private generateTemporaryPassword(): string {
@@ -1065,13 +1065,22 @@ export class FoxproService {
                 '',
                 'Your HOA Portal account has been created.',
                 '',
-                'Portal link: https://parkplacevillage.com',
+                `Portal link: ${this.getPortalUrl()}`,
                 `Username / Account ID: ${credentials.accountId}`,
                 `Temporary password: ${credentials.temporaryPassword}`,
                 '',
                 'Please log in and change your password immediately.',
             ].join('\n'),
         });
+    }
+
+    private getPortalUrl(): string {
+        const configured = process.env.PORTAL_URL || process.env.FRONTEND_URL;
+        if (configured?.trim()) {
+            return configured.trim().replace(/\/+$/, '');
+        }
+
+        return 'https://parkplacevillage.cloud';
     }
 
     private async snapshotQuarterlyBillings(

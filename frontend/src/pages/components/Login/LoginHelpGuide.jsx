@@ -1,9 +1,15 @@
 import { QRCodeSVG } from 'qrcode.react';
 
-const portalOrigin = (import.meta.env.VITE_PORTAL_URL || 'https://parkplacevillage.com').replace(/\/$/, '');
-const guideUrl = `${portalOrigin}/portal-access-guide`;
+const getGuideUrl = () => {
+    const configuredOrigin = import.meta.env.VITE_PORTAL_URL;
+    const portalOrigin = (configuredOrigin || window.location.origin).replace(/\/$/, '');
+
+    return `${portalOrigin}/portal-access-guide`;
+};
 
 export default function LoginHelpGuide() {
+    const guideUrl = getGuideUrl();
+
     return (
         <section className="mx-auto mt-8 w-full max-w-sm border-t border-white/30 pt-6 text-center">
             <h3 className="text-sm font-semibold text-white">Need help accessing the portal?</h3>

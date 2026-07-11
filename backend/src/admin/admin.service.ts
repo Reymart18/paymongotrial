@@ -238,13 +238,22 @@ export class AdminService {
                 '',
                 'Your HOA Portal password has been reset by the HOA office.',
                 '',
-                'Portal link: https://parkplacevillage.com',
+                `Portal link: ${this.getPortalUrl()}`,
                 `Username / Account ID: ${credentials.accountId}`,
                 `Temporary password: ${credentials.temporaryPassword}`,
                 '',
                 'Please log in and change your password immediately.',
             ].join('\n'),
         });
+    }
+
+    private getPortalUrl(): string {
+        const configured = process.env.PORTAL_URL || process.env.FRONTEND_URL;
+        if (configured?.trim()) {
+            return configured.trim().replace(/\/+$/, '');
+        }
+
+        return 'https://parkplacevillage.cloud';
     }
 
     async getDashboardSummary(): Promise<{

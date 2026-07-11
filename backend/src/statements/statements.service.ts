@@ -238,6 +238,6 @@ export class StatementsService {
             }
         }
 
-        return new Date(Date.UTC(2025, 9, 1));
+        return new Date(Date.UTC(2025, 2, 31));
     }
 }

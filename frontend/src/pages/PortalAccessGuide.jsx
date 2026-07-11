@@ -1,9 +1,14 @@
 import { Link } from 'react-router-dom';
 import pvhaiImage from '../images/pvhai.png';
 
-const portalLink = 'https://samplelink.com';
+const getPortalLink = () => {
+    const configuredOrigin = import.meta.env.VITE_PORTAL_URL;
+    return (configuredOrigin || window.location.origin).replace(/\/$/, '');
+};
 
 export default function PortalAccessGuide() {
+    const portalLink = getPortalLink();
+
     return (
         <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 sm:px-6">
             <article className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
