@@ -11,3 +11,5 @@
 **/logs/
 *.log
 server-pc-sync-service/state.json
+
+.vscode/
