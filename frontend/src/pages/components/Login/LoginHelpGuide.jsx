@@ -2,7 +2,8 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const getGuideUrl = () => {
     const configuredOrigin = import.meta.env.VITE_PORTAL_URL;
-    const portalOrigin = (configuredOrigin || window.location.origin).replace(/\/$/, '');
+    const rawOrigin = (configuredOrigin || window.location.origin).trim().replace(/\/$/, '');
+    const portalOrigin = /^https?:\/\//i.test(rawOrigin) ? rawOrigin : `https://${rawOrigin}`;
 
     return `${portalOrigin}/portal-access-guide`;
 };

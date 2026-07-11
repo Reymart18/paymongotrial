@@ -3,7 +3,8 @@ import pvhaiImage from '../images/pvhai.png';
 
 const getPortalLink = () => {
     const configuredOrigin = import.meta.env.VITE_PORTAL_URL;
-    return (configuredOrigin || window.location.origin).replace(/\/$/, '');
+    const rawOrigin = (configuredOrigin || window.location.origin).trim().replace(/\/$/, '');
+    return /^https?:\/\//i.test(rawOrigin) ? rawOrigin : `https://${rawOrigin}`;
 };
 
 export default function PortalAccessGuide() {
