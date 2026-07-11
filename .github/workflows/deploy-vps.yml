@@ -17,10 +17,28 @@ jobs:
     steps:
       - name: Prepare SSH key
         run: |
+          set -e
+
+          if [ -z "$VPS_HOST" ]; then
+            echo "Missing GitHub secret: VPS_HOST"
+            exit 1
+          fi
+          if [ -z "$VPS_USER" ]; then
+            echo "Missing GitHub secret: VPS_USER"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "Missing GitHub secret: VPS_SSH_KEY"
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/hoaportal_deploy_key
+          sed -i 's/\r$//' ~/.ssh/hoaportal_deploy_key
           chmod 600 ~/.ssh/hoaportal_deploy_key
-          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+          echo "Checking SSH host key for $VPS_USER@$VPS_HOST:$VPS_PORT"
+          ssh-keyscan -T 30 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy latest main branch
         run: |
