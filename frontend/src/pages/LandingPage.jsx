@@ -97,7 +97,7 @@ export default function LandingPage() {
                     src={landingImage}
                     alt=""
                     aria-hidden="true"
-                    className="h-[70vh] w-full object-cover opacity-60 sm:h-screen"
+                    className="h-[70vh] w-full object-cover object-[54%_center] opacity-60 sm:h-screen sm:object-center"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-[white]">
                     <h1 className="font-abhaya text-3xl font-medium sm:text-4xl md:text-5xl">
@@ -107,7 +107,7 @@ export default function LandingPage() {
                         Discover a safe, organized, and welcoming community where every home is part of
                         something bigger.
                     </p>
-                    <div className="absolute bottom-20 left-0 z-20 w-40 sm:w-40 md:w-55 transition duration-300 hover:scale-105 hover:opacity-80 hover:shadow-lg cursor-pointer">
+                    <div className="absolute bottom-20 left-0 z-20 w-32 overflow-hidden transition duration-300 hover:scale-105 hover:opacity-80 hover:shadow-lg cursor-pointer sm:w-40 md:w-55">
                         <img
                             src={loginImage}
                             alt="Login"
@@ -115,8 +115,11 @@ export default function LandingPage() {
                         />
                         <button
                             onClick={() => navigate('/login')}
-                            className="absolute inset-0 flex items-center justify-center text-base font-semibold text-[#363232] sm:text-lg">
-                            Login Here
+                            className="absolute inset-0 flex items-center justify-between overflow-hidden pl-4 pr-3 text-left text-sm font-semibold text-[#363232] sm:pr-4 sm:text-lg">
+                            <span className="login-slide-text whitespace-nowrap">Login Here</span>
+                            <span className="login-edge-arrow flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#363232] text-[9px] text-white shadow-sm sm:h-5 sm:w-5 sm:text-[10px] md:h-7 md:w-7 md:text-sm">
+                                &gt;
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -153,7 +156,7 @@ export default function LandingPage() {
                 </div>
             </section>
             <section
-                className="relative min-h-screen w-full bg-cover bg-center px-6 py-16 sm:px-10 lg:px-16"
+                className="relative min-h-[72vh] w-full bg-cover bg-center px-6 py-10 sm:min-h-screen sm:px-10 sm:py-16 lg:px-16"
                 id="contacts"
                 style={{
                     backgroundImage: `url(${contactImage})`,
@@ -166,16 +169,16 @@ export default function LandingPage() {
                     }}
                 />
                 <div className="absolute inset-0 bg-black/40"></div>
-                <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 scroll-reveal">
-                    <h2 className="font-abhaya text-4xl font-medium sm:text-5xl md:text-7xl text-black text-center">
+                <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 scroll-reveal sm:gap-12">
+                    <h2 className="font-abhaya text-3xl font-medium sm:text-5xl md:text-7xl text-black text-center">
                         How to Contact Us
                     </h2>
-                    <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-6 sm:gap-10 lg:flex-row lg:items-center lg:justify-between">
                         <div className="relative flex items-center justify-center lg:w-5/12">
                             <img
                                 src={phoneImage}
                                 alt="Phone"
-                                className="w-full max-w-xs sm:max-w-sm md:max-w-md"
+                                className="w-full max-w-[300px] sm:max-w-sm md:max-w-md"
                             />
                         </div>
                         <div className="flex flex-col gap-6 text-white lg:w-5/12 lg:items-start">
