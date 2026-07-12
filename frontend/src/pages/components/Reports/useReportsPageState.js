@@ -21,9 +21,11 @@ export default function useReportsPageState() {
     const [syncStatus, setSyncStatus] = useState('');
     const [syncError, setSyncError] = useState('');
     const [syncLoading, setSyncLoading] = useState(false);
+    const [syncRequestId, setSyncRequestId] = useState(null);
     const [billingSyncStatus, setBillingSyncStatus] = useState('');
     const [billingSyncError, setBillingSyncError] = useState('');
     const [billingSyncLoading, setBillingSyncLoading] = useState(false);
+    const [billingSyncRequestId, setBillingSyncRequestId] = useState(null);
     const [billingFile, setBillingFile] = useState(null);
     const [billingStatus, setBillingStatus] = useState('');
     const [billingError, setBillingError] = useState('');
@@ -154,6 +156,81 @@ export default function useReportsPageState() {
         setCurrentBillingCardIndex((prev) => (prev === 1 ? 0 : prev + 1));
     };
 
+    useEffect(() => {
+        if (useLocalDbfSync || (!syncRequestId && !billingSyncRequestId)) {
+            return undefined;
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            if (syncRequestId) {
+                setSyncError('Session expired. Please log in again.');
+            }
+            if (billingSyncRequestId) {
+                setBillingSyncError('Session expired. Please log in again.');
+            }
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const pollStatus = async () => {
+            try {
+                const response = await fetch(`${API_URL}/sync/status`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal: controller.signal,
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to load sync status.');
+                }
+
+                if (syncRequestId && data.lastSyncedTable === 'payments') {
+                    if (data.syncStatus === 'pending') {
+                        setSyncStatus('Payments sync requested. Waiting for Server PC.');
+                    } else if (data.syncStatus === 'processing') {
+                        setSyncStatus('Payments sync in progress.');
+                    } else if (data.syncStatus === 'completed') {
+                        setSyncStatus(`Payments sync complete: ${Number(data.recordsUpdated || 0)} records updated.`);
+                        setSyncRequestId(null);
+                    } else if (data.syncStatus === 'failed') {
+                        setSyncError(data.errorMessage || 'Payments sync failed.');
+                        setSyncRequestId(null);
+                    }
+                }
+
+                if (billingSyncRequestId && data.lastSyncedTable === 'billing') {
+                    if (data.syncStatus === 'pending') {
+                        setBillingSyncStatus('Billing sync requested. Waiting for Server PC.');
+                    } else if (data.syncStatus === 'processing') {
+                        setBillingSyncStatus('Billing sync in progress.');
+                    } else if (data.syncStatus === 'completed') {
+                        setBillingSyncStatus(`Billing sync complete: ${Number(data.recordsUpdated || 0)} records updated.`);
+                        setBillingSyncRequestId(null);
+                    } else if (data.syncStatus === 'failed') {
+                        setBillingSyncError(data.errorMessage || 'Billing sync failed.');
+                        setBillingSyncRequestId(null);
+                    }
+                }
+            } catch (pollError) {
+                if (pollError.name !== 'AbortError') {
+                    if (syncRequestId) {
+                        setSyncError(pollError.message || 'Failed to load sync status.');
+                    }
+                    if (billingSyncRequestId) {
+                        setBillingSyncError(pollError.message || 'Failed to load sync status.');
+                    }
+                }
+            }
+        };
+
+        pollStatus();
+        const interval = window.setInterval(pollStatus, 5000);
+        return () => {
+            window.clearInterval(interval);
+            controller.abort();
+        };
+    }, [API_URL, billingSyncRequestId, syncRequestId, useLocalDbfSync]);
+
     const syncPayments = useCallback(async (isAuto = false) => {
         if (syncLoading) {
             return;
@@ -176,10 +253,10 @@ export default function useReportsPageState() {
             const response = await fetch(
                 `${API_URL}${useLocalDbfSync ? '/foxpro/payments/sync' : '/sync/request/payments'}`,
                 {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 },
             );
 
@@ -200,6 +277,9 @@ export default function useReportsPageState() {
                     ? `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`
                     : `Payments sync requested. Waiting for Server PC. (${timestamp})`,
             );
+            if (!useLocalDbfSync) {
+                setSyncRequestId(data.id);
+            }
         } catch (err) {
             console.error('Sync error:', err);
             setSyncError('Sync failed. Please try again.');
@@ -233,10 +313,10 @@ export default function useReportsPageState() {
             const response = await fetch(
                 `${API_URL}${useLocalDbfSync ? '/foxpro/billings/sync' : '/sync/request/billing'}`,
                 {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 },
             );
 
@@ -257,6 +337,9 @@ export default function useReportsPageState() {
                     ? `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`
                     : `Billing sync requested. Waiting for Server PC. (${timestamp})`,
             );
+            if (!useLocalDbfSync) {
+                setBillingSyncRequestId(data.id);
+            }
         } catch (err) {
             console.error('Billing sync error:', err);
             setBillingSyncError('Sync failed. Please try again.');
