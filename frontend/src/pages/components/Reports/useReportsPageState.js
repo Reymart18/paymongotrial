@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 export default function useReportsPageState() {
     const navigate = useNavigate();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const syncMode = import.meta.env.VITE_SYNC_MODE || 'push_api';
+    const useLocalDbfSync = syncMode === 'local_dbf';
     const userRole = localStorage.getItem('userRole');
     const adminLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
 
@@ -171,12 +173,15 @@ export default function useReportsPageState() {
         setSyncLoading(true);
 
         try {
-            const response = await fetch(`${API_URL}/foxpro/payments/sync`, {
+            const response = await fetch(
+                `${API_URL}${useLocalDbfSync ? '/foxpro/payments/sync' : '/sync/request/payments'}`,
+                {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
-            });
+                },
+            );
 
             const data = await response.json();
 
@@ -191,7 +196,9 @@ export default function useReportsPageState() {
             });
 
             setSyncStatus(
-                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`,
+                useLocalDbfSync
+                    ? `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`
+                    : `Payments sync requested. Waiting for Server PC. (${timestamp})`,
             );
         } catch (err) {
             console.error('Sync error:', err);
@@ -199,7 +206,7 @@ export default function useReportsPageState() {
         } finally {
             setSyncLoading(false);
         }
-    }, [API_URL, syncLoading]);
+    }, [API_URL, syncLoading, useLocalDbfSync]);
 
     const handleSyncPayments = async (event) => {
         event.preventDefault();
@@ -223,12 +230,15 @@ export default function useReportsPageState() {
         setBillingSyncLoading(true);
 
         try {
-            const response = await fetch(`${API_URL}/foxpro/billings/sync`, {
+            const response = await fetch(
+                `${API_URL}${useLocalDbfSync ? '/foxpro/billings/sync' : '/sync/request/billing'}`,
+                {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
-            });
+                },
+            );
 
             const data = await response.json();
 
@@ -243,7 +253,9 @@ export default function useReportsPageState() {
             });
 
             setBillingSyncStatus(
-                `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`,
+                useLocalDbfSync
+                    ? `Sync complete: ${data.inserted} inserted, ${data.updated} updated, ${data.skipped} skipped. (${timestamp})`
+                    : `Billing sync requested. Waiting for Server PC. (${timestamp})`,
             );
         } catch (err) {
             console.error('Billing sync error:', err);
@@ -251,7 +263,7 @@ export default function useReportsPageState() {
         } finally {
             setBillingSyncLoading(false);
         }
-    }, [API_URL, billingSyncLoading]);
+    }, [API_URL, billingSyncLoading, useLocalDbfSync]);
 
     const handleSyncBillings = async (event) => {
         event.preventDefault();
