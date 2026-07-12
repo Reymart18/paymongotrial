@@ -8,6 +8,7 @@ import { getSyncMode } from './sync-mode.util';
 type SyncResult = {
     inserted?: number;
     updated?: number;
+    deleted?: number;
     skipped?: number;
     errors?: string[];
 };
@@ -113,6 +114,15 @@ export class SyncService {
         return this.recordReceiveResult('payments', records.length, result, requestId);
     }
 
+    async reconcilePayments(body: unknown) {
+        const payload = body as { referenceNumbers?: unknown };
+        if (!Array.isArray(payload?.referenceNumbers)) {
+            throw new BadRequestException('Payment reconciliation requires a referenceNumbers array.');
+        }
+
+        return this.foxproService.reconcilePaymentsFromJson(payload.referenceNumbers);
+    }
+
     async receiveBillings(body: unknown) {
         const { records, requestId } = this.resolvePayload(body);
         const result = await this.foxproService.syncBillingsFromJson(records);
@@ -157,7 +167,10 @@ export class SyncService {
         result: SyncResult,
         requestId?: number,
     ) {
-        const recordsUpdated = Number(result.inserted || 0) + Number(result.updated || 0);
+        const recordsUpdated =
+            Number(result.inserted || 0) +
+            Number(result.updated || 0) +
+            Number(result.deleted || 0);
 
         if (requestId) {
             const request = await this.getRequestOrFail(requestId);

@@ -101,6 +101,7 @@ export class PropertyService {
                     end: endDate,
                 })
                 .andWhere('LOWER(TRIM(payment.paycat)) = :paycat', { paycat: 'membership dues' })
+                .andWhere('(payment.isDeletedFromFoxpro = false OR payment.isDeletedFromFoxpro IS NULL)')
                 .getRawOne();
 
             paidTotal = Number(raw?.totalPaid ?? 0);
@@ -179,6 +180,7 @@ export class PropertyService {
                 .createQueryBuilder('payment')
                 .select('payment.accountId', 'accountId')
                 .addSelect('SUM(payment.amountPaid)', 'totalPaid')
+                .where('(payment.isDeletedFromFoxpro = false OR payment.isDeletedFromFoxpro IS NULL)')
                 .groupBy('payment.accountId')
                 .getRawMany();
 

@@ -266,7 +266,7 @@ export class AdminService {
     }> {
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -459,7 +459,7 @@ export class AdminService {
     }> {
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -564,7 +564,7 @@ export class AdminService {
 
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -708,7 +708,7 @@ export class AdminService {
     }> {
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -891,7 +891,7 @@ export class AdminService {
     }> {
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -1075,7 +1075,7 @@ export class AdminService {
     }> {
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -1261,7 +1261,7 @@ export class AdminService {
     }> {
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {

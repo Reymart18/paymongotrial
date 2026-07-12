@@ -202,6 +202,42 @@ export class FoxproService {
         );
     }
 
+    async reconcilePaymentsFromJson(referenceNumbers: unknown[]) {
+        const normalizedRefs = Array.from(new Set(
+            referenceNumbers
+                .map((value) => this.cleanText(value))
+                .filter(Boolean),
+        ));
+
+        if (normalizedRefs.length === 0) {
+            throw new BadRequestException('Payment reconciliation requires at least one reference number.');
+        }
+
+        const cutoff = this.getPaymentsCutoffDate();
+        const result = await this.paymentRepo
+            .createQueryBuilder()
+            .update(FoxproPayment)
+            .set({
+                isDeletedFromFoxpro: true,
+                deletedFromFoxproAt: new Date(),
+            })
+            .where('referenceNumber IS NOT NULL')
+            .andWhere('paymentDate >= :cutoff', { cutoff })
+            .andWhere('referenceNumber NOT IN (:...referenceNumbers)', { referenceNumbers: normalizedRefs })
+            .andWhere('(isDeletedFromFoxpro = false OR isDeletedFromFoxpro IS NULL)')
+            .execute();
+
+        const deleted = result.affected || 0;
+        if (deleted > 0) {
+            await this.propertyService.recalculateBalances();
+        }
+
+        return {
+            deleted,
+            referenceNumbersChecked: normalizedRefs.length,
+        };
+    }
+
     async syncMembersFromJson(records: Array<Record<string, unknown>>) {
         return this.saveMemberRecords(records.map((record) => this.normalizePushedMemberRecord(record)));
     }
@@ -744,6 +780,8 @@ export class FoxproService {
                         description: record.description || '',
                         paycat: record.paycat ?? null,
                         referenceNumber: record.referenceNumber ?? null,
+                        isDeletedFromFoxpro: false,
+                        deletedFromFoxproAt: null,
                     };
                     const existing = existingByRef.get(record.referenceNumber ?? '') ?? null;
 
@@ -779,6 +817,8 @@ export class FoxproService {
                     description: record.description || '',
                     paycat: record.paycat ?? null,
                     referenceNumber: null,
+                    isDeletedFromFoxpro: false,
+                    deletedFromFoxproAt: null,
                 };
 
                 const existing = await paymentRepo.findOne({
@@ -1131,6 +1171,8 @@ export class FoxproService {
             description: string;
             paycat: string | null;
             referenceNumber: string | null;
+            isDeletedFromFoxpro?: boolean;
+            deletedFromFoxproAt?: Date | null;
         },
     ): boolean {
         const existingDateKey = this.toDateKey(existing.paymentDate);
@@ -1142,7 +1184,9 @@ export class FoxproService {
             Number(existing.amountPaid || 0) !== Number(payload.amountPaid || 0) ||
             (existing.description || '') !== (payload.description || '') ||
             (existing.paycat ?? null) !== payload.paycat ||
-            (existing.referenceNumber ?? null) !== payload.referenceNumber
+            (existing.referenceNumber ?? null) !== payload.referenceNumber ||
+            Boolean(existing.isDeletedFromFoxpro) !== Boolean(payload.isDeletedFromFoxpro) ||
+            Boolean(existing.deletedFromFoxproAt) !== Boolean(payload.deletedFromFoxproAt)
         );
     }
 

@@ -96,6 +96,12 @@ export class SyncController {
     }
 
     @UseGuards(SyncApiKeyGuard)
+    @Post('payments/reconcile')
+    reconcilePayments(@Body() body: unknown) {
+        return this.syncService.reconcilePayments(body);
+    }
+
+    @UseGuards(SyncApiKeyGuard)
     @Post('billings')
     receiveBillings(@Body() body: unknown) {
         return this.syncService.receiveBillings(body);

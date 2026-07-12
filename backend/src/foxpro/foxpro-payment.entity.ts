@@ -39,6 +39,12 @@ export class FoxproPayment {
     @Column({ type: 'varchar', length: 50, nullable: true, default: null })
     referenceNumber?: string | null;
 
+    @Column({ type: 'boolean', default: false })
+    isDeletedFromFoxpro?: boolean;
+
+    @Column({ type: 'datetime', nullable: true })
+    deletedFromFoxproAt?: Date | null;
+
     @CreateDateColumn({ type: 'datetime' })
     created_at?: Date;
 

@@ -53,6 +53,7 @@ export class StatementsService {
                 where: {
                     accountId,
                     paymentDate: MoreThanOrEqual(paymentCutoff),
+                    isDeletedFromFoxpro: false,
                 },
                 order: { paymentDate: 'ASC' },
             }),

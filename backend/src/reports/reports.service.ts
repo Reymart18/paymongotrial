@@ -112,7 +112,7 @@ export class ReportsService {
 
         const [billings, payments] = await Promise.all([
             this.billingRepo.find({ relations: ['account'], order: { dueDate: 'DESC' } }),
-            this.paymentRepo.find(),
+            this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -273,6 +273,7 @@ export class ReportsService {
             .where('payment.paymentDate >= :start', { start })
             .andWhere('payment.paymentDate <= :end', { end })
             .andWhere("LOWER(payment.paycat) = 'membership dues'")
+            .andWhere('(payment.isDeletedFromFoxpro = false OR payment.isDeletedFromFoxpro IS NULL)')
             .getRawOne();
 
         let billed = Number(billedResult?.total || 0);
@@ -340,7 +341,9 @@ export class ReportsService {
                 order: { dueDate: 'DESC' },
             }),
             this.paymentRepo.find({
-                where: accountId ? { accountId } : undefined,
+                where: accountId
+                    ? { accountId, isDeletedFromFoxpro: false }
+                    : { isDeletedFromFoxpro: false },
             }),
         ]);
 
