@@ -4,6 +4,8 @@ export default function QuarterDueModal({
     quarter,
     filter,
     onFilterChange,
+    amountFilter,
+    onAmountFilterChange,
     onPrint,
     onClose,
     formatDate,
@@ -25,7 +27,7 @@ export default function QuarterDueModal({
                         <h2 className="text-lg font-semibold text-slate-900">Net Collection (This Quarter)</h2>
                         <p className="text-xs text-slate-500">Quarter: Q{quarter} {year}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Classification
                             <select
@@ -38,6 +40,19 @@ export default function QuarterDueModal({
                                 <option value="ALL">All</option>
                                 <option value="HOMEOWNER">Homeowner</option>
                                 <option value="LOT OWNER">Lot Owner</option>
+                            </select>
+                        </label>
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Amount Due
+                            <select
+                                id="quarter-due-amount-filter"
+                                name="quarterDueAmountFilter"
+                                value={amountFilter}
+                                onChange={(event) => onAmountFilterChange(event.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                            >
+                                <option value="ALL">All</option>
+                                <option value="AMOUNT_DUE_10000_PLUS">PHP 10,000 and above</option>
                             </select>
                         </label>
                     </div>

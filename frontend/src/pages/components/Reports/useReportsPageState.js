@@ -58,6 +58,7 @@ export default function useReportsPageState() {
     const [quarterDueError, setQuarterDueError] = useState('');
     const [showQuarterDueModal, setShowQuarterDueModal] = useState(false);
     const [quarterDueFilter, setQuarterDueFilter] = useState('ALL');
+    const [quarterDueAmountFilter, setQuarterDueAmountFilter] = useState('ALL');
     const [currentPaymentCardIndex, setCurrentPaymentCardIndex] = useState(0);
     const [currentBillingCardIndex, setCurrentBillingCardIndex] = useState(0);
 
@@ -129,16 +130,31 @@ export default function useReportsPageState() {
         });
     }, [outstandingFilter, outstandingItems]);
     const filteredQuarterDueItems = useMemo(() => {
-        if (quarterDueFilter === 'ALL') {
-            return quarterDueItems;
-        }
-
         const normalizedFilter = quarterDueFilter.toLowerCase();
         return quarterDueItems.filter((item) => {
-            const classification = String(item?.classification || '').toLowerCase();
-            return classification === normalizedFilter;
+            if (quarterDueFilter !== 'ALL') {
+                const classification = String(item?.classification || '').toLowerCase();
+                if (classification !== normalizedFilter) {
+                    return false;
+                }
+            }
+
+            if (quarterDueAmountFilter === 'AMOUNT_DUE_10000_PLUS') {
+                return Number(item?.amountDue || 0) >= 10000;
+            }
+
+            return true;
         });
-    }, [quarterDueFilter, quarterDueItems]);
+    }, [quarterDueAmountFilter, quarterDueFilter, quarterDueItems]);
+
+    const quarterDueFilterLabel = useMemo(() => {
+        const classificationLabel = quarterDueFilter === 'ALL' ? 'All classifications' : quarterDueFilter;
+        const amountLabel = quarterDueAmountFilter === 'AMOUNT_DUE_10000_PLUS'
+            ? 'Amount Due PHP 10,000 and above'
+            : 'All amount due';
+
+        return `${classificationLabel}; ${amountLabel}`;
+    }, [quarterDueAmountFilter, quarterDueFilter]);
 
     const handlePrevPaymentCard = () => {
         setCurrentPaymentCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
@@ -870,7 +886,7 @@ export default function useReportsPageState() {
             </head>
             <body>
                 <h1>Net Collection (This Quarter)</h1>
-                <p>Quarter: Q${quarter} ${year}. Filter: ${quarterDueFilter}.</p>
+                <p>Quarter: Q${quarter} ${year}. Filters: ${quarterDueFilterLabel}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -1118,6 +1134,8 @@ export default function useReportsPageState() {
                 quarter,
                 filter: quarterDueFilter,
                 onFilterChange: setQuarterDueFilter,
+                amountFilter: quarterDueAmountFilter,
+                onAmountFilterChange: setQuarterDueAmountFilter,
                 onPrint: handlePrintQuarterDue,
                 onClose: () => setShowQuarterDueModal(false),
                 formatDate,

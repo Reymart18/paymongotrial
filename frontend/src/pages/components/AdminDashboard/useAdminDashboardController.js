@@ -15,6 +15,13 @@ export default function useAdminDashboardController() {
     const [activityItems, setActivityItems] = useState([]);
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityError, setActivityError] = useState('');
+    const [activityPage, setActivityPage] = useState(1);
+    const [activityMeta, setActivityMeta] = useState({
+        page: 1,
+        limit: 6,
+        total: 0,
+        totalPages: 1,
+    });
     const [settledItems, setSettledItems] = useState([]);
     const [settledLoading, setSettledLoading] = useState(false);
     const [settledError, setSettledError] = useState('');
@@ -181,7 +188,7 @@ export default function useAdminDashboardController() {
             setActivityError('');
 
             try {
-                const response = await fetch(`${API_URL}/admin/activities?limit=6`, {
+                const response = await fetch(`${API_URL}/admin/activities?limit=6&page=${activityPage}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -203,7 +210,24 @@ export default function useAdminDashboardController() {
                     return;
                 }
 
-                setActivityItems(Array.isArray(data) ? data : []);
+                if (Array.isArray(data)) {
+                    setActivityItems(data);
+                    setActivityMeta({
+                        page: activityPage,
+                        limit: 6,
+                        total: data.length,
+                        totalPages: 1,
+                    });
+                    return;
+                }
+
+                setActivityItems(Array.isArray(data?.items) ? data.items : []);
+                setActivityMeta({
+                    page: Number(data?.page || activityPage),
+                    limit: Number(data?.limit || 6),
+                    total: Number(data?.total || 0),
+                    totalPages: Number(data?.totalPages || 1),
+                });
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     console.error('Fetch activity error:', err);
@@ -217,7 +241,7 @@ export default function useAdminDashboardController() {
         fetchActivities();
 
         return () => controller.abort();
-    }, [API_URL]);
+    }, [API_URL, activityPage]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -1080,6 +1104,9 @@ export default function useAdminDashboardController() {
         activityItems,
         activityLoading,
         activityError,
+        activityPage,
+        activityMeta,
+        setActivityPage,
         activityTitle,
         formatTimestamp,
         formatDate,

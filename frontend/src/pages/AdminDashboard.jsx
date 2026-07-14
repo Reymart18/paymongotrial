@@ -66,6 +66,9 @@ export default function AdminDashboard() {
                             activityLoading={dashboard.activityLoading}
                             activityError={dashboard.activityError}
                             activityItems={dashboard.activityItems}
+                            activityPage={dashboard.activityPage}
+                            activityMeta={dashboard.activityMeta}
+                            onActivityPageChange={dashboard.setActivityPage}
                             activityTitle={dashboard.activityTitle}
                             formatTimestamp={dashboard.formatTimestamp}
                         />

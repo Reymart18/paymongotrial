@@ -226,14 +226,17 @@ export class AdminController {
     async getRecentActivities(
         @Request() req: AuthenticatedRequest,
         @Query('limit') limit?: string,
+        @Query('page') page?: string,
     ) {
         if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can access this resource');
         }
 
         const parsedLimit = limit ? Number(limit) : undefined;
+        const parsedPage = page ? Number(page) : undefined;
         return this.adminService.getRecentActivities(
             Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+            Number.isFinite(parsedPage) ? parsedPage : undefined,
         );
     }
 

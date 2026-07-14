@@ -61,12 +61,28 @@ export class AdminService {
         return this.activityRepo.save(activity);
     }
 
-    async getRecentActivities(limit?: number): Promise<AdminActivity[]> {
-        const resolvedLimit = Number.isFinite(limit) ? (limit as number) : 10;
-        return this.activityRepo.find({
+    async getRecentActivities(limit?: number, page?: number): Promise<{
+        items: AdminActivity[];
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    }> {
+        const resolvedLimit = Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit as number) : 6, 1), 50);
+        const resolvedPage = Math.max(Number.isFinite(page) ? Math.floor(page as number) : 1, 1);
+        const [items, total] = await this.activityRepo.findAndCount({
             order: { createdAt: 'DESC' },
             take: resolvedLimit,
+            skip: (resolvedPage - 1) * resolvedLimit,
         });
+
+        return {
+            items,
+            page: resolvedPage,
+            limit: resolvedLimit,
+            total,
+            totalPages: Math.max(Math.ceil(total / resolvedLimit), 1),
+        };
     }
 
     async createAdmin(username: string, password: string, fullName: string, role: string = 'admin'): Promise<Admin> {
