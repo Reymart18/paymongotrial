@@ -5,6 +5,8 @@ export default function AccountsReportModal({
     title,
     subtitle,
     items,
+    filter,
+    onFilterChange,
     billingLabel,
     amountHeader,
     amountClassName,
@@ -19,6 +21,9 @@ export default function AccountsReportModal({
         return null;
     }
 
+    const hasClassificationFilter = typeof onFilterChange === 'function';
+    const filterId = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-classification-filter`;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
             <div className="absolute inset-0 bg-black/50 no-print" onClick={onClose} />
@@ -28,7 +33,23 @@ export default function AccountsReportModal({
                         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
                         <p className="text-xs text-slate-500">{subtitle}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2 no-print">
+                    <div className="flex flex-wrap items-end gap-2 no-print">
+                        {hasClassificationFilter && (
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Classification
+                                <select
+                                    id={filterId}
+                                    name={filterId}
+                                    value={filter}
+                                    onChange={(event) => onFilterChange(event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                >
+                                    <option value="ALL">All</option>
+                                    <option value="HOMEOWNER">Homeowner</option>
+                                    <option value="LOT OWNER">Lot Owner</option>
+                                </select>
+                            </label>
+                        )}
                         <button
                             onClick={onPrint}
                             className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"

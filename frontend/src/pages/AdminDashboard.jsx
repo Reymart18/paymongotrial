@@ -81,7 +81,9 @@ export default function AdminDashboard() {
                 onPrint={dashboard.handlePrintSettled}
                 title="Settled Accounts"
                 subtitle="Amount due/excess equals 0.00 for the current billing period."
-                items={dashboard.settledItems}
+                items={dashboard.filteredSettledItems}
+                filter={dashboard.settledFilter}
+                onFilterChange={dashboard.setSettledFilter}
                 billingLabel={dashboard.settledBillingLabel}
                 amountHeader="Amount Due / Excess"
                 amountClassName="text-slate-600"
@@ -97,7 +99,9 @@ export default function AdminDashboard() {
                 onPrint={dashboard.handlePrintOverpaid}
                 title="Overpaid Accounts"
                 subtitle={`Amount Due / Excess as of ${dashboard.formatDateKey(dashboard.overpaidBillingEndDateKey)}.`}
-                items={dashboard.overpaidItems}
+                items={dashboard.filteredOverpaidItems}
+                filter={dashboard.overpaidFilter}
+                onFilterChange={dashboard.setOverpaidFilter}
                 billingLabel={dashboard.overpaidBillingLabel}
                 amountHeader="Amount Due / Excess"
                 amountClassName="font-semibold text-rose-600"
@@ -113,7 +117,9 @@ export default function AdminDashboard() {
                 onPrint={dashboard.handlePrintUnpaid}
                 title="Unpaid Accounts"
                 subtitle={`Amount Due as of ${dashboard.formatDateKey(dashboard.unpaidBillingEndDateKey)}.`}
-                items={dashboard.unpaidItems}
+                items={dashboard.filteredUnpaidItems}
+                filter={dashboard.unpaidFilter}
+                onFilterChange={dashboard.setUnpaidFilter}
                 billingLabel={dashboard.unpaidBillingLabel}
                 amountHeader="Amount Due"
                 amountClassName="font-semibold text-rose-600"

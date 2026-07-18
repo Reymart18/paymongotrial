@@ -27,18 +27,21 @@ export default function useAdminDashboardController() {
     const [settledError, setSettledError] = useState('');
     const [settledBillingLabel, setSettledBillingLabel] = useState('-');
     const [showSettledModal, setShowSettledModal] = useState(false);
+    const [settledFilter, setSettledFilter] = useState('ALL');
     const [unpaidItems, setUnpaidItems] = useState([]);
     const [unpaidLoading, setUnpaidLoading] = useState(false);
     const [unpaidError, setUnpaidError] = useState('');
     const [unpaidBillingLabel, setUnpaidBillingLabel] = useState('-');
     const [unpaidBillingEndDateKey, setUnpaidBillingEndDateKey] = useState(null);
     const [showUnpaidModal, setShowUnpaidModal] = useState(false);
+    const [unpaidFilter, setUnpaidFilter] = useState('ALL');
     const [overpaidItems, setOverpaidItems] = useState([]);
     const [overpaidLoading, setOverpaidLoading] = useState(false);
     const [overpaidError, setOverpaidError] = useState('');
     const [overpaidBillingLabel, setOverpaidBillingLabel] = useState('-');
     const [overpaidBillingEndDateKey, setOverpaidBillingEndDateKey] = useState(null);
     const [showOverpaidModal, setShowOverpaidModal] = useState(false);
+    const [overpaidFilter, setOverpaidFilter] = useState('ALL');
     const [notGoodStandingItems, setNotGoodStandingItems] = useState([]);
     const [notGoodStandingLoading, setNotGoodStandingLoading] = useState(false);
     const [notGoodStandingError, setNotGoodStandingError] = useState('');
@@ -300,17 +303,34 @@ export default function useAdminDashboardController() {
         maximumFractionDigits: 2,
     }).format(Number(value || 0));
 
-    const filteredNotGoodStandingItems = useMemo(() => {
-        if (notGoodStandingFilter === 'ALL') {
-            return notGoodStandingItems;
+    const filterAccountsByClassification = useCallback((items, filter) => {
+        if (filter === 'ALL') {
+            return items;
         }
 
-        const normalizedFilter = notGoodStandingFilter.toLowerCase();
-        return notGoodStandingItems.filter((item) => {
+        const normalizedFilter = filter.toLowerCase();
+        return items.filter((item) => {
             const classification = String(item?.classification || '').toLowerCase();
             return classification === normalizedFilter;
         });
-    }, [notGoodStandingFilter, notGoodStandingItems]);
+    }, []);
+
+    const filteredSettledItems = useMemo(
+        () => filterAccountsByClassification(settledItems, settledFilter),
+        [filterAccountsByClassification, settledFilter, settledItems],
+    );
+    const filteredUnpaidItems = useMemo(
+        () => filterAccountsByClassification(unpaidItems, unpaidFilter),
+        [filterAccountsByClassification, unpaidFilter, unpaidItems],
+    );
+    const filteredOverpaidItems = useMemo(
+        () => filterAccountsByClassification(overpaidItems, overpaidFilter),
+        [filterAccountsByClassification, overpaidFilter, overpaidItems],
+    );
+
+    const filteredNotGoodStandingItems = useMemo(() => {
+        return filterAccountsByClassification(notGoodStandingItems, notGoodStandingFilter);
+    }, [filterAccountsByClassification, notGoodStandingFilter, notGoodStandingItems]);
 
     const activityTitle = (activity) => {
         switch (activity?.action) {
@@ -419,7 +439,7 @@ export default function useAdminDashboardController() {
             return;
         }
 
-        const rowsHtml = settledItems.map((item, index) => {
+        const rowsHtml = filteredSettledItems.map((item, index) => {
             return `
                 <tr>
                     <td>${index + 1}</td>
@@ -456,7 +476,7 @@ export default function useAdminDashboardController() {
             </head>
             <body>
                 <h1>Settled Accounts</h1>
-                <p>Amount due/excess equals 0.00 for the current billing period (${settledBillingLabel || '-'}).</p>
+                <p>Amount due/excess equals 0.00 for the current billing period (${settledBillingLabel || '-'}). Classification: ${settledFilter}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -845,7 +865,7 @@ export default function useAdminDashboardController() {
             return;
         }
 
-        const rowsHtml = overpaidItems.map((item, index) => {
+        const rowsHtml = filteredOverpaidItems.map((item, index) => {
             return `
                 <tr>
                     <td>${index + 1}</td>
@@ -882,7 +902,7 @@ export default function useAdminDashboardController() {
             </head>
             <body>
                 <h1>Overpaid Accounts</h1>
-                <p>Amount Due / Excess as of ${formattedAsOf}.</p>
+                <p>Amount Due / Excess as of ${formattedAsOf}. Classification: ${overpaidFilter}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -918,9 +938,9 @@ export default function useAdminDashboardController() {
             return;
         }
 
-        const totalAmountDue = unpaidItems.reduce((sum, item) => sum + Number(item.amountDue || 0), 0);
+        const totalAmountDue = filteredUnpaidItems.reduce((sum, item) => sum + Number(item.amountDue || 0), 0);
 
-        const rowsHtml = unpaidItems.map((item, index) => {
+        const rowsHtml = filteredUnpaidItems.map((item, index) => {
             return `
                 <tr>
                     <td>${index + 1}</td>
@@ -957,7 +977,7 @@ export default function useAdminDashboardController() {
             </head>
             <body>
                 <h1>Unpaid Accounts</h1>
-                <p>Amount Due as of ${formattedAsOf}.</p>
+                <p>Amount Due as of ${formattedAsOf}. Classification: ${unpaidFilter}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -1124,18 +1144,24 @@ export default function useAdminDashboardController() {
         overpaidLoading,
         notGoodStandingLoading,
         paymentsReportLoading,
-        settledItems,
+        filteredSettledItems,
+        settledFilter,
+        setSettledFilter,
         settledBillingLabel,
         showSettledModal,
         setShowSettledModal,
         handlePrintSettled,
-        overpaidItems,
+        filteredOverpaidItems,
+        overpaidFilter,
+        setOverpaidFilter,
         overpaidBillingLabel,
         overpaidBillingEndDateKey,
         showOverpaidModal,
         setShowOverpaidModal,
         handlePrintOverpaid,
-        unpaidItems,
+        filteredUnpaidItems,
+        unpaidFilter,
+        setUnpaidFilter,
         unpaidBillingLabel,
         unpaidBillingEndDateKey,
         showUnpaidModal,

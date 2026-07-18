@@ -715,6 +715,7 @@ export class AdminService {
         items: Array<{
             accountId: string;
             memberName: string;
+            classification: string | null;
             neighborhood: string;
             block: string;
             lot: string;
@@ -811,6 +812,7 @@ export class AdminService {
         const items: Array<{
             accountId: string;
             memberName: string;
+            classification: string | null;
             neighborhood: string;
             block: string;
             lot: string;
@@ -875,6 +877,7 @@ export class AdminService {
             items.push({
                 accountId,
                 memberName: account?.memberName ?? '-',
+                classification: account?.classification ?? null,
                 neighborhood: account?.neighborhood ?? '-',
                 block: account?.block ?? '-',
                 lot: account?.lot ?? '-',
@@ -898,6 +901,7 @@ export class AdminService {
         items: Array<{
             accountId: string;
             memberName: string;
+            classification: string | null;
             neighborhood: string;
             block: string;
             lot: string;
@@ -994,6 +998,7 @@ export class AdminService {
         const items: Array<{
             accountId: string;
             memberName: string;
+            classification: string | null;
             neighborhood: string;
             block: string;
             lot: string;
@@ -1058,6 +1063,7 @@ export class AdminService {
             items.push({
                 accountId,
                 memberName: account?.memberName ?? '-',
+                classification: account?.classification ?? null,
                 neighborhood: account?.neighborhood ?? '-',
                 block: account?.block ?? '-',
                 lot: account?.lot ?? '-',
