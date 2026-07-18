@@ -19,4 +19,7 @@ export class Admin {
 
     @Column({ default: true })
     passwordChanged?: boolean;
+
+    @Column({ default: false })
+    hiddenFromPortal?: boolean;
 }

@@ -98,7 +98,7 @@ export class AdminService {
     }
 
     async getAllAdmins(): Promise<Admin[]> {
-        return this.adminRepo.find();
+        return this.adminRepo.find({ where: { hiddenFromPortal: false } });
     }
 
     async getAdminById(id: number): Promise<Admin | null> {

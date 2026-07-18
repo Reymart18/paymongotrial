@@ -80,12 +80,12 @@ export default function MembersTable({
                                 <td className="hidden px-2 py-2 text-xs sm:table-cell md:px-4 md:py-4 md:text-sm"><PreviewButtons accountId={account.accountId} isWaterPreviewing={previewingWaterAccountId === account.accountId} onPreviewSoa={onPreviewSoa} onPreviewWater={onPreviewWater} /></td>
                                 <td className="px-2 py-2 text-center text-xs md:px-4 md:py-4 md:text-sm">
                                     <div className="mb-1 flex flex-col items-center sm:hidden"><PreviewButtons accountId={account.accountId} isWaterPreviewing={previewingWaterAccountId === account.accountId} onPreviewSoa={onPreviewSoa} onPreviewWater={onPreviewWater} /></div>
-                                    {isSuperAdmin ? (
-                                        <div className="flex items-center justify-center gap-0.5">
-                                            <button type="button" onClick={() => onView(account)} className="p-2 text-[#E89B58] transition hover:text-[#d88a47]" title="View"><ViewIcon /></button>
+                                    <div className="flex items-center justify-center gap-0.5">
+                                        <button type="button" onClick={() => onView(account)} className="p-2 text-[#E89B58] transition hover:text-[#d88a47]" title="View"><ViewIcon /></button>
+                                        {isSuperAdmin && (
                                             <button type="button" onClick={() => onDelete(account.accountId)} className="p-2 text-red-500 transition hover:text-red-700" title="Delete"><DeleteIcon /></button>
-                                        </div>
-                                    ) : <span className="text-xs text-slate-400">View only</span>}
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))}
