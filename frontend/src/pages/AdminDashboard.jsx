@@ -26,7 +26,7 @@ export default function AdminDashboard() {
             )}
             <DashboardNav
                 onLogout={dashboard.handleLogout}
-                accountId={dashboard.adminLabel}
+                accountId={dashboard.adminName}
                 classification={dashboard.adminLabel}
                 onSidebarToggle={toggleSidebar}
                 avatarImage={pvhaiImg}

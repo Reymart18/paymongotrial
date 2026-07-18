@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Admin } from './admin.entity';
@@ -92,6 +92,7 @@ export class AdminService {
             password: hashedPassword,
             fullName,
             role,
+            passwordChanged: false,
         });
         return this.adminRepo.save(admin);
     }
@@ -121,7 +122,26 @@ export class AdminService {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         admin.password = hashedPassword;
+        admin.passwordChanged = false;
         return this.adminRepo.save(admin);
+    }
+
+    async changePassword(id: number, oldPassword: string, newPassword: string): Promise<{ success: boolean }> {
+        const admin = await this.adminRepo.findOne({ where: { id } });
+        if (!admin || !admin.password) {
+            throw new NotFoundException('Admin not found');
+        }
+
+        const passwordMatches = await bcrypt.compare(oldPassword, admin.password);
+        if (!passwordMatches) {
+            throw new UnauthorizedException('Current password is incorrect');
+        }
+
+        admin.password = await bcrypt.hash(newPassword, 10);
+        admin.passwordChanged = true;
+        await this.adminRepo.save(admin);
+
+        return { success: true };
     }
 
     async getAllPropertyAccounts() {

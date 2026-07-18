@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearAdminIdentity, getAdminDisplayName, getAdminRoleLabel } from '../../../utils/adminIdentity';
 
 export default function useReportsPageState() {
     const navigate = useNavigate();
@@ -7,7 +8,8 @@ export default function useReportsPageState() {
     const syncMode = import.meta.env.VITE_SYNC_MODE || 'push_api';
     const useLocalDbfSync = syncMode === 'local_dbf';
     const userRole = localStorage.getItem('userRole');
-    const adminLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
+    const adminName = getAdminDisplayName();
+    const adminLabel = getAdminRoleLabel(userRole);
 
     const today = new Date();
     const defaultYear = today.getFullYear();
@@ -1035,10 +1037,12 @@ export default function useReportsPageState() {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
+        clearAdminIdentity();
         navigate('/login');
     };
 
     return {
+        adminName,
         adminLabel,
         error,
         year,

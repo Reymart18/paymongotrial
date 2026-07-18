@@ -4,8 +4,9 @@ import Sidebar from './components/HomeownerDashboard/Sidebar';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import AdminStatusMessage from './components/AdminDashboard/AdminStatusMessage';
 import pvhaiImg from '../images/pvhai.png';
+import { clearAdminIdentity, getAdminDisplayName, getAdminRoleLabel } from '../utils/adminIdentity';
 
-const getAdminRoleLabel = (role) => (role === 'super_admin' ? 'Super admin' : 'BOD');
+const getAdminFormRoleLabel = (role) => (role === 'super_admin' ? 'Super admin' : 'BOD');
 
 export default function EmployeesPage() {
     const [admins, setAdmins] = useState([]);
@@ -27,8 +28,12 @@ export default function EmployeesPage() {
     const [resetTarget, setResetTarget] = useState(null);
     const [resetPassword, setResetPassword] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
+    const adminName = getAdminDisplayName();
+    const adminLabel = getAdminRoleLabel();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -83,6 +88,7 @@ export default function EmployeesPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
+        clearAdminIdentity();
         navigate('/login');
     };
 
@@ -108,7 +114,7 @@ export default function EmployeesPage() {
         }
 
         setFormLoading(true);
-        const selectedRoleLabel = getAdminRoleLabel(formValues.role);
+        const selectedRoleLabel = getAdminFormRoleLabel(formValues.role);
 
         try {
             const response = await fetch(`${API_URL}/admin/create`, {
@@ -203,12 +209,21 @@ export default function EmployeesPage() {
         }
     };
 
-    const handleDeleteAdmin = async (admin) => {
+    const handleDeleteAdmin = (admin) => {
         setActionStatus('');
         setActionError('');
+        setDeleteTarget(admin);
+    };
 
-        const confirmed = window.confirm(`Delete BOD account ${admin.username}?`);
-        if (!confirmed) {
+    const closeDeleteModal = () => {
+        if (deleteLoading) {
+            return;
+        }
+        setDeleteTarget(null);
+    };
+
+    const confirmDeleteAdmin = async () => {
+        if (!deleteTarget) {
             return;
         }
 
@@ -218,8 +233,10 @@ export default function EmployeesPage() {
             return;
         }
 
+        setDeleteLoading(true);
+
         try {
-            const response = await fetch(`${API_URL}/admin/${admin.id}`, {
+            const response = await fetch(`${API_URL}/admin/${deleteTarget.id}`, {
                 method: 'DELETE',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -234,10 +251,13 @@ export default function EmployeesPage() {
             }
 
             setActionStatus('Admin account deleted.');
+            setDeleteTarget(null);
             await loadAdmins(token);
         } catch (err) {
             console.error('Delete admin error:', err);
             setActionError('Delete failed. Please try again.');
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -254,8 +274,8 @@ export default function EmployeesPage() {
 
             <DashboardNav
                 onLogout={handleLogout}
-                accountId="SUPER ADMIN"
-                classification="SUPER ADMIN"
+                accountId={adminName}
+                classification={adminLabel}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
                 avatarImage={pvhaiImg}
             />
@@ -356,9 +376,9 @@ export default function EmployeesPage() {
                         </section>
 
                         {showResetModal && resetTarget && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                            <div className="fixed inset-0 z-[9999] flex min-h-screen w-screen items-center justify-center overflow-y-auto bg-black/40 px-4 py-8">
                                 <div
-                                    className="absolute inset-0 bg-black/40"
+                                    className="absolute inset-0"
                                     onClick={() => {
                                         if (resetLoading) {
                                             return;
@@ -408,6 +428,46 @@ export default function EmployeesPage() {
                                             </button>
                                         </div>
                                     </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {deleteTarget && (
+                            <div className="fixed inset-0 z-[9999] flex min-h-screen w-screen items-center justify-center overflow-y-auto bg-black/40 px-4 py-8">
+                                <div
+                                    className="absolute inset-0"
+                                    onClick={closeDeleteModal}
+                                />
+                                <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                                            <span className="text-lg font-bold">!</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-base font-semibold text-slate-900">Delete Account</h3>
+                                            <p className="mt-1 text-sm text-slate-600">
+                                                Are you sure you want to delete {deleteTarget.username}? This action cannot be undone.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex flex-wrap justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                                            onClick={closeDeleteModal}
+                                            disabled={deleteLoading}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="rounded-md bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                                            onClick={confirmDeleteAdmin}
+                                            disabled={deleteLoading}
+                                        >
+                                            {deleteLoading ? 'Deleting...' : 'Delete Account'}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -475,7 +535,7 @@ export default function EmployeesPage() {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleDeleteAdmin(admin)}
-                                                                className="rounded-md bg-rose-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-rose-700"
+                                                                className="rounded-md bg-red-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-red-700"
                                                             >
                                                                 Delete
                                                             </button>

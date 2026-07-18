@@ -16,4 +16,7 @@ export class Admin {
 
     @Column({ default: 'admin' })
     role?: string;
+
+    @Column({ default: true })
+    passwordChanged?: boolean;
 }

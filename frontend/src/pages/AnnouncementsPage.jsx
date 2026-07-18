@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import AnnouncementForm from './components/Announcements/AnnouncementForm';
 import AnnouncementsFeed from './components/Announcements/AnnouncementsFeed';
 import AnnouncementsHeader from './components/Announcements/AnnouncementsHeader';
@@ -9,6 +10,8 @@ import Sidebar from './components/HomeownerDashboard/Sidebar';
 import pvhaiImg from '../images/pvhai.png';
 
 export default function AnnouncementsPage() {
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const page = useAnnouncementsController();
     const toggleSidebar = () => page.setSidebarOpen((isOpen) => !isOpen);
     const closeSidebar = () => page.setSidebarOpen(false);
@@ -25,6 +28,32 @@ export default function AnnouncementsPage() {
         ? page.handleSaveEdit
         : page.handleAddAnnouncement;
     const visibleAnnouncementCount = page.visibleAnnouncements.length;
+
+    const openDeleteModal = (announcementId) => {
+        const announcement = page.announcements.find((item) => item.id === announcementId);
+        setDeleteTarget(announcement || { id: announcementId });
+    };
+
+    const closeDeleteModal = () => {
+        if (deleteLoading) {
+            return;
+        }
+        setDeleteTarget(null);
+    };
+
+    const confirmDeleteAnnouncement = async () => {
+        if (!deleteTarget?.id) {
+            return;
+        }
+
+        setDeleteLoading(true);
+        const deleted = await page.handleDeleteAnnouncement(deleteTarget.id);
+        setDeleteLoading(false);
+
+        if (deleted) {
+            setDeleteTarget(null);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -84,7 +113,7 @@ export default function AnnouncementsPage() {
                             formatTarget={page.formatTarget}
                             getAnnouncementImageUrl={page.getAnnouncementImageUrl}
                             isSuperAdmin={canManageAnnouncements}
-                            onDeleteAnnouncement={page.handleDeleteAnnouncement}
+                            onDeleteAnnouncement={openDeleteModal}
                             onEditAnnouncement={page.handleEditAnnouncement}
                             onViewImage={page.setViewingImage}
                             recentAnnouncements={page.recentAnnouncements}
@@ -97,6 +126,42 @@ export default function AnnouncementsPage() {
                 image={page.viewingImage}
                 onClose={closeImageViewer}
             />
+            {deleteTarget && (
+                <div className="fixed inset-0 z-[9999] flex min-h-screen w-screen items-center justify-center overflow-y-auto bg-black/40 px-4 py-8">
+                    <div className="absolute inset-0" onClick={closeDeleteModal} />
+                    <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
+                                <span className="text-lg font-bold">!</span>
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-slate-900">Delete Announcement</h3>
+                                <p className="mt-1 text-sm text-slate-600">
+                                    Are you sure you want to delete {deleteTarget.title ? `"${deleteTarget.title}"` : 'this announcement'}? This action cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-6 flex flex-wrap justify-end gap-2">
+                            <button
+                                type="button"
+                                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                                onClick={closeDeleteModal}
+                                disabled={deleteLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="rounded-md bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                                onClick={confirmDeleteAnnouncement}
+                                disabled={deleteLoading}
+                            >
+                                {deleteLoading ? 'Deleting...' : 'Delete Announcement'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

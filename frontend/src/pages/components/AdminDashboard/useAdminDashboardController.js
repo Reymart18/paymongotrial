@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearAdminIdentity, getAdminDisplayName, getAdminRoleLabel } from '../../../utils/adminIdentity';
 
 export default function useAdminDashboardController() {
     const [summary, setSummary] = useState({
@@ -76,7 +77,8 @@ export default function useAdminDashboardController() {
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const userRole = localStorage.getItem('userRole');
-    const adminLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
+    const adminName = getAdminDisplayName();
+    const adminLabel = getAdminRoleLabel(userRole);
 
     const fetchSyncStatus = useCallback(async (signal) => {
         const token = localStorage.getItem('token');
@@ -353,6 +355,7 @@ export default function useAdminDashboardController() {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
+        clearAdminIdentity();
         navigate('/login');
     };
 
@@ -1110,6 +1113,7 @@ export default function useAdminDashboardController() {
     ].filter((message) => message.value);
 
     return {
+        adminName,
         adminLabel,
         alertMessages,
         sidebarOpen,

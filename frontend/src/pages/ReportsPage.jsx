@@ -14,6 +14,7 @@ import toIcon from '../images/to.png';
 
 export default function ReportsPage() {
     const {
+        adminName,
         adminLabel,
         error,
         year,
@@ -47,7 +48,7 @@ export default function ReportsPage() {
 
             <DashboardNav
                 onLogout={handleLogout}
-                accountId={adminLabel}
+                accountId={adminName}
                 classification={adminLabel}
                 onSidebarToggle={toggleSidebar}
                 avatarImage={pvhaiImg}

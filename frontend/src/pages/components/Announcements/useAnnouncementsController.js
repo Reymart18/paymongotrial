@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { clearAdminIdentity, getAdminDisplayName, getAdminRoleLabel } from '../../../utils/adminIdentity';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const blankAnnouncement = { title: '', content: '', target: 'all' };
@@ -27,7 +28,8 @@ export default function useAnnouncementsController() {
     const isStaff = role === 'admin' || role === 'super_admin';
     const isSuperAdmin = role === 'super_admin';
     const isBodOnlyView = location.pathname.includes('/admin/bod-announcements');
-    const adminLabel = role === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
+    const adminName = getAdminDisplayName();
+    const adminLabel = getAdminRoleLabel(role);
     const accountIdKey = localStorage.getItem('accountId') || role || 'unknown';
     const announcementReadKey = `announcementsLastReadAt:${accountIdKey}`;
 
@@ -64,6 +66,7 @@ export default function useAnnouncementsController() {
                         setAnnouncementsError('Session expired. Please log in again.');
                         localStorage.removeItem('token');
                         localStorage.removeItem('userRole');
+                        clearAdminIdentity();
                         navigate('/login');
                         return;
                     }
@@ -104,7 +107,7 @@ export default function useAnnouncementsController() {
         }
 
         if (isStaff) {
-            setAccountId(adminLabel);
+            setAccountId(adminName);
             return;
         }
 
@@ -281,8 +284,6 @@ export default function useAnnouncementsController() {
     };
 
     const handleDeleteAnnouncement = async (id) => {
-        if (!confirm('Are you sure you want to delete this announcement?')) return;
-
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/announcements/${id}`, {
@@ -292,14 +293,16 @@ export default function useAnnouncementsController() {
 
             if (!response.ok) {
                 const data = await response.json();
-                alert(data.message || 'Failed to delete announcement');
-                return;
+                setAnnouncementsError(data.message || 'Failed to delete announcement');
+                return false;
             }
 
             setAnnouncements(announcements.filter((ann) => ann.id !== id));
+            return true;
         } catch (err) {
             console.error('Delete announcement error:', err);
-            alert('Failed to delete announcement');
+            setAnnouncementsError('Failed to delete announcement');
+            return false;
         }
     };
 
@@ -307,6 +310,7 @@ export default function useAnnouncementsController() {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
+        clearAdminIdentity();
         navigate('/login');
     };
 

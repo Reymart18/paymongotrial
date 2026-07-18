@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearAdminIdentity } from '../../../utils/adminIdentity';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -57,6 +58,7 @@ export default function useLoginPageController() {
     };
 
     const storeHomeownerSession = (data) => {
+        clearAdminIdentity();
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('userRole', 'homeowner');
         localStorage.setItem('accountId', data.accountId || accountId);
@@ -110,6 +112,20 @@ export default function useLoginPageController() {
             if (data.access_token) {
                 localStorage.setItem('token', data.access_token);
                 localStorage.setItem('userRole', data.role || 'admin');
+                localStorage.setItem('adminUsername', data.username || username.trim());
+                if (data.fullName) {
+                    localStorage.setItem('adminFullName', data.fullName);
+                } else {
+                    localStorage.removeItem('adminFullName');
+                }
+
+                if (data.requirePasswordChange) {
+                    localStorage.setItem('mustChangePassword', 'true');
+                    navigate('/admin/change-password');
+                    return;
+                }
+
+                localStorage.removeItem('mustChangePassword');
                 navigate('/admin/dashboard');
             }
         } catch (err) {

@@ -102,6 +102,27 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Post('change-password')
+    async changePassword(
+        @Body() body: { oldPassword: string; newPassword: string },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can change admin passwords');
+        }
+
+        if (!body?.oldPassword || !body?.newPassword || body.newPassword.trim().length < 8) {
+            throw new BadRequestException('New password must be at least 8 characters');
+        }
+
+        return this.adminService.changePassword(
+            req.user.id,
+            body.oldPassword,
+            body.newPassword.trim(),
+        );
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Post(':adminId/reset-password')
     async resetAdminPassword(
         @Param('adminId') adminId: string,

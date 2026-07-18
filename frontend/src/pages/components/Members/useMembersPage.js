@@ -200,7 +200,7 @@ export default function useMembersPage() {
     };
 
     const deleteAccount = async (accountId) => {
-        if (!isSuperAdmin || !window.confirm(`Delete property account ${accountId}? This will remove related billing and payment records.`)) return;
+        if (!isSuperAdmin) return;
         const token = localStorage.getItem('token');
         if (!token) return setError('Session expired. Please log in again.');
         try {

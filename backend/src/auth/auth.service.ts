@@ -43,6 +43,9 @@ export class AuthService {
         return {
             access_token: this.jwtService.sign(payload),
             role: admin.role ?? 'admin',
+            username: admin.username,
+            fullName: admin.fullName,
+            requirePasswordChange: admin.passwordChanged === false,
         };
     }
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
+import { clearAdminIdentity } from '../utils/adminIdentity';
 
 export default function ChangePassword() {
     const [oldPassword, setOldPassword] = useState('');
@@ -14,6 +15,10 @@ export default function ChangePassword() {
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const userRole = localStorage.getItem('userRole');
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const changePasswordEndpoint = isAdmin ? '/admin/change-password' : '/property/change-password';
+    const dashboardPath = isAdmin ? '/admin/dashboard' : '/homeowner/dashboard';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -44,7 +49,7 @@ export default function ChangePassword() {
         setLoading(true);
 
         try {
-            const response = await fetch(`${API_URL}/property/change-password`, {
+            const response = await fetch(`${API_URL}${changePasswordEndpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -62,7 +67,7 @@ export default function ChangePassword() {
 
             setStatus('Password updated. Redirecting to dashboard...');
             localStorage.removeItem('mustChangePassword');
-            setTimeout(() => navigate('/homeowner/dashboard'), 800);
+            setTimeout(() => navigate(dashboardPath), 800);
         } catch (err) {
             console.error('Change password error:', err);
             setError('Password update failed. Please try again.');
@@ -73,32 +78,53 @@ export default function ChangePassword() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+            {!isAdmin && <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />}
 
             {/* Overlay for mobile when sidebar is open */}
-            {sidebarOpen && (
+            {!isAdmin && sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/50 z-30 md:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
-            <DashboardNav
-                onLogout={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('userRole');
-                    localStorage.removeItem('accountId');
-                    navigate('/login');
-                }}
-                onProfile={() => navigate('/homeowner/profile')}
-                accountId={localStorage.getItem('accountId') || 'User'}
-                classification="HOMEOWNER"
-                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
-            />
+            {!isAdmin && (
+                <DashboardNav
+                    onLogout={() => {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('userRole');
+                        localStorage.removeItem('accountId');
+                        localStorage.removeItem('mustChangePassword');
+                        navigate('/login');
+                    }}
+                    onProfile={() => navigate('/homeowner/profile')}
+                    accountId={localStorage.getItem('accountId') || 'User'}
+                    classification="HOMEOWNER"
+                    onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+                />
+            )}
 
-            <div className="flex flex-1 md:ml-64">
+            <div className={`flex flex-1 ${isAdmin ? '' : 'md:ml-64'}`}>
                 <main className="flex-1 overflow-auto">
                     <div className="space-y-6 px-4 md:px-6 py-6 md:py-8">
+                        {isAdmin && (
+                            <div className="mx-auto flex w-full max-w-lg justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        localStorage.removeItem('token');
+                                        localStorage.removeItem('userRole');
+                                        localStorage.removeItem('accountId');
+                                        localStorage.removeItem('mustChangePassword');
+                                        clearAdminIdentity();
+                                        navigate('/login');
+                                    }}
+                                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    Log out
+                                </button>
+                            </div>
+                        )}
                         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                             <h3 className="text-base font-semibold text-slate-800">Change Password</h3>
                             <div className="mt-3 rounded-lg border-l-4 border-indigo-500 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">

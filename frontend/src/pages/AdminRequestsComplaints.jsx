@@ -8,12 +8,14 @@ import SubmissionQueue from './components/AdminRequestsComplaints/SubmissionQueu
 import SubmissionSummaryCards from './components/AdminRequestsComplaints/SubmissionSummaryCards';
 import useAdminSubmissions from './components/AdminRequestsComplaints/useAdminSubmissions';
 import pvhaiImg from '../images/pvhai.png';
+import { clearAdminIdentity, getAdminDisplayName, getAdminRoleLabel } from '../utils/adminIdentity';
 
 export default function AdminRequestsComplaints() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
     const role = localStorage.getItem('userRole');
-    const adminLabel = role === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN';
+    const adminName = getAdminDisplayName();
+    const adminLabel = getAdminRoleLabel(role);
     const {
         apiUrl,
         requests,
@@ -29,6 +31,7 @@ export default function AdminRequestsComplaints() {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('accountId');
+        clearAdminIdentity();
         navigate('/login');
     };
 
@@ -90,7 +93,7 @@ export default function AdminRequestsComplaints() {
             {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />}
             <DashboardNav
                 onLogout={handleLogout}
-                accountId={adminLabel}
+                accountId={adminName}
                 classification={adminLabel}
                 onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
                 avatarImage={pvhaiImg}

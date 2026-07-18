@@ -23,6 +23,8 @@ import PortalAccessGuide from './pages/PortalAccessGuide';
 function ProtectedRoute({ children, requiredRole }) {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
+  const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+  const currentPath = window.location.pathname;
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -39,6 +41,16 @@ function ProtectedRoute({ children, requiredRole }) {
 
     if (!allowedRoles.includes(userRole)) {
       return <Navigate to="/login" replace />;
+    }
+  }
+
+  if (mustChangePassword) {
+    if (userRole === 'homeowner' && currentPath !== '/homeowner/change-password') {
+      return <Navigate to="/homeowner/change-password" replace />;
+    }
+
+    if ((userRole === 'admin' || userRole === 'super_admin') && currentPath !== '/admin/change-password') {
+      return <Navigate to="/admin/change-password" replace />;
     }
   }
 
@@ -87,6 +99,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="super_admin">
               <EmployeesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/change-password"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <ChangePassword />
             </ProtectedRoute>
           }
         />
