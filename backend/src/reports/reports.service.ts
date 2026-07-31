@@ -203,9 +203,6 @@ export class ReportsService {
             }
 
             const amountDue = balanceTotal + currentChargesTotal - membershipPayments;
-            if (toCents(amountDue) <= 5000) {
-                continue;
-            }
 
             const accountPayments = paymentsByAccount.get(accountId) || [];
             const lastPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
