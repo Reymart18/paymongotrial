@@ -12,9 +12,8 @@ export default function QuarterDueModal({
     formatMoney,
 }) {
     const totalCollectibles = items.reduce((sum, item) => {
-        const currentCharges = Number(item.currentChargesTotal || 0);
         const amountDue = Number(item.amountDue || 0);
-        const collectibles = Math.max(0, Math.min(amountDue, currentCharges));
+        const collectibles = Math.max(0, amountDue);
         return sum + collectibles;
     }, 0);
 
