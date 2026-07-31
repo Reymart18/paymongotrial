@@ -164,8 +164,14 @@ export default function Sidebar({ isOpen = false, onToggle }) {
 
         const count = announcementCount + serviceSubmissionCount;
         localStorage.setItem('homeownerSidebarNotificationCount', String(count));
+        localStorage.setItem('homeownerAnnouncementNotificationCount', String(announcementCount));
+        localStorage.setItem('homeownerServiceSubmissionNotificationCount', String(serviceSubmissionCount));
         window.dispatchEvent(new CustomEvent('homeowner-sidebar-notifications', {
-            detail: { count },
+            detail: {
+                count,
+                announcementCount,
+                serviceSubmissionCount,
+            },
         }));
     }, [announcementCount, isAdmin, serviceSubmissionCount]);
 
