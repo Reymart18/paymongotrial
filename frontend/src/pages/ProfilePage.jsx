@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import avatarImg from '../images/avatar.png';
+import HomeownerBottomNav from './components/HomeownerDashboard/HomeownerBottomNav';
 
 const defaultPropertyDetails = {
     neighborhood: 'N/A',
@@ -186,7 +187,7 @@ export default function ProfilePage() {
                 </div>
             </header>
 
-            <main className="w-full overflow-x-hidden">
+            <main className="w-full overflow-x-hidden pb-24 md:pb-0">
                 <div className="mx-auto max-w-6xl px-4 py-5 md:px-18 md:py-10">
                     <section className="rounded-lg border border-orange-100 bg-white p-4 shadow-sm md:rounded-2xl md:border-0 md:bg-[#E89B58]/30 md:p-7 md:shadow-none">
                         <div className="flex items-center gap-4 md:gap-5">
@@ -267,6 +268,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </main>
+            <HomeownerBottomNav />
         </div>
     );
 }

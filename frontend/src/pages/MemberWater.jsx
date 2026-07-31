@@ -4,6 +4,7 @@ import cbIcon from '../images/cb.png';
 import pbIcon from '../images/pb.png';
 import toIcon from '../images/to.png';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
+import HomeownerBottomNav from './components/HomeownerDashboard/HomeownerBottomNav';
 import HomeownerStatusMessage from './components/HomeownerDashboard/HomeownerStatusMessage';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import WaterBillHistory from './components/HomeownerDashboard/WaterBillHistory';
@@ -14,7 +15,6 @@ export default function MemberWater() {
     const [latestWaterBill, setLatestWaterBill] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -120,26 +120,19 @@ export default function MemberWater() {
 
     return (
         <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
+            <Sidebar isOpen={false} />
 
             <DashboardNav
                 onLogout={handleLogout}
                 onProfile={() => navigate('/homeowner/profile')}
                 accountId={accountId}
                 classification={account?.classification || 'Loading...'}
-                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
+            <HomeownerBottomNav />
 
             <div className="flex flex-1 transition-all duration-300 md:ml-64">
                 <main className="flex-1 overflow-auto">
-                    <div className="space-y-8 px-4 py-6 md:px-6 md:py-8">
+                    <div className="space-y-8 px-4 py-6 pb-24 md:px-6 md:py-8 md:pb-8">
                         {loading && (
                             <HomeownerStatusMessage variant="loading" message="Loading water dashboard..." />
                         )}

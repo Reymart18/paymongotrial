@@ -1,6 +1,7 @@
 import DashboardCards from './components/HomeownerDashboard/DashboardCards';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import HomeownerDashboardNotices from './components/HomeownerDashboard/HomeownerDashboardNotices';
+import HomeownerBottomNav from './components/HomeownerDashboard/HomeownerBottomNav';
 import HomeownerStatusMessage from './components/HomeownerDashboard/HomeownerStatusMessage';
 import MustChangePasswordModal from './components/HomeownerDashboard/MustChangePasswordModal';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
@@ -9,38 +10,28 @@ import useHomeownerDashboardController from './components/HomeownerDashboard/use
 
 export default function HomeownerDashboard() {
     const dashboard = useHomeownerDashboardController();
-    const toggleSidebar = () => dashboard.setSidebarOpen((isOpen) => !isOpen);
-    const closeSidebar = () => dashboard.setSidebarOpen(false);
     const hasAccount = !dashboard.loading && !dashboard.error && dashboard.account;
     const shouldShowDashboard = Boolean(hasAccount);
     const shouldShowPasswordModal = Boolean(hasAccount && dashboard.mustChangePassword);
     const accountClassification = dashboard.account?.classification || 'Loading...';
     const pageClassName = 'min-h-screen bg-slate-50 text-slate-900 flex flex-col';
-    const contentClassName = 'space-y-6 px-4 md:px-6 py-6 md:py-8';
+    const contentClassName = 'space-y-6 px-4 md:px-6 py-6 pb-24 md:py-8 md:pb-8';
     const previewSoa = () => dashboard.navigate(`/soa-preview/${dashboard.accountId}`);
     const changePassword = () => dashboard.navigate('/homeowner/change-password');
 
     return (
         <div className={pageClassName}>
             <Sidebar
-                isOpen={dashboard.sidebarOpen}
-                onToggle={toggleSidebar}
+                isOpen={false}
             />
-
-            {dashboard.sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
-                    onClick={closeSidebar}
-                />
-            )}
 
             <DashboardNav
                 onLogout={dashboard.handleLogout}
                 onProfile={dashboard.handleProfile}
                 accountId={dashboard.accountId}
                 classification={accountClassification}
-                onSidebarToggle={toggleSidebar}
             />
+            <HomeownerBottomNav />
 
             <div className="flex flex-1 transition-all duration-300 md:ml-64">
                 <main className="flex-1 overflow-auto">

@@ -6,6 +6,7 @@ import AnnouncementsStatus from './components/Announcements/AnnouncementsStatus'
 import ImageViewerModal from './components/Announcements/ImageViewerModal';
 import useAnnouncementsController from './components/Announcements/useAnnouncementsController';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
+import HomeownerBottomNav from './components/HomeownerDashboard/HomeownerBottomNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import pvhaiImg from '../images/pvhai.png';
 
@@ -57,8 +58,8 @@ export default function AnnouncementsPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-            <Sidebar isOpen={page.sidebarOpen} onToggle={toggleSidebar} />
-            {page.sidebarOpen && (
+            <Sidebar isOpen={page.isStaff ? page.sidebarOpen : false} onToggle={page.isStaff ? toggleSidebar : undefined} />
+            {page.isStaff && page.sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/50 z-30 md:hidden"
                     onClick={closeSidebar}
@@ -69,12 +70,13 @@ export default function AnnouncementsPage() {
                 onProfile={page.handleProfile}
                 accountId={page.accountId}
                 classification={dashboardClassification}
-                onSidebarToggle={toggleSidebar}
+                onSidebarToggle={page.isStaff ? toggleSidebar : undefined}
                 avatarImage={dashboardAvatar}
             />
+            {!page.isStaff && <HomeownerBottomNav />}
             <div className="flex flex-1 md:ml-64">
                 <main className="flex-1 overflow-auto">
-                    <div className="space-y-6 px-3 py-4 md:px-6 md:py-8">
+                    <div className={`space-y-6 px-3 py-4 md:px-6 md:py-8 ${page.isStaff ? '' : 'pb-24 md:pb-8'}`}>
                         <AnnouncementsHeader
                             announcementsError={page.announcementsError}
                             announcementsLoading={page.announcementsLoading}

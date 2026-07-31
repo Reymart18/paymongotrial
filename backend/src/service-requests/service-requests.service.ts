@@ -96,7 +96,12 @@ export class ServiceRequestsService {
       status: 'Under Review',
     });
 
-    return this.serviceRequestRepo.save(request);
+    const savedRequest = await this.serviceRequestRepo.save(request);
+
+    return {
+      ...savedRequest,
+      memberName: account.memberName,
+    };
   }
 
   async getForHomeowner(homeownerId: number) {
@@ -107,10 +112,15 @@ export class ServiceRequestsService {
       throw new NotFoundException('Property account not found');
     }
 
-    return this.serviceRequestRepo.find({
+    const requests = await this.serviceRequestRepo.find({
       where: { accountId: account.accountId },
       order: { createdAt: 'DESC' },
     });
+
+    return requests.map((request) => ({
+      ...request,
+      memberName: account.memberName,
+    }));
   }
 
   async createComplaintForHomeowner(
@@ -169,7 +179,12 @@ export class ServiceRequestsService {
       status: 'Under Review',
     });
 
-    return this.serviceComplaintRepo.save(complaint);
+    const savedComplaint = await this.serviceComplaintRepo.save(complaint);
+
+    return {
+      ...savedComplaint,
+      memberName: account.memberName,
+    };
   }
 
   async getComplaintsForHomeowner(homeownerId: number) {
@@ -180,10 +195,15 @@ export class ServiceRequestsService {
       throw new NotFoundException('Property account not found');
     }
 
-    return this.serviceComplaintRepo.find({
+    const complaints = await this.serviceComplaintRepo.find({
       where: { accountId: account.accountId },
       order: { createdAt: 'DESC' },
     });
+
+    return complaints.map((complaint) => ({
+      ...complaint,
+      memberName: account.memberName,
+    }));
   }
 
   async getAllForAdmin() {

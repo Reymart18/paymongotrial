@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ComplaintForm from './components/RequestComplaint/ComplaintForm';
 import RequestForm from './components/RequestComplaint/RequestForm';
@@ -6,10 +5,10 @@ import ServicesLanding from './components/RequestComplaint/ServicesLanding';
 import SubmissionDetailsModal from './components/RequestComplaint/SubmissionDetailsModal';
 import useResidentSubmissions from './components/RequestComplaint/useResidentSubmissions';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
+import HomeownerBottomNav from './components/HomeownerDashboard/HomeownerBottomNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 
 export default function RequestComplaint() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
     const accountId = localStorage.getItem('accountId') || '';
     const propertyDetails = JSON.parse(localStorage.getItem('propertyDetails') || '{}');
@@ -68,28 +67,22 @@ export default function RequestComplaint() {
     return (
         <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
             <Sidebar
-                isOpen={sidebarOpen}
-                onToggle={() => setSidebarOpen(!sidebarOpen)}
+                isOpen={false}
             />
-
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
 
             <DashboardNav
                 onLogout={handleLogout}
                 onProfile={() => navigate('/homeowner/profile')}
                 accountId={accountId}
                 classification={propertyDetails.classification || 'Homeowner'}
-                onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
             />
+            <HomeownerBottomNav />
 
             <div className="flex flex-1 md:ml-64">
                 <main className="flex-1 overflow-auto">
-                    {renderActiveView()}
+                    <div className="pb-24 md:pb-0">
+                        {renderActiveView()}
+                    </div>
                 </main>
             </div>
 

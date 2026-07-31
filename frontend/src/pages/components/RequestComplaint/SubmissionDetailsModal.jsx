@@ -10,6 +10,7 @@ export default function SubmissionDetailsModal({ apiUrl, onClose, submission }) 
     if (!submission) return null;
     const isComplaint = submission.submissionKind === 'complaint';
     const referenceNumber = requestReference(submission);
+    const memberName = submission.memberName || submission.account?.memberName || '-';
 
     const handleExportPdf = () => {
         const doc = new jsPDF('p', 'pt', 'a4');
@@ -79,12 +80,12 @@ export default function SubmissionDetailsModal({ apiUrl, onClose, submission }) 
             y = 148;
         };
         const drawMetaCard = () => {
-            const cardHeight = 106;
+            const cardHeight = 148;
             doc.setFillColor(255, 255, 255);
             doc.setDrawColor(...colors.border);
             doc.roundedRect(margin, y, contentWidth, cardHeight, 8, 8, 'FD');
             doc.setFillColor(...colors.brandSoft);
-            doc.roundedRect(margin + 14, y + 18, 128, 44, 6, 6, 'F');
+            doc.roundedRect(margin + 14, y + 18, 128, 54, 6, 6, 'F');
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
@@ -100,6 +101,8 @@ export default function SubmissionDetailsModal({ apiUrl, onClose, submission }) 
                 ['Submission Type', isComplaint ? 'Complaint' : 'Request'],
                 ['Submitted', formatOptionalDate(submission.createdAt)],
                 ['Account ID', submission.accountId || '-'],
+                ['Member Name', memberName],
+                ['Status', status],
                 ['Receipt Generated', formatDate(new Date())],
             ];
 
