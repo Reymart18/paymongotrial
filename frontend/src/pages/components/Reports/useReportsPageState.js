@@ -862,8 +862,8 @@ export default function useReportsPageState() {
         }).join('');
 
         const totalCollectibles = filteredQuarterDueItems.reduce((sum, item) => {
-            const amountDue = Number(item.amountDue || 0);
-            const collectibles = Math.max(0, amountDue);
+            const currentCharges = Number(item.currentChargesTotal || 0);
+            const collectibles = Math.max(0, currentCharges);
             return sum + collectibles;
         }, 0);
 
