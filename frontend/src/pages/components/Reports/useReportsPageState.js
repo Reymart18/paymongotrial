@@ -134,6 +134,10 @@ export default function useReportsPageState() {
     const filteredQuarterDueItems = useMemo(() => {
         const normalizedFilter = quarterDueFilter.toLowerCase();
         return quarterDueItems.filter((item) => {
+            if (Number(item?.amountDue || 0) <= 0 || Number(item?.currentChargesTotal || 0) <= 0) {
+                return false;
+            }
+
             if (quarterDueFilter !== 'ALL') {
                 const classification = String(item?.classification || '').toLowerCase();
                 if (classification !== normalizedFilter) {
