@@ -224,7 +224,8 @@ export class AdminService {
                 gmail: account.gmail,
                 temporaryPassword,
             });
-        } catch {
+        } catch (err) {
+            console.error('Reset member password email error:', err);
             account.password = previousPassword;
             account.passwordChanged = previousPasswordChanged;
             await this.propertyRepo.save(account);
