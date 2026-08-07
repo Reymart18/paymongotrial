@@ -17,6 +17,9 @@ export default function ReportsSummaryCards({
     outstandingLoading,
     outstandingTotal,
     outstandingReportLoading,
+    receivablesTotal,
+    receivablesLoading,
+    receivablesError,
     quarterDueLoading,
     quarterDueError,
     outstandingError,
@@ -40,10 +43,10 @@ export default function ReportsSummaryCards({
             icon: icons.toIcon,
         },
         {
-            title: 'Net Collection (This Quarter)',
-            value: totals.outstanding,
-            comparison: comparison.outstandingPercent,
-            compareMode: 'inverse',
+            title: 'Total Receivables (This Quarter)',
+            value: receivablesTotal,
+            hideComparison: true,
+            loading: receivablesLoading,
             icon: icons.rpIcon,
             action: {
                 onClick: onGenerateQuarterDue,
@@ -51,7 +54,7 @@ export default function ReportsSummaryCards({
                 loadingLabel: 'Generating...',
                 label: 'Generate Report',
             },
-            error: quarterDueError,
+            error: receivablesError || quarterDueError,
         },
         {
             title: 'Total Outstanding (As of Today)',
@@ -89,7 +92,7 @@ export default function ReportsSummaryCards({
                             <p className="text-sm font-medium text-slate-600 whitespace-nowrap">{card.title}</p>
                         </div>
                         <div className="mt-3 text-2xl font-semibold text-slate-900 text-center">
-                            {loading || outstandingLoading ? 'Loading...' : (
+                            {loading || outstandingLoading || card.loading ? 'Loading...' : (
                                 <div className="flex flex-col">
                                     <span className="text-2xl text-gray-700">PHP</span>
                                     <span className="text-2xl font-bold">

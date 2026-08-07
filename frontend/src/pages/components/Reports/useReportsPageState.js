@@ -58,6 +58,8 @@ export default function useReportsPageState() {
     const [quarterDueItems, setQuarterDueItems] = useState([]);
     const [quarterDueLoading, setQuarterDueLoading] = useState(false);
     const [quarterDueError, setQuarterDueError] = useState('');
+    const [receivablesLoading, setReceivablesLoading] = useState(false);
+    const [receivablesError, setReceivablesError] = useState('');
     const [showQuarterDueModal, setShowQuarterDueModal] = useState(false);
     const [quarterDueFilter, setQuarterDueFilter] = useState('ALL');
     const [quarterDueAmountFilter, setQuarterDueAmountFilter] = useState('ALL');
@@ -105,6 +107,18 @@ export default function useReportsPageState() {
 
     const comparison = useMemo(() => report?.comparison || {}, [report]);
     const totals = useMemo(() => report?.totals || {}, [report]);
+    const calculateReceivablesTotal = useCallback((items) => (
+        items.reduce((sum, item) => {
+            const currentCharges = Number(item?.currentChargesTotal || 0);
+            const amountDue = Number(item?.amountDue || 0);
+
+            if (amountDue <= 0 || currentCharges <= 0) {
+                return sum;
+            }
+
+            return sum + Math.max(0, Math.min(amountDue, currentCharges));
+        }, 0)
+    ), []);
     const filteredOverdueItems = useMemo(() => {
         if (overdueFilter === 'ALL') {
             return overdueItems;
@@ -161,6 +175,10 @@ export default function useReportsPageState() {
 
         return `${classificationLabel}; ${amountLabel}`;
     }, [quarterDueAmountFilter, quarterDueFilter]);
+    const receivablesTotal = useMemo(
+        () => calculateReceivablesTotal(quarterDueItems),
+        [calculateReceivablesTotal, quarterDueItems],
+    );
 
     const handlePrevPaymentCard = () => {
         setCurrentPaymentCardIndex((prev) => (prev === 0 ? 1 : prev - 1));
@@ -891,7 +909,7 @@ export default function useReportsPageState() {
                 </style>
             </head>
             <body>
-                <h1>Net Collection (This Quarter)</h1>
+                <h1>Total Receivables (This Quarter)</h1>
                 <p>Quarter: Q${quarter} ${year}. Filters: ${quarterDueFilterLabel}.</p>
                 <table>
                     <thead>
@@ -909,7 +927,7 @@ export default function useReportsPageState() {
                     <tbody>
                         ${rowsHtml || '<tr><td colspan="8">No matching accounts found.</td></tr>'}
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: 600;">Total Collectibles (This Quarter)</td>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">Total Receivables (This Quarter)</td>
                             <td style="font-weight: 600;">PHP ${formatMoney(totalCollectibles)}</td>
                             <td></td>
                         </tr>
@@ -1005,6 +1023,48 @@ export default function useReportsPageState() {
             return;
         }
 
+        const fetchReceivables = async () => {
+            setReceivablesLoading(true);
+            setReceivablesError('');
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/reports/quarter-due-charges?year=${year}&quarter=${quarter}`,
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                    },
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    setReceivablesError(data.message || 'Failed to load total receivables.');
+                    return;
+                }
+
+                setQuarterDueItems(Array.isArray(data?.items) ? data.items : []);
+            } catch (err) {
+                console.error('Receivables total error:', err);
+                setReceivablesError('Failed to load total receivables. Please try again.');
+            } finally {
+                setReceivablesLoading(false);
+            }
+        };
+
+        fetchReceivables();
+    }, [API_URL, quarter, year]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('userRole');
+
+        if (!token || (role !== 'admin' && role !== 'super_admin')) {
+            return;
+        }
+
         const fetchOutstandingTotal = async () => {
             setOutstandingLoading(true);
             setOutstandingError('');
@@ -1063,6 +1123,9 @@ export default function useReportsPageState() {
             outstandingLoading,
             outstandingTotal,
             outstandingReportLoading,
+            receivablesTotal,
+            receivablesLoading,
+            receivablesError,
             quarterDueLoading,
             quarterDueError,
             outstandingError,

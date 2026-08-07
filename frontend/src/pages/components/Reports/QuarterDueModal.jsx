@@ -24,7 +24,7 @@ export default function QuarterDueModal({
             <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900">Net Collection (This Quarter)</h2>
+                        <h2 className="text-lg font-semibold text-slate-900">Total Receivables (This Quarter)</h2>
                         <p className="text-xs text-slate-500">Quarter: Q{quarter} {year}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -116,7 +116,7 @@ export default function QuarterDueModal({
                 </div>
                 <div className="mt-4 flex flex-col items-end gap-1 text-sm font-semibold text-slate-700">
                     <div>
-                        Total Collectibles (This Quarter): PHP {formatMoney(totalCollectibles)}
+                        Total Receivables (This Quarter): PHP {formatMoney(totalCollectibles)}
                     </div>
                 </div>
             </div>

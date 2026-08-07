@@ -35,18 +35,18 @@ export default function AdminDashboardCards({
             icon: cbIcon,
         },
         {
-            title: 'Settled Accounts',
-            value: Number.isFinite(settledAccountsCount)
-                ? String(settledAccountsCount)
-                : '0',
-            icon: rpIcon,
-        },
-        {
             title: 'Unpaid Accounts',
             value: Number.isFinite(unpaidAccountsCount)
                 ? String(unpaidAccountsCount)
                 : '0',
             icon: upIcon,
+        },
+        {
+            title: 'Settled Accounts (₱0)',
+            value: Number.isFinite(settledAccountsCount)
+                ? String(settledAccountsCount)
+                : '0',
+            icon: rpIcon,
         },
         {
             title: 'Overpaid Accounts',
@@ -74,7 +74,7 @@ export default function AdminDashboardCards({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10 mb-6">
             {cards.map((card, index) => {
                 const isCenteredBottomRow = cards.length === 5 && index >= 3;
-                const isSettledCard = card.title === 'Settled Accounts';
+                const isSettledCard = card.title === 'Settled Accounts (₱0)';
                 const isUnpaidCard = card.title === 'Unpaid Accounts';
                 const isOverpaidCard = card.title === 'Overpaid Accounts';
                 const isNotGoodStandingCard = card.title === 'Not In Good Standing (6+ Months Overdue)';
