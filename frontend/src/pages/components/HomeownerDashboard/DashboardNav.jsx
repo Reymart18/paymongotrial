@@ -105,7 +105,7 @@ export default function DashboardNav({ onLogout, onProfile, accountId, classific
                     {/* Dropdown Menu */}
                     {showProfileDropdown && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
-                            {onProfile && (
+                            {isHomeowner && onProfile && (
                                 <button
                                     onClick={() => {
                                         setShowProfileDropdown(false);
