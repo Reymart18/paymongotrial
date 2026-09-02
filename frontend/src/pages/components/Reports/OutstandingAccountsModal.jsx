@@ -8,6 +8,7 @@ export default function OutstandingAccountsModal({
     lastPaymentFilter,
     onLastPaymentFilterChange,
     onPrint,
+    onExportCsv,
     onClose,
     formatDate,
     formatMoney,
@@ -57,6 +58,13 @@ export default function OutstandingAccountsModal({
                         </label>
                     </div>
                     <div className="flex flex-wrap gap-2 no-print">
+                        <button
+                            onClick={onExportCsv}
+                            disabled={items.length === 0}
+                            className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Export CSV
+                        </button>
                         <button
                             onClick={onPrint}
                             className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"

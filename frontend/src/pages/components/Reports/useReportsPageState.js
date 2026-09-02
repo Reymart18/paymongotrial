@@ -872,6 +872,47 @@ export default function useReportsPageState() {
         printWindow.print();
     };
 
+    const handleExportOutstandingCsv = () => {
+        const escapeCsvCell = (value) => {
+            const text = String(value ?? '');
+            return `"${text.replace(/"/g, '""')}"`;
+        };
+        const headers = [
+            'Account ID',
+            'Member Name',
+            'Neighborhood',
+            'Block',
+            'Lot',
+            'Amount Due',
+            'Last Payment',
+            'Current Billing',
+        ];
+        const rows = filteredOutstandingItems.map((item) => [
+            item.accountId || '',
+            item.memberName || '',
+            item.neighborhood || '',
+            item.block || '',
+            item.lot || '',
+            Number(item.amountDue || 0).toFixed(2),
+            item.lastPaymentDate ? formatDate(item.lastPaymentDate) : '',
+            outstandingBillingLabel || '',
+        ]);
+        const csv = [headers, ...rows]
+            .map((row) => row.map(escapeCsvCell).join(','))
+            .join('\r\n');
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const exportedOn = new Date().toISOString().slice(0, 10);
+
+        link.href = url;
+        link.download = `outstanding-accounts-${exportedOn}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
     const handlePrintQuarterDue = () => {
         const printWindow = window.open('', '_blank', 'width=1100,height=800');
         if (!printWindow) {
@@ -1209,6 +1250,7 @@ export default function useReportsPageState() {
                 lastPaymentFilter: outstandingLastPaymentFilter,
                 onLastPaymentFilterChange: setOutstandingLastPaymentFilter,
                 onPrint: handlePrintOutstanding,
+                onExportCsv: handleExportOutstandingCsv,
                 onClose: () => setShowOutstandingModal(false),
                 formatDate,
                 formatMoney,
