@@ -19,7 +19,7 @@ export default function OutstandingAccountsModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
             <div className="absolute inset-0 bg-black/50 no-print" onClick={onClose} />
             <div className="relative z-10 w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4">
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">Outstanding Accounts</h2>
                         <p className="text-xs text-slate-500">
@@ -57,7 +57,7 @@ export default function OutstandingAccountsModal({
                             </select>
                         </label>
                     </div>
-                    <div className="flex flex-wrap gap-2 no-print">
+                    <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 no-print">
                         <button
                             onClick={onExportCsv}
                             disabled={items.length === 0}
