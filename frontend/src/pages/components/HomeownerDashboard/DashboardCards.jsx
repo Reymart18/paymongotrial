@@ -262,7 +262,35 @@ export default function DashboardCards({ account, statementRows }) {
             .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0);
     })();
 
-    const amountDue = currentBillingCharges + carryingBalanceTotal - currentPeriodPayments;
+    const adjustmentsThroughCurrentBilling = (() => {
+        if (!latestBilling?.dateTo) {
+            return 0;
+        }
+
+        const asOf = new Date(latestBilling.dateTo);
+        if (Number.isNaN(asOf.getTime())) {
+            return 0;
+        }
+
+        return rows
+            .filter((row) => row.type === 'adjustment')
+            .filter((row) => {
+                const adjustmentDate = new Date(row.date);
+                return !Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= asOf;
+            })
+            .reduce(
+                (sum, row) => sum
+                    + Number(row.amountDue || 0)
+                    + Number(row.interest || 0)
+                    + Number(row.penalty || 0),
+                0,
+            );
+    })();
+
+    const amountDue = currentBillingCharges
+        + carryingBalanceTotal
+        - currentPeriodPayments
+        + adjustmentsThroughCurrentBilling;
 
     const cards = [
         {

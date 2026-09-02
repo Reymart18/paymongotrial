@@ -165,4 +165,23 @@ export class FoxproController {
         });
         return result;
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('adjustments/sync')
+    async syncAdjustments(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can sync FoxPro adjustments');
+        }
+
+        const result = await this.foxproService.syncAdjustmentsFromDbf();
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'sync_adjustments_dbf',
+            targetType: 'foxpro_adjustments',
+            targetId: 'ADJUSTMENT.DBF',
+            details: `Inserted ${result.inserted}, updated ${result.updated}, skipped ${result.skipped}.`,
+        });
+        return result;
+    }
 }

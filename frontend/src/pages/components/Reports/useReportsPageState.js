@@ -55,6 +55,7 @@ export default function useReportsPageState() {
     const [showOutstandingModal, setShowOutstandingModal] = useState(false);
     const [outstandingReportLoading, setOutstandingReportLoading] = useState(false);
     const [outstandingFilter, setOutstandingFilter] = useState('ALL');
+    const [outstandingLastPaymentFilter, setOutstandingLastPaymentFilter] = useState('ALL');
     const [quarterDueItems, setQuarterDueItems] = useState([]);
     const [quarterDueLoading, setQuarterDueLoading] = useState(false);
     const [quarterDueError, setQuarterDueError] = useState('');
@@ -135,16 +136,28 @@ export default function useReportsPageState() {
         [filteredOverdueItems],
     );
     const filteredOutstandingItems = useMemo(() => {
-        if (outstandingFilter === 'ALL') {
-            return outstandingItems;
-        }
-
-        const normalizedFilter = outstandingFilter.toLowerCase();
         return outstandingItems.filter((item) => {
-            const classification = String(item?.classification || '').toLowerCase();
-            return classification === normalizedFilter;
+            if (outstandingFilter !== 'ALL') {
+                const classification = String(item?.classification || '').toLowerCase();
+                if (classification !== outstandingFilter.toLowerCase()) {
+                    return false;
+                }
+            }
+
+            if (outstandingLastPaymentFilter === 'BEFORE_2025') {
+                const lastPaymentDate = item?.lastPaymentDate
+                    ? new Date(item.lastPaymentDate)
+                    : null;
+                const cutoff = new Date('2025-01-01T00:00:00.000Z');
+
+                return !lastPaymentDate
+                    || Number.isNaN(lastPaymentDate.getTime())
+                    || lastPaymentDate < cutoff;
+            }
+
+            return true;
         });
-    }, [outstandingFilter, outstandingItems]);
+    }, [outstandingFilter, outstandingItems, outstandingLastPaymentFilter]);
     const filteredQuarterDueItems = useMemo(() => {
         const normalizedFilter = quarterDueFilter.toLowerCase();
         return quarterDueItems.filter((item) => {
@@ -824,7 +837,7 @@ export default function useReportsPageState() {
             </head>
             <body>
                 <h1>Outstanding Accounts</h1>
-                <p>Amount Due as of ${formattedAsOf}. Filter: ${outstandingFilter}.</p>
+                <p>Amount Due as of ${formattedAsOf}. Classification: ${outstandingFilter}; Last payment: ${outstandingLastPaymentFilter === 'BEFORE_2025' ? 'Before 2025' : 'All'}.</p>
                 <table>
                     <thead>
                         <tr>
@@ -1193,6 +1206,8 @@ export default function useReportsPageState() {
                 billingEndDateKey: outstandingBillingEndDateKey,
                 filter: outstandingFilter,
                 onFilterChange: setOutstandingFilter,
+                lastPaymentFilter: outstandingLastPaymentFilter,
+                onLastPaymentFilterChange: setOutstandingLastPaymentFilter,
                 onPrint: handlePrintOutstanding,
                 onClose: () => setShowOutstandingModal(false),
                 formatDate,

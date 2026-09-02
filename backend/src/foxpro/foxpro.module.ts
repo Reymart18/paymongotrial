@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
+import { FoxproAdjustment } from './foxpro-adjustment.entity';
 import { FoxproService } from './foxpro.service';
 import { FoxproController } from './foxpro.controller';
 import { FoxproSyncService } from './foxpro-sync.service';
@@ -13,7 +14,13 @@ import { QuarterlyReportSnapshot } from '../reports/quarterly-report.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([FoxproBilling, FoxproPayment, PropertyAccount, QuarterlyReportSnapshot]),
+        TypeOrmModule.forFeature([
+            FoxproBilling,
+            FoxproPayment,
+            FoxproAdjustment,
+            PropertyAccount,
+            QuarterlyReportSnapshot,
+        ]),
         AuthModule,
         PropertyModule,
         AdminModule,

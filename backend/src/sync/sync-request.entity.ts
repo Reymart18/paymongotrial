@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-export type SyncRequestType = 'members' | 'payments' | 'billing';
+export type SyncRequestType = 'members' | 'payments' | 'billing' | 'adjustments';
 export type SyncRequestStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 @Entity({ name: 'sync_requests' })

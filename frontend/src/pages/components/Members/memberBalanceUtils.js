@@ -48,7 +48,23 @@ export function calculateAccountSummary(statements) {
             .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0)
         : 0;
 
-    return { netBalance: carryingBalance + currentCharges - payments };
+    const adjustments = hasValidRange
+        ? statements
+            .filter((row) => row.type === 'adjustment')
+            .filter((row) => {
+                const date = new Date(row.date);
+                return !Number.isNaN(date.getTime()) && date <= end;
+            })
+            .reduce(
+                (sum, row) => sum
+                    + Number(row.amountDue || 0)
+                    + Number(row.interest || 0)
+                    + Number(row.penalty || 0),
+                0,
+            )
+        : 0;
+
+    return { netBalance: carryingBalance + currentCharges - payments + adjustments };
 }
 
 export function getBalanceStatus(balance) {

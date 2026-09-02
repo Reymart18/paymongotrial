@@ -6,6 +6,7 @@ import { PropertyAccount } from './property/property.entity';
 import { Billing } from './billing/billing.entity';
 import { FoxproBilling } from './foxpro/foxpro-billing.entity';
 import { FoxproPayment } from './foxpro/foxpro-payment.entity';
+import { FoxproAdjustment } from './foxpro/foxpro-adjustment.entity';
 import { AdminActivity } from './admin/admin-activity.entity';
 import { Announcement } from './announcements/announcement.entity';
 import { QuarterlyReportSnapshot } from './reports/quarterly-report.entity';
@@ -54,6 +55,7 @@ function shouldSynchronizeDatabase(): boolean {
         Billing,
         FoxproBilling,
         FoxproPayment,
+        FoxproAdjustment,
         Announcement,
         QuarterlyReportSnapshot,
         WaterBilling,
@@ -70,6 +72,7 @@ function shouldSynchronizeDatabase(): boolean {
       Billing,
       FoxproBilling,
       FoxproPayment,
+      FoxproAdjustment,
       Announcement,
       QuarterlyReportSnapshot,
       WaterBilling,

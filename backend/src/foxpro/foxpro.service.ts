@@ -14,6 +14,7 @@ import * as nodemailer from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
+import { FoxproAdjustment } from './foxpro-adjustment.entity';
 import { PropertyAccount } from '../property/property.entity';
 import { PropertyService } from '../property/property.service';
 import { QuarterlyReportSnapshot } from '../reports/quarterly-report.entity';
@@ -41,6 +42,15 @@ export interface FoxproPaymentRecord {
     description?: string;
     paycat?: string | null;
     referenceNumber?: string | null;
+}
+
+export interface FoxproAdjustmentRecord {
+    transDate?: Date | null;
+    principal: number;
+    interest: number;
+    accountId: string;
+    memberName?: string;
+    penalty: number;
 }
 
 export interface FoxproMemberRecord {
@@ -188,6 +198,17 @@ export class FoxproService {
         return this.saveMemberRecords(records);
     }
 
+    async syncAdjustmentsFromDbf(filePath?: string) {
+        assertLocalDbfMode();
+        const dbfPath = filePath ?? this.getAdjustmentsDbfPath();
+        if (!fs.existsSync(dbfPath)) {
+            throw new BadRequestException(`adjustment.dbf not found at ${dbfPath}`);
+        }
+
+        const records = await this.parseAdjustmentsDbf(dbfPath);
+        return this.saveAdjustmentRecords(records);
+    }
+
     async syncBillingsFromJson(records: Array<Record<string, unknown>>) {
         return this.saveBillingRecords(
             records.map((record) => this.normalizePushedBillingRecord(record)),
@@ -199,6 +220,12 @@ export class FoxproService {
         return this.savePaymentRecords(
             records.map((record) => this.normalizePushedPaymentRecord(record)),
             false,
+        );
+    }
+
+    async syncAdjustmentsFromJson(records: Array<Record<string, unknown>>) {
+        return this.saveAdjustmentRecords(
+            records.map((record) => this.normalizeAdjustmentRecord(record)),
         );
     }
 
@@ -493,6 +520,21 @@ export class FoxproService {
         return rows;
     }
 
+    private async parseAdjustmentsDbf(filePath: string): Promise<FoxproAdjustmentRecord[]> {
+        const dbf = await DBFFile.open(filePath, { encoding: 'latin1' });
+        const rows: FoxproAdjustmentRecord[] = [];
+        let records = await dbf.readRecords(500);
+
+        while (records.length > 0) {
+            records.forEach((row) => {
+                rows.push(this.normalizeAdjustmentRecord(row as Record<string, unknown>));
+            });
+            records = await dbf.readRecords(500);
+        }
+
+        return rows;
+    }
+
     private async parseBillingCsv(buffer: Buffer): Promise<FoxproBillingRecord[]> {
         const rows: FoxproBillingRecord[] = [];
         const separator = this.detectDelimiter(buffer);
@@ -582,6 +624,19 @@ export class FoxproService {
             description: descriptionSource ? String(descriptionSource).trim() : '',
             paycat: paycat ? paycat : null,
             referenceNumber: referenceNumber ? referenceNumber : null,
+        };
+    }
+
+    private normalizeAdjustmentRecord(raw: Record<string, unknown>): FoxproAdjustmentRecord {
+        const normalized = this.normalizeKeys(raw);
+
+        return {
+            transDate: this.parseFoxProDate(normalized.transdate),
+            principal: this.toNumber(normalized.principal),
+            interest: this.toNumber(normalized.interest),
+            accountId: this.cleanText(normalized.accountid || normalized.keysearch),
+            memberName: this.cleanText(normalized.membername),
+            penalty: this.toNumber(normalized.penalty),
         };
     }
 
@@ -852,6 +907,84 @@ export class FoxproService {
         return result;
     }
 
+    private async saveAdjustmentRecords(records: FoxproAdjustmentRecord[]) {
+        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
+        const startDate = this.getAdjustmentsStartDate();
+
+        await this.dataSource.transaction(async (manager) => {
+            const adjustmentRepo = manager.getRepository(FoxproAdjustment);
+            const propertyRepo = manager.getRepository(PropertyAccount);
+            const prepared: Array<{ record: FoxproAdjustmentRecord; row: number }> = [];
+            const accountIds = new Set<string>();
+
+            for (let index = 0; index < records.length; index += 1) {
+                const record = records[index];
+                const row = index + 1;
+
+                if (!record.transDate || !record.accountId) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Missing transDate or accountId`);
+                    continue;
+                }
+
+                if (record.transDate < startDate) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                prepared.push({ record, row });
+                accountIds.add(record.accountId);
+            }
+
+            const accountIdList = Array.from(accountIds);
+            const accounts = accountIdList.length
+                ? await propertyRepo.find({ where: { accountId: In(accountIdList) } })
+                : [];
+            const accountIdsFound = new Set(accounts.map((account) => account.accountId));
+
+            for (const entry of prepared) {
+                const { record, row } = entry;
+                if (!accountIdsFound.has(record.accountId)) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: accountId not found (${record.accountId})`);
+                    continue;
+                }
+
+                const existing = await adjustmentRepo.findOne({
+                    where: {
+                        accountId: record.accountId,
+                        transDate: record.transDate ?? undefined,
+                        principal: record.principal,
+                        interest: record.interest,
+                        memberName: record.memberName || '',
+                        penalty: record.penalty,
+                    },
+                });
+
+                if (existing) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                await adjustmentRepo.insert({
+                    accountId: record.accountId,
+                    transDate: record.transDate ?? undefined,
+                    principal: record.principal,
+                    interest: record.interest,
+                    memberName: record.memberName || '',
+                    penalty: record.penalty,
+                });
+                result.inserted += 1;
+            }
+        });
+
+        if (result.inserted + result.updated > 0) {
+            await this.propertyService.recalculateBalances();
+        }
+
+        return result;
+    }
+
     private async saveBillingRecords(records: FoxproBillingRecord[], applyLocalFilters = true) {
         const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
         const startDate = applyLocalFilters ? this.getBillingsStartDate() : null;
@@ -1026,6 +1159,26 @@ export class FoxproService {
         return path.resolve('C:/Users/CLienT/Documents/hoaportal/BILLING.DBF');
     }
 
+    private getAdjustmentsDbfPath(): string {
+        if (process.env.FOXPRO_ADJUSTMENTS_DBF_PATH) {
+            return process.env.FOXPRO_ADJUSTMENTS_DBF_PATH;
+        }
+
+        return path.resolve('C:/Users/CLienT/Documents/hoaportal/ADJUSTMENT.DBF');
+    }
+
+    private getAdjustmentsStartDate(): Date {
+        const configured = process.env.FOXPRO_ADJUSTMENTS_START_DATE;
+        if (configured) {
+            const parsed = this.parseFoxProDate(configured);
+            if (parsed) {
+                return parsed;
+            }
+        }
+
+        return new Date(2026, 6, 1);
+    }
+
     private getBillingsStartDate(): Date | null {
         const configured = process.env.FOXPRO_BILLINGS_START_DATE;
         if (configured) {
@@ -1047,7 +1200,7 @@ export class FoxproService {
             }
         }
 
-        return new Date(Date.UTC(2025, 2, 31));
+        return new Date(Date.UTC(2025, 0, 1));
     }
 
     private generateTemporaryPassword(): string {
@@ -1257,6 +1410,14 @@ export class FoxproService {
             const year = Number(isoMatch[1]);
             const month = Number(isoMatch[2]);
             const day = Number(isoMatch[3]);
+            return new Date(year, month - 1, day);
+        }
+
+        const compactMatch = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+        if (compactMatch) {
+            const year = Number(compactMatch[1]);
+            const month = Number(compactMatch[2]);
+            const day = Number(compactMatch[3]);
             return new Date(year, month - 1, day);
         }
 

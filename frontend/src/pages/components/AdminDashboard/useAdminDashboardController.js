@@ -71,6 +71,7 @@ export default function useAdminDashboardController() {
         members: false,
         payments: false,
         billing: false,
+        adjustments: false,
     });
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
@@ -385,7 +386,11 @@ export default function useAdminDashboardController() {
                 throw new Error(data.message || 'Failed to request sync.');
             }
 
-            const label = type === 'billing' ? 'Billing' : type.charAt(0).toUpperCase() + type.slice(1);
+            const label = type === 'billing'
+                ? 'Billing'
+                : type === 'adjustments'
+                    ? 'Adjustments'
+                    : type.charAt(0).toUpperCase() + type.slice(1);
             setSyncRequestStatus(`${label} sync requested.`);
             await fetchSyncStatus();
         } catch (err) {

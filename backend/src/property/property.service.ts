@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { PropertyAccount } from './property.entity';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
+import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
 
 export interface CreateHomeownerInput {
     neighborhood: string;
@@ -29,6 +30,8 @@ export class PropertyService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
+        @InjectRepository(FoxproAdjustment)
+        private adjustmentRepo: Repository<FoxproAdjustment>,
         private dataSource: DataSource,
     ) { }
 
@@ -163,6 +166,7 @@ export class PropertyService {
             const propertyRepo = manager.getRepository(PropertyAccount);
             const billingRepo = manager.getRepository(FoxproBilling);
             const paymentRepo = manager.getRepository(FoxproPayment);
+            const adjustmentRepo = manager.getRepository(FoxproAdjustment);
 
             const billingSums = await billingRepo
                 .createQueryBuilder('billing')
@@ -182,6 +186,16 @@ export class PropertyService {
                 .addSelect('SUM(payment.amountPaid)', 'totalPaid')
                 .where('(payment.isDeletedFromFoxpro = false OR payment.isDeletedFromFoxpro IS NULL)')
                 .groupBy('payment.accountId')
+                .getRawMany();
+
+            const adjustmentSums = await adjustmentRepo
+                .createQueryBuilder('adjustment')
+                .select('adjustment.accountId', 'accountId')
+                .addSelect(
+                    'SUM(adjustment.principal + adjustment.interest + adjustment.penalty)',
+                    'totalAdjustment',
+                )
+                .groupBy('adjustment.accountId')
                 .getRawMany();
 
             const dueMap = new Map<string, number>();
@@ -212,6 +226,15 @@ export class PropertyService {
                 paidMap.set(accountId, Number(row.totalPaid ?? 0));
             }
 
+            const adjustmentMap = new Map<string, number>();
+            for (const row of adjustmentSums) {
+                const accountId = String(row.accountId || '').trim();
+                if (!accountId) {
+                    continue;
+                }
+                adjustmentMap.set(accountId, Number(row.totalAdjustment ?? 0));
+            }
+
             const accounts = await propertyRepo.find();
             for (const account of accounts) {
                 const accountId = String(account.accountId || '').trim();
@@ -226,6 +249,7 @@ export class PropertyService {
                 const totalPriorInterest = priorInterestMap.get(accountId) ?? 0;
                 const totalPriorPenalty = priorPenaltyMap.get(accountId) ?? 0;
                 const totalPaid = paidMap.get(accountId) ?? 0;
+                const totalAdjustments = adjustmentMap.get(accountId) ?? 0;
                 account.balance =
                     totalPriorDue +
                     totalPriorInterest +
@@ -233,7 +257,8 @@ export class PropertyService {
                     totalDue +
                     totalInterest +
                     totalPenalty -
-                    totalPaid;
+                    totalPaid +
+                    totalAdjustments;
             }
 
             if (accounts.length > 0) {

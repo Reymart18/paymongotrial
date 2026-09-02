@@ -4,6 +4,7 @@ const labels = {
     members: 'Members',
     payments: 'Payments',
     billing: 'Billing',
+    adjustments: 'Adjustments',
 };
 
 export default function SyncStatusPanel({
@@ -52,7 +53,7 @@ export default function SyncStatusPanel({
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {['members', 'payments', 'billing'].map((type) => (
+                    {['members', 'payments', 'billing', 'adjustments'].map((type) => (
                         <button
                             key={type}
                             type="button"

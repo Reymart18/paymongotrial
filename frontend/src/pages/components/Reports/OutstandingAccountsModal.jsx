@@ -5,6 +5,8 @@ export default function OutstandingAccountsModal({
     billingEndDateKey,
     filter,
     onFilterChange,
+    lastPaymentFilter,
+    onLastPaymentFilterChange,
     onPrint,
     onClose,
     formatDate,
@@ -25,7 +27,7 @@ export default function OutstandingAccountsModal({
                                 : '-'}.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Classification
                             <select
@@ -38,6 +40,19 @@ export default function OutstandingAccountsModal({
                                 <option value="ALL">All</option>
                                 <option value="HOMEOWNER">Homeowner</option>
                                 <option value="LOT OWNER">Lot Owner</option>
+                            </select>
+                        </label>
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Last Payment
+                            <select
+                                id="outstanding-accounts-last-payment-filter"
+                                name="outstandingAccountsLastPaymentFilter"
+                                value={lastPaymentFilter}
+                                onChange={(event) => onLastPaymentFilterChange(event.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                            >
+                                <option value="ALL">All</option>
+                                <option value="BEFORE_2025">Before 2025 or no payment record</option>
                             </select>
                         </label>
                     </div>
@@ -73,10 +88,12 @@ export default function OutstandingAccountsModal({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {allItemsCount === 0 && (
+                            {items.length === 0 && (
                                 <tr>
                                     <td colSpan="9" className="px-4 py-6 text-center text-slate-400">
-                                        No outstanding accounts found.
+                                        {allItemsCount === 0
+                                            ? 'No outstanding accounts found.'
+                                            : 'No accounts match the selected filters.'}
                                     </td>
                                 </tr>
                             )}
