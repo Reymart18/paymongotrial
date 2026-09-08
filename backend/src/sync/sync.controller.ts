@@ -120,6 +120,12 @@ export class SyncController {
         return this.syncService.receiveAdjustments(body);
     }
 
+    @UseGuards(SyncApiKeyGuard)
+    @Post('adjustments/reconcile')
+    reconcileAdjustments(@Body() body: unknown) {
+        return this.syncService.reconcileAdjustments(body);
+    }
+
     private assertAdmin(req: AuthenticatedRequest) {
         if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
             throw new ForbiddenException('Only admins can access sync controls.');

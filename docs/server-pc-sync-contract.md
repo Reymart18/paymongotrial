@@ -72,6 +72,7 @@ Server PC endpoints:
 - `POST /sync/payments`
 - `POST /sync/billings`
 - `POST /sync/adjustments`
+- `POST /sync/adjustments/reconcile` (send the complete adjustment snapshot after all batches)
 
 ## JSON Payloads
 
@@ -143,6 +144,11 @@ the `YYYYMMDD` format, such as `20260703`, are supported.
 
 Adjustment amounts are signed: negative values reduce the Amount Due / Excess, and
 positive values increase it.
+
+After pushing all adjustment batches, the Server PC service must send the complete
+snapshot to `/sync/adjustments/reconcile`. The portal removes adjustment rows dated
+on or after July 1, 2026 that are no longer present in that snapshot, then
+recalculates affected balances.
 
 ```json
 {

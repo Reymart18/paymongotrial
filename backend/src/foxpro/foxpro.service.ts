@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, IsNull, In } from 'typeorm';
+import { DataSource, Repository, IsNull, In, MoreThanOrEqual } from 'typeorm';
 import { Readable } from 'stream';
 import { DBFFile } from 'dbffile';
 import * as fs from 'fs';
@@ -206,7 +206,9 @@ export class FoxproService {
         }
 
         const records = await this.parseAdjustmentsDbf(dbfPath);
-        return this.saveAdjustmentRecords(records);
+        const result = await this.saveAdjustmentRecords(records);
+        const reconciliation = await this.reconcileAdjustmentRecords(records);
+        return { ...result, deleted: reconciliation.deleted };
     }
 
     async syncBillingsFromJson(records: Array<Record<string, unknown>>) {
@@ -225,6 +227,12 @@ export class FoxproService {
 
     async syncAdjustmentsFromJson(records: Array<Record<string, unknown>>) {
         return this.saveAdjustmentRecords(
+            records.map((record) => this.normalizeAdjustmentRecord(record)),
+        );
+    }
+
+    async reconcileAdjustmentsFromJson(records: Array<Record<string, unknown>>) {
+        return this.reconcileAdjustmentRecords(
             records.map((record) => this.normalizeAdjustmentRecord(record)),
         );
     }
@@ -983,6 +991,61 @@ export class FoxproService {
         }
 
         return result;
+    }
+
+    private async reconcileAdjustmentRecords(records: FoxproAdjustmentRecord[]) {
+        const startDate = this.getAdjustmentsStartDate();
+        const sourceKeys = new Set(
+            records
+                .filter((record) => record.transDate && record.accountId && record.transDate >= startDate)
+                .map((record) => this.getAdjustmentRecordKey(record)),
+        );
+
+        const existing = await this.dataSource.getRepository(FoxproAdjustment).find({
+            where: { transDate: MoreThanOrEqual(startDate) },
+        });
+        const staleIds = existing
+            .filter((record) => !sourceKeys.has(this.getAdjustmentRecordKey(record)))
+            .map((record) => record.id)
+            .filter((id): id is number => typeof id === 'number');
+
+        if (staleIds.length === 0) {
+            return { deleted: 0 };
+        }
+
+        await this.dataSource.transaction(async (manager) => {
+            await manager.getRepository(FoxproAdjustment).delete(staleIds);
+        });
+        await this.propertyService.recalculateBalances();
+
+        return { deleted: staleIds.length };
+    }
+
+    private getAdjustmentRecordKey(record: {
+        accountId?: string | null;
+        transDate?: Date | null;
+        principal?: number | string | null;
+        interest?: number | string | null;
+        memberName?: string | null;
+        penalty?: number | string | null;
+    }): string {
+        const dateValue = record.transDate instanceof Date
+            ? record.transDate
+            : record.transDate
+                ? new Date(`${String(record.transDate).slice(0, 10)}T00:00:00`)
+                : null;
+        const date = dateValue && !Number.isNaN(dateValue.getTime())
+            ? `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, '0')}-${String(dateValue.getDate()).padStart(2, '0')}`
+            : '';
+        const amount = (value: number | string | null | undefined) => Number(value ?? 0).toFixed(2);
+        return [
+            this.cleanText(record.accountId),
+            date,
+            amount(record.principal),
+            amount(record.interest),
+            this.cleanText(record.memberName),
+            amount(record.penalty),
+        ].join('\u001f');
     }
 
     private async saveBillingRecords(records: FoxproBillingRecord[], applyLocalFilters = true) {
