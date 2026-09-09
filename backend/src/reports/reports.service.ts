@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
+import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
 import { QuarterlyReportSnapshot } from './quarterly-report.entity';
 
 export interface QuarterTotals {
@@ -61,6 +62,8 @@ export class ReportsService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
+        @InjectRepository(FoxproAdjustment)
+        private adjustmentRepo: Repository<FoxproAdjustment>,
         @InjectRepository(QuarterlyReportSnapshot)
         private snapshotRepo: Repository<QuarterlyReportSnapshot>,
     ) { }
@@ -110,9 +113,10 @@ export class ReportsService {
         const startKey = startDate.toISOString().slice(0, 10);
         const endKey = endDate.toISOString().slice(0, 10);
 
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, adjustments] = await Promise.all([
             this.billingRepo.find({ relations: ['account'], order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
+            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -166,6 +170,17 @@ export class ReportsService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
+        const adjustmentsByAccount = new Map<string, FoxproAdjustment[]>();
+        for (const adjustment of adjustments) {
+            if (!adjustment.accountId) {
+                continue;
+            }
+            if (!adjustmentsByAccount.has(adjustment.accountId)) {
+                adjustmentsByAccount.set(adjustment.accountId, []);
+            }
+            adjustmentsByAccount.get(adjustment.accountId)?.push(adjustment);
+        }
+
         const items: QuarterDueAccount[] = [];
         for (const [accountId, billing] of latestBillingsByAccount) {
             const principalBalance = Number(billing?.prinBal || 0);
@@ -186,6 +201,21 @@ export class ReportsService {
             const billingStart = billing?.dateFrom ? new Date(billing.dateFrom) : null;
             const billingEnd = billing?.dateTo ? new Date(billing.dateTo) : null;
 
+            let adjustmentsTotal = 0;
+            if (billingEnd && !Number.isNaN(billingEnd.getTime())) {
+                for (const adjustment of adjustmentsByAccount.get(accountId) || []) {
+                    if (!adjustment.transDate) {
+                        continue;
+                    }
+                    const adjustmentDate = new Date(adjustment.transDate);
+                    if (!Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= billingEnd) {
+                        adjustmentsTotal += Number(adjustment.principal || 0)
+                            + Number(adjustment.interest || 0)
+                            + Number(adjustment.penalty || 0);
+                    }
+                }
+            }
+
             if (billingStart && billingEnd && !Number.isNaN(billingStart.getTime()) && !Number.isNaN(billingEnd.getTime())) {
                 const accountPayments = paymentsByAccount.get(accountId) || [];
                 for (const payment of accountPayments) {
@@ -202,7 +232,7 @@ export class ReportsService {
                 }
             }
 
-            const amountDue = balanceTotal + currentChargesTotal - membershipPayments;
+            const amountDue = balanceTotal + currentChargesTotal - membershipPayments + adjustmentsTotal;
             if (toCents(amountDue) <= 0) {
                 continue;
             }
@@ -334,7 +364,7 @@ export class ReportsService {
     }
 
     private async getOverdueAccountsFromRecords(accountId?: string): Promise<OverdueAccount[]> {
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, adjustments] = await Promise.all([
             this.billingRepo.find({
                 where: accountId ? { accountId } : undefined,
                 relations: ['account'],
@@ -344,6 +374,9 @@ export class ReportsService {
                 where: accountId
                     ? { accountId, isDeletedFromFoxpro: false }
                     : { isDeletedFromFoxpro: false },
+            }),
+            this.adjustmentRepo.find({
+                where: accountId ? { accountId } : undefined,
             }),
         ]);
 
@@ -391,6 +424,17 @@ export class ReportsService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
+        const adjustmentsByAccount = new Map<string, FoxproAdjustment[]>();
+        for (const adjustment of adjustments) {
+            if (!adjustment.accountId) {
+                continue;
+            }
+            if (!adjustmentsByAccount.has(adjustment.accountId)) {
+                adjustmentsByAccount.set(adjustment.accountId, []);
+            }
+            adjustmentsByAccount.get(adjustment.accountId)?.push(adjustment);
+        }
+
         const items: OverdueAccount[] = [];
         for (const [billingAccountId, billing] of latestBillingsByAccount) {
             const latestBillingDate = parseDate(billing.dateTo || billing.dateFrom || billing.dueDate);
@@ -403,6 +447,18 @@ export class ReportsService {
                 Number(billing.intBal || 0) +
                 Number(billing.penBal || 0);
             const currentCharges = Number(billing.prinCurr || 0);
+            let adjustmentsTotal = 0;
+            for (const adjustment of adjustmentsByAccount.get(billingAccountId) || []) {
+                if (!adjustment.transDate) {
+                    continue;
+                }
+                const adjustmentDate = parseDate(adjustment.transDate);
+                if (adjustmentDate && adjustmentDate <= latestBillingDate) {
+                    adjustmentsTotal += Number(adjustment.principal || 0)
+                        + Number(adjustment.interest || 0)
+                        + Number(adjustment.penalty || 0);
+                }
+            }
             let paymentsToDate = 0;
             let lastPaymentDate: Date | null = null;
 
@@ -426,7 +482,7 @@ export class ReportsService {
                 }
             }
 
-            const amountDue = previousBalance + currentCharges - paymentsToDate;
+            const amountDue = previousBalance + currentCharges - paymentsToDate + adjustmentsTotal;
             const annualCharge = this.getAnnualCharge(currentCharges);
             if (!this.isAnnualBalanceMatch(amountDue, annualCharge)) {
                 continue;
