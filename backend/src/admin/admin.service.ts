@@ -7,6 +7,7 @@ import { PropertyAccount } from '../property/property.entity';
 import { PropertyService } from '../property/property.service';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
+import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import * as nodemailer from 'nodemailer';
@@ -25,6 +26,8 @@ export class AdminService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
+        @InjectRepository(FoxproAdjustment)
+        private adjustmentRepo: Repository<FoxproAdjustment>,
         private propertyService: PropertyService,
     ) { }
 
@@ -1116,9 +1119,10 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }>;
     }> {
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, adjustments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
+            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -1194,6 +1198,17 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
+        const adjustmentsByAccount = new Map<string, FoxproAdjustment[]>();
+        for (const adjustment of adjustments) {
+            if (!adjustment.accountId) {
+                continue;
+            }
+            if (!adjustmentsByAccount.has(adjustment.accountId)) {
+                adjustmentsByAccount.set(adjustment.accountId, []);
+            }
+            adjustmentsByAccount.get(adjustment.accountId)?.push(adjustment);
+        }
+
         const accountIdList = Array.from(accountIds);
         const accounts = accountIdList.length
             ? await this.propertyRepo.find({ where: { accountId: In(accountIdList) } })
@@ -1229,6 +1244,26 @@ export class AdminService {
             const currentPenalty = Number(latestBilling?.penCurr || 0);
             const currentCharges = currentPrincipal + currentInterest + currentPenalty;
 
+            const adjustmentEnd = latestBilling?.dateTo
+                ? new Date(latestBilling.dateTo)
+                : latestBilling?.dateFrom
+                    ? new Date(latestBilling.dateFrom)
+                    : null;
+            let adjustmentsTotal = 0;
+            if (adjustmentEnd && !Number.isNaN(adjustmentEnd.getTime())) {
+                for (const adjustment of adjustmentsByAccount.get(accountId) || []) {
+                    if (!adjustment.transDate) {
+                        continue;
+                    }
+                    const adjustmentDate = new Date(adjustment.transDate);
+                    if (!Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= adjustmentEnd) {
+                        adjustmentsTotal += Number(adjustment.principal || 0)
+                            + Number(adjustment.interest || 0)
+                            + Number(adjustment.penalty || 0);
+                    }
+                }
+            }
+
             let membershipPayments = 0;
             const billingStart = latestBilling?.dateFrom ? new Date(latestBilling.dateFrom) : null;
             const billingEnd = latestBilling?.dateTo ? new Date(latestBilling.dateTo) : null;
@@ -1249,7 +1284,7 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
             if (toCents(amountDue) <= 0) {
                 continue;
             }
