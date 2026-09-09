@@ -52,14 +52,14 @@ export default function SyncStatusPanel({
                         </div>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:flex-nowrap">
                     {['members', 'payments', 'billing', 'adjustments'].map((type) => (
                         <button
                             key={type}
                             type="button"
                             onClick={() => onRequestSync(type)}
                             disabled={isBusy || requestLoading[type]}
-                            className="rounded-lg border border-slate-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="whitespace-nowrap rounded-lg border border-slate-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {requestLoading[type] ? 'Requesting...' : `Sync ${labels[type]}`}
                         </button>
