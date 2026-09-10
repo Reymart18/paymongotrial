@@ -97,7 +97,7 @@ export default function LandingPage() {
                     src={landingImage}
                     alt=""
                     aria-hidden="true"
-                    className="h-[70vh] w-full object-cover object-[54%_center] opacity-35 sm:h-screen sm:object-center"
+                    className="h-[70vh] w-full object-cover object-[49%_center] opacity-35 sm:h-screen sm:object-center"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-[white]">
                     <h1 className="font-abhaya text-3xl font-medium sm:text-4xl md:text-5xl">
