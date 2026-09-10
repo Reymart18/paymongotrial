@@ -48,7 +48,7 @@ export default function LoginPage() {
                     src={login1Image}
                     alt=""
                     aria-hidden="true"
-                    className="h-full w-full object-cover object-[42%_center] opacity-55"
+                    className="h-full w-full object-cover object-center opacity-55"
                 />
                 <div className="absolute inset-0 bg-[#E89B58]/75"></div>
             </div>
