@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import landingImage from '../images/Rectangle.png';
+import landingImage from '../images/Rectangle1.png';
 import designImage from '../images/design.png';
 import rectangleImage from '../images/Rectangle 5.png';
-import aboutImage from '../images/about.png';
+import aboutImage from '../images/about2.png';
 import coverImage from '../images/cover.png';
-import contactImage from '../images/contact.png';
+import contactImage from '../images/contact1.png';
 import phoneImage from '../images/phone.png';
 import loginImage from '../images/login.png';
 import bottomImage from '../images/bottom.png';
@@ -97,15 +97,14 @@ export default function LandingPage() {
                     src={landingImage}
                     alt=""
                     aria-hidden="true"
-                    className="h-[70vh] w-full object-cover object-[54%_center] opacity-60 sm:h-screen sm:object-center"
+                    className="h-[70vh] w-full object-cover object-[54%_center] opacity-35 sm:h-screen sm:object-center"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-[white]">
                     <h1 className="font-abhaya text-3xl font-medium sm:text-4xl md:text-5xl">
-                        Explore Home Your HOA Community
+                        Explore Your HOA Community Home
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm font-poppins font-extralight sm:text-base md:text-lg">
-                        Discover a safe, organized, and welcoming community where every home is part of
-                        something bigger.
+                        A safe, organized, and welcoming community where every home feels connected and valued.
                     </p>
                     <div className="absolute bottom-20 left-0 z-20 w-32 overflow-hidden transition duration-300 hover:scale-105 hover:opacity-80 hover:shadow-lg cursor-pointer sm:w-40 md:w-55">
                         <img
@@ -150,13 +149,13 @@ export default function LandingPage() {
                         <img
                             src={aboutImage}
                             alt="About the Community"
-                            className="w-full rounded-lg relative z-10"
+                            className="w-full rounded-tl-[80px] rounded-br-[100px] relative z-10"
                         />
                     </div>
                 </div>
             </section>
             <section
-                className="relative min-h-[72vh] w-full bg-cover bg-center px-6 py-10 sm:min-h-screen sm:px-10 sm:py-16 lg:px-16"
+                className="relative min-h-[58vh] w-full bg-cover bg-center px-6 py-8 sm:min-h-[72vh] sm:px-10 sm:py-12 lg:px-16"
                 id="contacts"
                 style={{
                     backgroundImage: `url(${contactImage})`,
@@ -169,22 +168,40 @@ export default function LandingPage() {
                     }}
                 />
                 <div className="absolute inset-0 bg-black/40"></div>
-                <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 scroll-reveal sm:gap-12">
-                    <h2 className="font-abhaya text-3xl font-medium sm:text-5xl md:text-7xl text-black text-center">
-                        How to Contact Us
-                    </h2>
-                    <div className="flex flex-col gap-6 sm:gap-10 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="relative flex items-center justify-center lg:w-5/12">
+                <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-8 scroll-reveal sm:gap-12">
+                    <div className="mx-auto max-w-3xl text-center">
+                        <span className="inline-flex rounded-full border border-[#8C4100]/30 bg-[#FFFBFB]/80 px-4 py-1.5 font-poppins text-[11px] font-semibold uppercase tracking-[0.25em] text-[#8C4100] shadow-sm sm:text-xs">
+                            Get in touch
+                        </span>
+                        <h2 className="mt-4 font-abhaya text-4xl font-medium text-[#363232] sm:text-5xl md:text-7xl">
+                            How to Contact Us
+                        </h2>
+                    </div>
+                    <div className="relative flex flex-row items-center justify-center gap-1 sm:gap-4 lg:items-stretch lg:gap-8">
+                        <div className="relative flex w-1/2 items-center justify-center px-0 py-4 sm:w-1/2 sm:max-w-md sm:px-8 sm:py-6 lg:w-5/12 lg:px-12">
                             <img
                                 src={phoneImage}
-                                alt="Phone"
-                                className="w-full max-w-[300px] sm:max-w-sm md:max-w-md"
+                                alt="Contact Parkplace Village"
+                                className="relative z-10 w-[120%] max-w-[380px] drop-shadow-lg sm:w-full sm:max-w-md"
                             />
                         </div>
-                        <div className="flex flex-col gap-6 text-white lg:w-5/12 lg:items-start">
-                            <p className="font-poppins text-sm font-extralight leading-relaxed sm:text-base md:text-lg">
-                                Get in touch with us for any inquiries or concerns. We're here to help and answer any question you might have.
-                            </p>
+                        <div className="flex w-1/2 max-w-md flex-col justify-center gap-3 p-2 text-white drop-shadow-lg sm:w-1/2 sm:gap-6 sm:p-9 lg:w-5/12">
+                            <div>
+                                <p className="font-poppins text-xs font-semibold uppercase tracking-[0.2em] text-[#F4C58E]">
+                                    Community support
+                                </p>
+                                <p className="mt-2 font-poppins text-[11px] font-light leading-relaxed text-white/90 sm:mt-3 sm:text-base md:text-lg">
+                                    Get in touch with us for inquiries, concerns, or assistance. We are here to help make your community experience better.
+                                </p>
+                            </div>
+                            <div className="h-px w-full bg-white/20"></div>
+                            <button
+                                type="button"
+                                onClick={() => scrollToSection('location')}
+                                className="inline-flex w-fit items-center gap-1 rounded-full bg-[#E89B58] px-3 py-2 font-poppins text-[10px] font-semibold text-white transition hover:bg-[#d88a47] hover:shadow-lg sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
+                            >
+                                Find our location <span aria-hidden="true">→</span>
+                            </button>
                         </div>
                     </div>
                 </div>

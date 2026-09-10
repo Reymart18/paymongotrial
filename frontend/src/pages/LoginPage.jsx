@@ -4,7 +4,7 @@ import LoginBranding from './components/Login/LoginBranding';
 import LoginHelpGuide from './components/Login/LoginHelpGuide';
 import LoginTabs from './components/Login/LoginTabs';
 import useLoginPageController from './components/Login/useLoginPageController';
-import login1Image from '../images/login1.png';
+import login1Image from '../images/Rectangle1.png';
 
 export default function LoginPage() {
     const {
@@ -39,10 +39,19 @@ export default function LoginPage() {
     const togglePassword = () => setShowPassword((isVisible) => !isVisible);
     const pageClassName = 'min-h-screen w-full bg-[#E89B58] flex relative overflow-y-auto';
     const formPanelClassName =
-        'w-full px-8 py-10 lg:w-1/2 min-h-screen flex flex-col justify-center';
+        'w-full px-8 py-10 lg:ml-[50%] lg:w-1/2 min-h-screen flex flex-col justify-center';
 
     return (
         <div className={pageClassName}>
+            <div className="pointer-events-none fixed inset-0 z-0 lg:hidden">
+                <img
+                    src={login1Image}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-full w-full object-cover opacity-55"
+                />
+                <div className="absolute inset-0 bg-[#E89B58]/75"></div>
+            </div>
             <button
                 onClick={navigateHome}
                 className="fixed top-0 right-0 rounded-bl-2xl bg-[#FFFAFA]/70 px-6 py-3 text-sm font-semibold text-[#363232] shadow-lg transition hover:py-5 hover:shadow-xl z-50"
@@ -51,12 +60,12 @@ export default function LoginPage() {
                 Home
             </button>
 
-            <div className="flex w-full min-h-screen">
-                <div className="hidden w-1/2 lg:flex overflow-hidden min-h-screen -mt-[0.5%]">
+            <div className="relative z-10 flex min-h-screen w-full flex-col lg:flex-row">
+                <div className="fixed inset-y-0 left-0 z-0 hidden h-screen w-1/2 overflow-hidden lg:flex">
                     <img
                         src={login1Image}
                         alt="Login"
-                        className="w-full h-[105%] object-fill"
+                        className="h-full w-full rounded-br-[65%] object-fill"
                     />
                 </div>
 
