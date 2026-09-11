@@ -621,7 +621,9 @@ export class FoxproService {
         const normalizedPaycat = paycat.toLowerCase();
         const descriptionSource = normalizedPaycat === 'membership dues'
             ? normalized.applicable
-            : normalized.particula3;
+            : normalizedPaycat === 'rental of facilities'
+                ? normalized.particular
+                : normalized.particula3;
 
         const accountId = String(normalized.keysearch || '').trim();
 
@@ -709,10 +711,13 @@ export class FoxproService {
     private normalizePushedPaymentRecord(raw: Record<string, unknown>): FoxproPaymentRecord {
         const normalized = this.normalizeKeys(raw);
         const paycat = this.cleanText(normalized.paycat);
-        const descriptionSource = normalized.description
-            || (paycat.toLowerCase() === 'membership dues'
-                ? normalized.applicable
-                : normalized.particula3);
+        const normalizedPaycat = paycat.toLowerCase();
+        const descriptionSource = normalizedPaycat === 'rental of facilities'
+            ? normalized.particular || normalized.description
+            : normalized.description
+                || (normalizedPaycat === 'membership dues'
+                    ? normalized.applicable
+                    : normalized.particula3);
         const accountId = this.cleanText(normalized.accountid || normalized.keysearch);
         const referenceNumber = this.cleanText(normalized.referencenumber || normalized.orno);
 
