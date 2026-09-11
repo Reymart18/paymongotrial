@@ -33,7 +33,7 @@ export default function AnnouncementBody({ announcement }) {
         <div>
             <p
                 ref={ref}
-                className={`${expanded ? '' : 'line-clamp-2'} text-sm leading-relaxed text-slate-700 sm:text-base`}
+                className={`${expanded ? '' : 'line-clamp-2'} whitespace-pre-line text-sm leading-relaxed text-slate-700 sm:text-base`}
             >
                 {announcement.content || 'No content provided.'}
             </p>

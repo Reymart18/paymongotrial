@@ -131,7 +131,7 @@ export default function AnnouncementsFeed({
                                             <h3 className="mt-1.5 line-clamp-2 text-sm font-bold leading-5 text-slate-900">
                                                 {announcement.title || 'Untitled Announcement'}
                                             </h3>
-                                            <p className={`${expandedRecentIds.includes(announcement.id) ? '' : 'line-clamp-2'} mt-1 text-xs leading-5 text-slate-500`}>
+                                            <p className={`${expandedRecentIds.includes(announcement.id) ? '' : 'line-clamp-2'} mt-1 whitespace-pre-line text-xs leading-5 text-slate-500`}>
                                                 {announcement.content || 'No content provided.'}
                                             </p>
                                         </div>
@@ -190,7 +190,7 @@ export default function AnnouncementsFeed({
                             <h2 className="text-xl font-semibold text-slate-900 lg:text-2xl">
                                 {currentSlide?.title || 'Untitled Announcement'}
                             </h2>
-                            <p className="text-sm leading-relaxed text-slate-700 lg:text-base">
+                            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700 lg:text-base">
                                 {currentSlide?.content || 'No content provided.'}
                             </p>
                             {isSuperAdmin && (
@@ -236,7 +236,7 @@ export default function AnnouncementsFeed({
                                                     <div className="mt-1 text-base font-semibold leading-snug text-slate-900">
                                                         {announcement.title || 'Untitled Announcement'}
                                                     </div>
-                                                    <p className={`${expandedRecentIds.includes(announcement.id) ? '' : 'line-clamp-3'} mt-2 text-sm leading-relaxed text-slate-600`}>
+                                                    <p className={`${expandedRecentIds.includes(announcement.id) ? '' : 'line-clamp-3'} mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600`}>
                                                         {announcement.content || 'No content provided.'}
                                                     </p>
                                                     <div className="mt-2 flex items-center justify-between gap-3">

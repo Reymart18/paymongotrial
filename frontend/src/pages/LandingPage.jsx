@@ -116,7 +116,7 @@ export default function LandingPage() {
                             onClick={() => navigate('/login')}
                             className="absolute inset-0 flex items-center justify-center overflow-hidden text-xs font-poppins font-semibold text-[#363232] sm:text-lg">
                             <span className="login-slide-text absolute left-[45%] -translate-x-1/2 whitespace-nowrap sm:left-1/2">Login Here</span>
-                            <span className="login-edge-arrow absolute right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#bb480a] text-[9px] text-white shadow-sm sm:right-4 sm:h-5 sm:w-5 sm:text-[10px] md:h-7 md:w-7 md:text-sm">
+                            <span className="login-edge-arrow absolute right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#e45c13] text-[9px] text-white shadow-sm sm:right-4 sm:h-5 sm:w-5 sm:text-[10px] md:h-7 md:w-7 md:text-sm">
                                 &gt;
                             </span>
                         </button>
