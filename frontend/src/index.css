@@ -63,44 +63,20 @@
 }
 
 .login-slide-text {
-    --login-text-shift: 18px;
     display: inline-block;
-    animation: loginTextSlide 2.4s ease-in-out infinite alternate;
 }
 
 .login-edge-arrow {
-    animation: loginEdgeArrowSlide 1.4s ease-in-out infinite alternate;
-}
-
-@keyframes loginTextSlide {
-    from {
-        transform: translateX(0);
-    }
-
-    to {
-        transform: translateX(var(--login-text-shift));
-    }
+    animation: loginEdgeArrowSlide 0.8s ease-in-out infinite alternate;
 }
 
 @keyframes loginEdgeArrowSlide {
     from {
-        transform: translateX(0);
+        transform: translateX(0) rotate(0deg);
     }
 
     to {
-        transform: translateX(3px);
-    }
-}
-
-@media (min-width: 640px) {
-    .login-slide-text {
-        --login-text-shift: 34px;
-    }
-}
-
-@media (min-width: 768px) {
-    .login-slide-text {
-        --login-text-shift: 54px;
+        transform: translateX(8px) rotate(8deg);
     }
 }
 

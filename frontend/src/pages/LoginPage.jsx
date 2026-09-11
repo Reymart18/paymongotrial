@@ -65,7 +65,7 @@ export default function LoginPage() {
                     <img
                         src={login1Image}
                         alt="Login"
-                        className="h-full w-full rounded-br-[65%] object-fill"
+                        className="h-full w-full rounded-br-[65%] object-fill opacity-65"
                     />
                 </div>
 

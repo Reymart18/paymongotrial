@@ -97,7 +97,7 @@ export default function LandingPage() {
                     src={landingImage}
                     alt=""
                     aria-hidden="true"
-                    className="h-[70vh] w-full object-cover object-[49%_center] opacity-35 sm:h-screen sm:object-center"
+                    className="h-[70vh] w-full object-cover object-[50%_center] opacity-35 sm:h-screen sm:object-center"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-[white]">
                     <h1 className="font-abhaya text-3xl font-medium sm:text-4xl md:text-5xl">
@@ -114,9 +114,9 @@ export default function LandingPage() {
                         />
                         <button
                             onClick={() => navigate('/login')}
-                            className="absolute inset-0 flex items-center justify-between overflow-hidden pl-4 pr-3 text-left text-sm font-semibold text-[#363232] sm:pr-4 sm:text-lg">
-                            <span className="login-slide-text whitespace-nowrap">Login Here</span>
-                            <span className="login-edge-arrow flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#363232] text-[9px] text-white shadow-sm sm:h-5 sm:w-5 sm:text-[10px] md:h-7 md:w-7 md:text-sm">
+                            className="absolute inset-0 flex items-center justify-center overflow-hidden text-xs font-poppins font-semibold text-[#363232] sm:text-lg">
+                            <span className="login-slide-text absolute left-[45%] -translate-x-1/2 whitespace-nowrap sm:left-1/2">Login Here</span>
+                            <span className="login-edge-arrow absolute right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#bb480a] text-[9px] text-white shadow-sm sm:right-4 sm:h-5 sm:w-5 sm:text-[10px] md:h-7 md:w-7 md:text-sm">
                                 &gt;
                             </span>
                         </button>
@@ -136,7 +136,7 @@ export default function LandingPage() {
                             About the Community
                         </h2>
                         <p className="font-poppins text-base font-extralight leading-relaxed text-[#363232] sm:text-lg md:text-xl">
-                            Discover a safe, organized, and welcoming community where every home is part of something bigger. Enjoy a balanced lifestyle with shared spaces, friendly neighbors, and reliable community management.
+                            Discover <strong className="font-semibold">The Parkplace Village</strong>, a premier residential community in Anabu, Imus, Cavite. Enjoy comfortable living, thoughtfully planned spaces, and a welcoming neighborhood designed for families and modern lifestyles.
                         </p>
                     </div>
                     <div className="relative lg:w-5/12">
