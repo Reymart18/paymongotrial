@@ -31,6 +31,39 @@ export class AdminService {
         private propertyService: PropertyService,
     ) { }
 
+    private getAdjustmentsTotal(
+        adjustments: FoxproAdjustment[],
+        accountId: string,
+        endDate: unknown,
+    ): number {
+        if (!endDate) {
+            return 0;
+        }
+
+        const adjustmentEnd = endDate instanceof Date
+            ? endDate
+            : new Date(endDate as string);
+        if (Number.isNaN(adjustmentEnd.getTime())) {
+            return 0;
+        }
+
+        return adjustments
+            .filter((adjustment) => adjustment.accountId === accountId && adjustment.transDate)
+            .reduce((total, adjustment) => {
+                if (!adjustment.transDate) {
+                    return total;
+                }
+                const adjustmentDate = new Date(adjustment.transDate);
+                if (Number.isNaN(adjustmentDate.getTime()) || adjustmentDate > adjustmentEnd) {
+                    return total;
+                }
+                return total
+                    + Number(adjustment.principal || 0)
+                    + Number(adjustment.interest || 0)
+                    + Number(adjustment.penalty || 0);
+            }, 0);
+    }
+
     async logActivity(input: {
         actorId?: number;
         actorUsername?: string;
@@ -304,9 +337,10 @@ export class AdminService {
         notGoodStandingCount: number;
         totalCollectedPayments: number;
     }> {
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, adjustments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
+            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -388,6 +422,17 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
+        const adjustmentsByAccount = new Map<string, FoxproAdjustment[]>();
+        for (const adjustment of adjustments) {
+            if (!adjustment.accountId) {
+                continue;
+            }
+            if (!adjustmentsByAccount.has(adjustment.accountId)) {
+                adjustmentsByAccount.set(adjustment.accountId, []);
+            }
+            adjustmentsByAccount.get(adjustment.accountId)?.push(adjustment);
+        }
+
         for (const [accountId, accountBillings] of billingsByAccount) {
             if (accountBillings.length === 0) {
                 continue;
@@ -406,6 +451,26 @@ export class AdminService {
             const currentInterest = Number(latestBilling?.intCurr || 0);
             const currentPenalty = Number(latestBilling?.penCurr || 0);
             const currentCharges = currentPrincipal + currentInterest + currentPenalty;
+
+            const adjustmentEnd = latestBilling?.dateTo
+                ? new Date(latestBilling.dateTo)
+                : latestBilling?.dateFrom
+                    ? new Date(latestBilling.dateFrom)
+                    : null;
+            let adjustmentsTotal = 0;
+            if (adjustmentEnd && !Number.isNaN(adjustmentEnd.getTime())) {
+                for (const adjustment of adjustmentsByAccount.get(accountId) || []) {
+                    if (!adjustment.transDate) {
+                        continue;
+                    }
+                    const adjustmentDate = new Date(adjustment.transDate);
+                    if (!Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= adjustmentEnd) {
+                        adjustmentsTotal += Number(adjustment.principal || 0)
+                            + Number(adjustment.interest || 0)
+                            + Number(adjustment.penalty || 0);
+                    }
+                }
+            }
 
             // Calculate membership dues payments within the billing period
             let membershipPayments = 0;
@@ -428,7 +493,7 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
             const amountDueCents = toCents(amountDue);
 
             const accountPayments = paymentsByAccount.get(accountId) || [];
@@ -747,9 +812,10 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }>;
     }> {
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, adjustments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
+            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -880,7 +946,12 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            const adjustmentsTotal = this.getAdjustmentsTotal(
+                adjustments,
+                accountId,
+                latestBilling?.dateTo || latestBilling?.dateFrom,
+            );
+            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
             if (toCents(amountDue) !== 0) {
                 continue;
             }
@@ -933,9 +1004,10 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }>;
     }> {
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, adjustments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
+            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -1066,7 +1138,12 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            const adjustmentsTotal = this.getAdjustmentsTotal(
+                adjustments,
+                accountId,
+                latestBilling?.dateTo || latestBilling?.dateFrom,
+            );
+            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
             if (toCents(amountDue) >= 0) {
                 continue;
             }
