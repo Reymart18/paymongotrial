@@ -6,7 +6,6 @@ import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import { Billing } from './billing.entity';
 import { PropertyAccount } from '../property/property.entity';
-import { PropertyService } from '../property/property.service';
 
 interface BillingUploadRecord {
     accountId: string;
@@ -25,7 +24,6 @@ export class BillingService {
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
         private dataSource: DataSource,
-        private propertyService: PropertyService,
     ) { }
 
     async uploadBillings(file: Express.Multer.File) {
@@ -107,16 +105,9 @@ export class BillingService {
 
                 await billingRepo.save(billing);
 
-                const currentBalance = Number(account.balance ?? 0);
-                account.balance = currentBalance + amountDue + interest + penalty;
-                await propertyRepo.save(account);
                 result.inserted += 1;
             }
         });
-
-        if (result.inserted > 0) {
-            await this.propertyService.recalculateBalances();
-        }
 
         return result;
     }

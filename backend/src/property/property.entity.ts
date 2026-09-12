@@ -61,6 +61,15 @@ export class PropertyAccount {
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     balance?: number;
 
+    @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+    principal?: number;
+
+    @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+    interest?: number;
+
+    @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+    penalty?: number;
+
 
     @OneToMany(() => FoxproPayment, (payment) => payment.account)
     payments?: FoxproPayment[];

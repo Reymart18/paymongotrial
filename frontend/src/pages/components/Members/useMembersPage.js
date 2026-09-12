@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { calculateAccountSummary, getBalanceStatus } from './memberBalanceUtils.js';
+import { getBalanceStatus } from './memberBalanceUtils.js';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const MAX_CONCURRENT_BALANCE_REQUESTS = 4;
 const ITEMS_PER_PAGE = 10;
 
 export default function useMembersPage() {
@@ -25,7 +24,6 @@ export default function useMembersPage() {
     const [resetStatus, setResetStatus] = useState('');
     const [resetError, setResetError] = useState('');
     const [previewingWaterAccountId, setPreviewingWaterAccountId] = useState(null);
-    const balanceRequestsControllerRef = useRef(null);
     const previewWaterInProgressRef = useRef(false);
     const navigate = useNavigate();
     const isSuperAdmin = localStorage.getItem('userRole') === 'super_admin';
@@ -47,7 +45,16 @@ export default function useMembersPage() {
                 }
                 throw new Error(data.message || 'Failed to load homeowner accounts.');
             }
-            setAccounts(Array.isArray(data) ? data : []);
+            const nextAccounts = Array.isArray(data) ? data : [];
+            setAccounts(nextAccounts);
+            setBalances(Object.fromEntries(nextAccounts.map((account) => [
+                account.accountId,
+                Number(account.balance ?? 0),
+            ])));
+            setStatuses(Object.fromEntries(nextAccounts.map((account) => [
+                account.accountId,
+                getBalanceStatus(Number(account.balance ?? 0)),
+            ])));
         } catch (fetchError) {
             if (fetchError.name !== 'AbortError') setError(fetchError.message || 'Failed to load homeowner accounts. Please try again.');
         } finally {
@@ -66,43 +73,6 @@ export default function useMembersPage() {
         refreshAccounts(token, controller.signal);
         return () => controller.abort();
     }, [navigate, refreshAccounts]);
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token || !accounts.length) return undefined;
-
-        const controller = new AbortController();
-        balanceRequestsControllerRef.current = controller;
-        let nextIndex = 0;
-        const accountIds = accounts.map((account) => account.accountId).filter(Boolean);
-        const worker = async () => {
-            while (!controller.signal.aborted && nextIndex < accountIds.length) {
-                const accountId = accountIds[nextIndex++];
-                try {
-                    const response = await fetch(`${API_URL}/statements/${accountId}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                        signal: controller.signal,
-                    });
-                    const data = await response.json();
-                    if (response.ok && Array.isArray(data)) {
-                        const { netBalance } = calculateAccountSummary(data);
-                        setBalances((current) => ({ ...current, [accountId]: netBalance }));
-                        setStatuses((current) => ({ ...current, [accountId]: getBalanceStatus(netBalance) }));
-                    }
-                } catch (fetchError) {
-                    if (fetchError.name !== 'AbortError') console.error(`Error fetching balance for ${accountId}:`, fetchError);
-                }
-            }
-        };
-        const workerCount = Math.min(MAX_CONCURRENT_BALANCE_REQUESTS, accountIds.length);
-        Promise.all(Array.from({ length: workerCount }, worker)).catch(() => {});
-        return () => {
-            controller.abort();
-            if (balanceRequestsControllerRef.current === controller) {
-                balanceRequestsControllerRef.current = null;
-            }
-        };
-    }, [accounts]);
 
     useEffect(() => {
         if (!syncRequestId) return undefined;
@@ -258,8 +228,6 @@ export default function useMembersPage() {
     };
 
     const stopBalanceRequests = useCallback(() => {
-        balanceRequestsControllerRef.current?.abort();
-        balanceRequestsControllerRef.current = null;
     }, []);
 
     const previewSoa = useCallback((id) => {

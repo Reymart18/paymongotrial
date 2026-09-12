@@ -69,16 +69,6 @@ export class PropertyController {
     }
 
     @UseGuards(JwtAuthGuard)
-    @Post('recalculate-balances')
-    async recalculateBalances(@Request() req: AuthenticatedRequest) {
-        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
-            throw new ForbiddenException('Only admins can recalculate balances');
-        }
-
-        return this.propertyService.recalculateBalances();
-    }
-
-    @UseGuards(JwtAuthGuard)
     @Post('change-password')
     async changePassword(
         @Body() body: { oldPassword: string; newPassword: string },

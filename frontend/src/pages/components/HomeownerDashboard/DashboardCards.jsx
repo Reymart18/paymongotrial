@@ -169,11 +169,11 @@ export default function DashboardCards({ account, statementRows }) {
         ? `AS OF ${formatDate(latestBilling.dateTo)}`
         : '';
 
-    // Calculate carrying balance breakdown (Principal, Interest, Penalties from latest billing)
+    // FoxPro's MEMBERS.DBF balance fields are the source of truth.
     const carryingBalanceBreakdown = {
-        principal: latestBilling ? Number(latestBilling.prinBal || 0) : 0,
-        interest: latestBilling ? Number(latestBilling.intBal || 0) : 0,
-        penalties: latestBilling ? Number(latestBilling.penBal || 0) : 0,
+        principal: Number(account?.principal || 0),
+        interest: Number(account?.interest || 0),
+        penalties: Number(account?.penalty || 0),
     };
 
     const carryingBalanceTotal = carryingBalanceBreakdown.principal
@@ -234,63 +234,7 @@ export default function DashboardCards({ account, statementRows }) {
         : 0;
     const recentPaymentDescription = latestPaymentRow?.description || '';
 
-    const currentPeriodPayments = (() => {
-        if (!latestBilling?.dateFrom || !latestBilling?.dateTo) {
-            return 0;
-        }
-
-        const start = new Date(latestBilling.dateFrom);
-        const end = new Date(latestBilling.dateTo);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-            return 0;
-        }
-
-        return membershipPayments
-            .filter((row) => {
-                const dateValue = row?.paymentDate || row?.date;
-                if (!dateValue) {
-                    return false;
-                }
-
-                const paidAt = new Date(dateValue);
-                if (Number.isNaN(paidAt.getTime())) {
-                    return false;
-                }
-
-                return paidAt >= start && paidAt <= end;
-            })
-            .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0);
-    })();
-
-    const adjustmentsThroughCurrentBilling = (() => {
-        if (!latestBilling?.dateTo) {
-            return 0;
-        }
-
-        const asOf = new Date(latestBilling.dateTo);
-        if (Number.isNaN(asOf.getTime())) {
-            return 0;
-        }
-
-        return rows
-            .filter((row) => row.type === 'adjustment')
-            .filter((row) => {
-                const adjustmentDate = new Date(row.date);
-                return !Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= asOf;
-            })
-            .reduce(
-                (sum, row) => sum
-                    + Number(row.amountDue || 0)
-                    + Number(row.interest || 0)
-                    + Number(row.penalty || 0),
-                0,
-            );
-    })();
-
-    const amountDue = currentBillingCharges
-        + carryingBalanceTotal
-        - currentPeriodPayments
-        + adjustmentsThroughCurrentBilling;
+    const amountDue = Number(account?.balance ?? carryingBalanceTotal);
 
     const cards = [
         {

@@ -38,13 +38,6 @@ export class SyncController {
     }
 
     @UseGuards(JwtAuthGuard)
-    @Post('request/adjustments')
-    requestAdjustments(@Request() req: AuthenticatedRequest) {
-        this.assertAdmin(req);
-        return this.syncService.createRequest('adjustments', req.user.username || `admin:${req.user.id}`);
-    }
-
-    @UseGuards(JwtAuthGuard)
     @Get('status')
     getStatus(@Request() req: AuthenticatedRequest) {
         this.assertAdmin(req);
@@ -112,18 +105,6 @@ export class SyncController {
     @Post('billings')
     receiveBillings(@Body() body: unknown) {
         return this.syncService.receiveBillings(body);
-    }
-
-    @UseGuards(SyncApiKeyGuard)
-    @Post('adjustments')
-    receiveAdjustments(@Body() body: unknown) {
-        return this.syncService.receiveAdjustments(body);
-    }
-
-    @UseGuards(SyncApiKeyGuard)
-    @Post('adjustments/reconcile')
-    reconcileAdjustments(@Body() body: unknown) {
-        return this.syncService.reconcileAdjustments(body);
     }
 
     private assertAdmin(req: AuthenticatedRequest) {

@@ -169,15 +169,6 @@ export default function AccountsTable({
                                                                 </select>
                                                             </label>
                                                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                                Balance
-                                                                <input
-                                                                    type="number"
-                                                                    value={editForm.balance}
-                                                                    onChange={(e) => onEditChange('balance', e.target.value)}
-                                                                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                                                                />
-                                                            </label>
-                                                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                                                 Username
                                                                 <input
                                                                     type="text"

@@ -1,11 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { PropertyAccount } from './property.entity';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
-import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
-import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
 
 export interface CreateHomeownerInput {
     neighborhood: string;
@@ -28,11 +26,6 @@ export class PropertyService {
         private propertyRepo: Repository<PropertyAccount>,
         @InjectRepository(FoxproBilling)
         private billingRepo: Repository<FoxproBilling>,
-        @InjectRepository(FoxproPayment)
-        private paymentRepo: Repository<FoxproPayment>,
-        @InjectRepository(FoxproAdjustment)
-        private adjustmentRepo: Repository<FoxproAdjustment>,
-        private dataSource: DataSource,
     ) { }
 
     async createHomeowner(input: CreateHomeownerInput): Promise<PropertyAccount> {
@@ -80,37 +73,8 @@ export class PropertyService {
             Number(latestBilling.intCurr || 0) +
             Number(latestBilling.penCurr || 0);
 
-        const carryingBalance =
-            Number(latestBilling.prinBal || 0) +
-            Number(latestBilling.intBal || 0) +
-            Number(latestBilling.penBal || 0);
-
-        const startDate = latestBilling.dateFrom ? new Date(latestBilling.dateFrom) : null;
-        const endDate = latestBilling.dateTo ? new Date(latestBilling.dateTo) : null;
-        const hasValidRange =
-            startDate &&
-            endDate &&
-            !Number.isNaN(startDate.getTime()) &&
-            !Number.isNaN(endDate.getTime());
-
-        let paidTotal = 0;
-        if (hasValidRange) {
-            const raw = await this.paymentRepo
-                .createQueryBuilder('payment')
-                .select('COALESCE(SUM(payment.amountPaid), 0)', 'totalPaid')
-                .where('payment.accountId = :accountId', { accountId })
-                .andWhere('payment.paymentDate BETWEEN :start AND :end', {
-                    start: startDate,
-                    end: endDate,
-                })
-                .andWhere('LOWER(TRIM(payment.paycat)) = :paycat', { paycat: 'membership dues' })
-                .andWhere('(payment.isDeletedFromFoxpro = false OR payment.isDeletedFromFoxpro IS NULL)')
-                .getRawOne();
-
-            paidTotal = Number(raw?.totalPaid ?? 0);
-        }
-
-        const amountDue = carryingBalance + currentCharges - paidTotal;
+        const account = await this.propertyRepo.findOne({ where: { accountId } });
+        const amountDue = Number(account?.balance ?? 0);
 
         if (currentCharges <= 0) {
             return PropertyService.GOOD_STANDING;
@@ -159,114 +123,6 @@ export class PropertyService {
         account.password = hashedPassword;
         account.passwordChanged = true;
         await this.propertyRepo.save(account);
-    }
-
-    async recalculateBalances(): Promise<{ updated: number }> {
-        return this.dataSource.transaction(async (manager) => {
-            const propertyRepo = manager.getRepository(PropertyAccount);
-            const billingRepo = manager.getRepository(FoxproBilling);
-            const paymentRepo = manager.getRepository(FoxproPayment);
-            const adjustmentRepo = manager.getRepository(FoxproAdjustment);
-
-            const billingSums = await billingRepo
-                .createQueryBuilder('billing')
-                .select('billing.accountId', 'accountId')
-                .addSelect('SUM(billing.prinBal)', 'totalPriorDue')
-                .addSelect('SUM(billing.intBal)', 'totalPriorInterest')
-                .addSelect('SUM(billing.penBal)', 'totalPriorPenalty')
-                .addSelect('SUM(billing.prinCurr)', 'totalDue')
-                .addSelect('SUM(billing.intCurr)', 'totalInterest')
-                .addSelect('SUM(billing.penCurr)', 'totalPenalty')
-                .groupBy('billing.accountId')
-                .getRawMany();
-
-            const paymentSums = await paymentRepo
-                .createQueryBuilder('payment')
-                .select('payment.accountId', 'accountId')
-                .addSelect('SUM(payment.amountPaid)', 'totalPaid')
-                .where('(payment.isDeletedFromFoxpro = false OR payment.isDeletedFromFoxpro IS NULL)')
-                .groupBy('payment.accountId')
-                .getRawMany();
-
-            const adjustmentSums = await adjustmentRepo
-                .createQueryBuilder('adjustment')
-                .select('adjustment.accountId', 'accountId')
-                .addSelect(
-                    'SUM(adjustment.principal + adjustment.interest + adjustment.penalty)',
-                    'totalAdjustment',
-                )
-                .groupBy('adjustment.accountId')
-                .getRawMany();
-
-            const dueMap = new Map<string, number>();
-            const interestMap = new Map<string, number>();
-            const penaltyMap = new Map<string, number>();
-            const priorDueMap = new Map<string, number>();
-            const priorInterestMap = new Map<string, number>();
-            const priorPenaltyMap = new Map<string, number>();
-            for (const row of billingSums) {
-                const accountId = String(row.accountId || '').trim();
-                if (!accountId) {
-                    continue;
-                }
-                priorDueMap.set(accountId, Number(row.totalPriorDue ?? 0));
-                priorInterestMap.set(accountId, Number(row.totalPriorInterest ?? 0));
-                priorPenaltyMap.set(accountId, Number(row.totalPriorPenalty ?? 0));
-                dueMap.set(accountId, Number(row.totalDue ?? 0));
-                interestMap.set(accountId, Number(row.totalInterest ?? 0));
-                penaltyMap.set(accountId, Number(row.totalPenalty ?? 0));
-            }
-
-            const paidMap = new Map<string, number>();
-            for (const row of paymentSums) {
-                const accountId = String(row.accountId || '').trim();
-                if (!accountId) {
-                    continue;
-                }
-                paidMap.set(accountId, Number(row.totalPaid ?? 0));
-            }
-
-            const adjustmentMap = new Map<string, number>();
-            for (const row of adjustmentSums) {
-                const accountId = String(row.accountId || '').trim();
-                if (!accountId) {
-                    continue;
-                }
-                adjustmentMap.set(accountId, Number(row.totalAdjustment ?? 0));
-            }
-
-            const accounts = await propertyRepo.find();
-            for (const account of accounts) {
-                const accountId = String(account.accountId || '').trim();
-                if (!accountId) {
-                    continue;
-                }
-
-                const totalDue = dueMap.get(accountId) ?? 0;
-                const totalInterest = interestMap.get(accountId) ?? 0;
-                const totalPenalty = penaltyMap.get(accountId) ?? 0;
-                const totalPriorDue = priorDueMap.get(accountId) ?? 0;
-                const totalPriorInterest = priorInterestMap.get(accountId) ?? 0;
-                const totalPriorPenalty = priorPenaltyMap.get(accountId) ?? 0;
-                const totalPaid = paidMap.get(accountId) ?? 0;
-                const totalAdjustments = adjustmentMap.get(accountId) ?? 0;
-                account.balance =
-                    totalPriorDue +
-                    totalPriorInterest +
-                    totalPriorPenalty +
-                    totalDue +
-                    totalInterest +
-                    totalPenalty -
-                    totalPaid +
-                    totalAdjustments;
-            }
-
-            if (accounts.length > 0) {
-                await propertyRepo.save(accounts);
-            }
-
-            return { updated: accounts.length };
-        });
     }
 
 }

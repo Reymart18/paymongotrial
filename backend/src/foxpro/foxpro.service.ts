@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, IsNull, In, MoreThanOrEqual } from 'typeorm';
+import { DataSource, Repository, IsNull, In } from 'typeorm';
 import { Readable } from 'stream';
 import { DBFFile } from 'dbffile';
 import * as fs from 'fs';
@@ -14,9 +14,7 @@ import * as nodemailer from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
-import { FoxproAdjustment } from './foxpro-adjustment.entity';
 import { PropertyAccount } from '../property/property.entity';
-import { PropertyService } from '../property/property.service';
 import { QuarterlyReportSnapshot } from '../reports/quarterly-report.entity';
 import { assertLocalDbfMode } from '../sync/sync-mode.util';
 
@@ -44,15 +42,6 @@ export interface FoxproPaymentRecord {
     referenceNumber?: string | null;
 }
 
-export interface FoxproAdjustmentRecord {
-    transDate?: Date | null;
-    principal: number;
-    interest: number;
-    accountId: string;
-    memberName?: string;
-    penalty: number;
-}
-
 export interface FoxproMemberRecord {
     accountId: string;
     neighborhood: string;
@@ -64,6 +53,9 @@ export interface FoxproMemberRecord {
     gmail?: string | null;
     telno?: string | null;
     celno?: string | null;
+    principal: number | null;
+    interest: number | null;
+    penalty: number | null;
 }
 
 @Injectable()
@@ -78,7 +70,6 @@ export class FoxproService {
         @InjectRepository(QuarterlyReportSnapshot)
         private snapshotRepo: Repository<QuarterlyReportSnapshot>,
         private dataSource: DataSource,
-        private propertyService: PropertyService,
     ) { }
 
     async uploadBillings(file: Express.Multer.File) {
@@ -148,10 +139,6 @@ export class FoxproService {
             await this.snapshotQuarterlyBillings(billingRepo, snapshotRepo);
         });
 
-        if (result.inserted + result.updated > 0) {
-            await this.propertyService.recalculateBalances();
-        }
-
         return result;
     }
 
@@ -198,19 +185,6 @@ export class FoxproService {
         return this.saveMemberRecords(records);
     }
 
-    async syncAdjustmentsFromDbf(filePath?: string) {
-        assertLocalDbfMode();
-        const dbfPath = filePath ?? this.getAdjustmentsDbfPath();
-        if (!fs.existsSync(dbfPath)) {
-            throw new BadRequestException(`adjustment.dbf not found at ${dbfPath}`);
-        }
-
-        const records = await this.parseAdjustmentsDbf(dbfPath);
-        const result = await this.saveAdjustmentRecords(records);
-        const reconciliation = await this.reconcileAdjustmentRecords(records);
-        return { ...result, deleted: reconciliation.deleted };
-    }
-
     async syncBillingsFromJson(records: Array<Record<string, unknown>>) {
         return this.saveBillingRecords(
             records.map((record) => this.normalizePushedBillingRecord(record)),
@@ -222,18 +196,6 @@ export class FoxproService {
         return this.savePaymentRecords(
             records.map((record) => this.normalizePushedPaymentRecord(record)),
             false,
-        );
-    }
-
-    async syncAdjustmentsFromJson(records: Array<Record<string, unknown>>) {
-        return this.saveAdjustmentRecords(
-            records.map((record) => this.normalizeAdjustmentRecord(record)),
-        );
-    }
-
-    async reconcileAdjustmentsFromJson(records: Array<Record<string, unknown>>) {
-        return this.reconcileAdjustmentRecords(
-            records.map((record) => this.normalizeAdjustmentRecord(record)),
         );
     }
 
@@ -263,9 +225,6 @@ export class FoxproService {
             .execute();
 
         const deleted = result.affected || 0;
-        if (deleted > 0) {
-            await this.propertyService.recalculateBalances();
-        }
 
         return {
             deleted,
@@ -368,6 +327,29 @@ export class FoxproService {
                         changed = true;
                     }
 
+                    if (record.principal !== null && Number(existing.principal ?? 0) !== record.principal) {
+                        existing.principal = record.principal;
+                        changed = true;
+                    }
+
+                    if (record.interest !== null && Number(existing.interest ?? 0) !== record.interest) {
+                        existing.interest = record.interest;
+                        changed = true;
+                    }
+
+                    if (record.penalty !== null && Number(existing.penalty ?? 0) !== record.penalty) {
+                        existing.penalty = record.penalty;
+                        changed = true;
+                    }
+
+                    if (record.principal !== null && record.interest !== null && record.penalty !== null) {
+                        const memberBalance = record.principal + record.interest + record.penalty;
+                        if (Number(existing.balance ?? 0) !== memberBalance) {
+                            existing.balance = memberBalance;
+                            changed = true;
+                        }
+                    }
+
                     if (changed) {
                         await propertyRepo.save(existing);
                         result.updated += 1;
@@ -402,7 +384,10 @@ export class FoxproService {
                     username: record.accountId,
                     password: hashedPassword,
                     passwordChanged: false,
-                    balance: 0,
+                    principal: record.principal ?? 0,
+                    interest: record.interest ?? 0,
+                    penalty: record.penalty ?? 0,
+                    balance: (record.principal ?? 0) + (record.interest ?? 0) + (record.penalty ?? 0),
                 });
 
                 await propertyRepo.save(account);
@@ -528,21 +513,6 @@ export class FoxproService {
         return rows;
     }
 
-    private async parseAdjustmentsDbf(filePath: string): Promise<FoxproAdjustmentRecord[]> {
-        const dbf = await DBFFile.open(filePath, { encoding: 'latin1' });
-        const rows: FoxproAdjustmentRecord[] = [];
-        let records = await dbf.readRecords(500);
-
-        while (records.length > 0) {
-            records.forEach((row) => {
-                rows.push(this.normalizeAdjustmentRecord(row as Record<string, unknown>));
-            });
-            records = await dbf.readRecords(500);
-        }
-
-        return rows;
-    }
-
     private async parseBillingCsv(buffer: Buffer): Promise<FoxproBillingRecord[]> {
         const rows: FoxproBillingRecord[] = [];
         const separator = this.detectDelimiter(buffer);
@@ -637,19 +607,6 @@ export class FoxproService {
         };
     }
 
-    private normalizeAdjustmentRecord(raw: Record<string, unknown>): FoxproAdjustmentRecord {
-        const normalized = this.normalizeKeys(raw);
-
-        return {
-            transDate: this.parseFoxProDate(normalized.transdate),
-            principal: this.toNumber(normalized.principal),
-            interest: this.toNumber(normalized.interest),
-            accountId: this.cleanText(normalized.accountid || normalized.keysearch),
-            memberName: this.cleanText(normalized.membername),
-            penalty: this.toNumber(normalized.penalty),
-        };
-    }
-
     private normalizeMemberRecord(raw: Record<string, unknown>): FoxproMemberRecord {
         const normalized = this.normalizeKeys(raw);
         const neighborhood = this.cleanText(normalized.neighbor || normalized.neighborhood);
@@ -686,6 +643,9 @@ export class FoxproService {
             gmail: gmail || null,
             telno: telno || null,
             celno: celno || null,
+            principal: this.toNumberOrNull(normalized.principal),
+            interest: this.toNumberOrNull(normalized.interest),
+            penalty: this.toNumberOrNull(normalized.penalty),
         };
     }
 
@@ -763,6 +723,9 @@ export class FoxproService {
             gmail: gmail || null,
             telno: this.cleanText(normalized.telno) || null,
             celno: this.cleanText(normalized.celno) || null,
+            principal: this.toNumberOrNull(normalized.principal),
+            interest: this.toNumberOrNull(normalized.interest),
+            penalty: this.toNumberOrNull(normalized.penalty),
         };
     }
 
@@ -913,144 +876,7 @@ export class FoxproService {
             }
         });
 
-        if (result.inserted + result.updated > 0) {
-            await this.propertyService.recalculateBalances();
-        }
-
         return result;
-    }
-
-    private async saveAdjustmentRecords(records: FoxproAdjustmentRecord[]) {
-        const result = { inserted: 0, updated: 0, skipped: 0, errors: [] as string[] };
-        const startDate = this.getAdjustmentsStartDate();
-
-        await this.dataSource.transaction(async (manager) => {
-            const adjustmentRepo = manager.getRepository(FoxproAdjustment);
-            const propertyRepo = manager.getRepository(PropertyAccount);
-            const prepared: Array<{ record: FoxproAdjustmentRecord; row: number }> = [];
-            const accountIds = new Set<string>();
-
-            for (let index = 0; index < records.length; index += 1) {
-                const record = records[index];
-                const row = index + 1;
-
-                if (!record.transDate || !record.accountId) {
-                    result.skipped += 1;
-                    result.errors.push(`Row ${row}: Missing transDate or accountId`);
-                    continue;
-                }
-
-                if (record.transDate < startDate) {
-                    result.skipped += 1;
-                    continue;
-                }
-
-                prepared.push({ record, row });
-                accountIds.add(record.accountId);
-            }
-
-            const accountIdList = Array.from(accountIds);
-            const accounts = accountIdList.length
-                ? await propertyRepo.find({ where: { accountId: In(accountIdList) } })
-                : [];
-            const accountIdsFound = new Set(accounts.map((account) => account.accountId));
-
-            for (const entry of prepared) {
-                const { record, row } = entry;
-                if (!accountIdsFound.has(record.accountId)) {
-                    result.skipped += 1;
-                    result.errors.push(`Row ${row}: accountId not found (${record.accountId})`);
-                    continue;
-                }
-
-                const existing = await adjustmentRepo.findOne({
-                    where: {
-                        accountId: record.accountId,
-                        transDate: record.transDate ?? undefined,
-                        principal: record.principal,
-                        interest: record.interest,
-                        memberName: record.memberName || '',
-                        penalty: record.penalty,
-                    },
-                });
-
-                if (existing) {
-                    result.skipped += 1;
-                    continue;
-                }
-
-                await adjustmentRepo.insert({
-                    accountId: record.accountId,
-                    transDate: record.transDate ?? undefined,
-                    principal: record.principal,
-                    interest: record.interest,
-                    memberName: record.memberName || '',
-                    penalty: record.penalty,
-                });
-                result.inserted += 1;
-            }
-        });
-
-        if (result.inserted + result.updated > 0) {
-            await this.propertyService.recalculateBalances();
-        }
-
-        return result;
-    }
-
-    private async reconcileAdjustmentRecords(records: FoxproAdjustmentRecord[]) {
-        const startDate = this.getAdjustmentsStartDate();
-        const sourceKeys = new Set(
-            records
-                .filter((record) => record.transDate && record.accountId && record.transDate >= startDate)
-                .map((record) => this.getAdjustmentRecordKey(record)),
-        );
-
-        const existing = await this.dataSource.getRepository(FoxproAdjustment).find({
-            where: { transDate: MoreThanOrEqual(startDate) },
-        });
-        const staleIds = existing
-            .filter((record) => !sourceKeys.has(this.getAdjustmentRecordKey(record)))
-            .map((record) => record.id)
-            .filter((id): id is number => typeof id === 'number');
-
-        if (staleIds.length === 0) {
-            return { deleted: 0 };
-        }
-
-        await this.dataSource.transaction(async (manager) => {
-            await manager.getRepository(FoxproAdjustment).delete(staleIds);
-        });
-        await this.propertyService.recalculateBalances();
-
-        return { deleted: staleIds.length };
-    }
-
-    private getAdjustmentRecordKey(record: {
-        accountId?: string | null;
-        transDate?: Date | null;
-        principal?: number | string | null;
-        interest?: number | string | null;
-        memberName?: string | null;
-        penalty?: number | string | null;
-    }): string {
-        const dateValue = record.transDate instanceof Date
-            ? record.transDate
-            : record.transDate
-                ? new Date(`${String(record.transDate).slice(0, 10)}T00:00:00`)
-                : null;
-        const date = dateValue && !Number.isNaN(dateValue.getTime())
-            ? `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, '0')}-${String(dateValue.getDate()).padStart(2, '0')}`
-            : '';
-        const amount = (value: number | string | null | undefined) => Number(value ?? 0).toFixed(2);
-        return [
-            this.cleanText(record.accountId),
-            date,
-            amount(record.principal),
-            amount(record.interest),
-            this.cleanText(record.memberName),
-            amount(record.penalty),
-        ].join('\u001f');
     }
 
     private async saveBillingRecords(records: FoxproBillingRecord[], applyLocalFilters = true) {
@@ -1196,10 +1022,6 @@ export class FoxproService {
             await this.snapshotQuarterlyBillings(billingRepo, snapshotRepo);
         });
 
-        if (result.inserted + result.updated > 0) {
-            await this.propertyService.recalculateBalances();
-        }
-
         return result;
     }
 
@@ -1225,26 +1047,6 @@ export class FoxproService {
         }
 
         return path.resolve('C:/Users/CLienT/Documents/hoaportal/BILLING.DBF');
-    }
-
-    private getAdjustmentsDbfPath(): string {
-        if (process.env.FOXPRO_ADJUSTMENTS_DBF_PATH) {
-            return process.env.FOXPRO_ADJUSTMENTS_DBF_PATH;
-        }
-
-        return path.resolve('C:/Users/CLienT/Documents/hoaportal/ADJUSTMENT.DBF');
-    }
-
-    private getAdjustmentsStartDate(): Date {
-        const configured = process.env.FOXPRO_ADJUSTMENTS_START_DATE;
-        if (configured) {
-            const parsed = this.parseFoxProDate(configured);
-            if (parsed) {
-                return parsed;
-            }
-        }
-
-        return new Date(2026, 6, 1);
     }
 
     private getBillingsStartDate(): Date | null {

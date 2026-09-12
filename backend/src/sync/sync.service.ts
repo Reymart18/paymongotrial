@@ -129,21 +129,6 @@ export class SyncService {
         return this.recordReceiveResult('billing', records.length, result, requestId);
     }
 
-    async receiveAdjustments(body: unknown) {
-        const { records, requestId } = this.resolvePayload(body);
-        const result = await this.foxproService.syncAdjustmentsFromJson(records);
-        return this.recordReceiveResult('adjustments', records.length, result, requestId);
-    }
-
-    async reconcileAdjustments(body: unknown) {
-        const payload = body as { records?: unknown };
-        if (!Array.isArray(payload?.records)) {
-            throw new BadRequestException('Adjustment reconciliation requires a records array.');
-        }
-
-        return this.foxproService.reconcileAdjustmentsFromJson(payload.records);
-    }
-
     async getStatus() {
         const [running, latest] = await Promise.all([
             this.syncRequestRepo.findOne({

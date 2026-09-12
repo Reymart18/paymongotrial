@@ -3,12 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
-import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
-import { PropertyAccount } from '../property/property.entity';
 
 export interface StatementRow {
     date: string;
-    type: 'billing' | 'payment' | 'adjustment';
+    type: 'billing' | 'payment';
     dateFrom?: string | null;
     dateTo?: string | null;
     billDate?: string | null;
@@ -39,15 +37,11 @@ export class StatementsService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
-        @InjectRepository(FoxproAdjustment)
-        private adjustmentRepo: Repository<FoxproAdjustment>,
-        @InjectRepository(PropertyAccount)
-        private propertyRepo: Repository<PropertyAccount>,
     ) { }
 
     async getStatement(accountId: string): Promise<StatementRow[]> {
         const paymentCutoff = this.getPaymentsCutoffDate();
-        const [billings, payments, adjustments] = await Promise.all([
+        const [billings, payments] = await Promise.all([
             this.billingRepo.find({
                 where: { accountId },
                 order: { dueDate: 'ASC' },
@@ -60,15 +54,11 @@ export class StatementsService {
                 },
                 order: { paymentDate: 'ASC' },
             }),
-            this.adjustmentRepo.find({
-                where: { accountId },
-                order: { transDate: 'ASC' },
-            }),
         ]);
 
         const rows: Array<{
             dateValue: Date;
-            type: 'billing' | 'payment' | 'adjustment';
+            type: 'billing' | 'payment';
             dateFromValue?: Date | null;
             dateToValue?: Date | null;
             billDateValue?: Date | null;
@@ -141,39 +131,19 @@ export class StatementsService {
             });
         }
 
-        for (const adjustment of adjustments) {
-            if (!adjustment.transDate) {
-                continue;
-            }
-            rows.push({
-                dateValue: new Date(adjustment.transDate),
-                type: 'adjustment',
-                amountDue: Number(adjustment.principal || 0),
-                interest: Number(adjustment.interest || 0),
-                penalty: Number(adjustment.penalty || 0),
-                amountPaid: 0,
-                description: 'Adjustment',
-            });
-        }
-
         rows.sort((a, b) => a.dateValue.getTime() - b.dateValue.getTime());
 
         const statement: StatementRow[] = [];
         let runningBalance = 0;
-        let cumulativeAdjustments = 0;
 
         for (const row of rows) {
             const previousBalance =
                 row.type === 'billing' && row.previousBalance !== undefined
-                    ? row.previousBalance + cumulativeAdjustments
+                    ? row.previousBalance
                     : runningBalance;
             const totalBalance =
                 previousBalance + row.amountDue + row.interest + row.penalty - row.amountPaid;
             runningBalance = totalBalance;
-
-            if (row.type === 'adjustment') {
-                cumulativeAdjustments += row.amountDue + row.interest + row.penalty;
-            }
 
             statement.push({
                 date: row.dateValue.toISOString(),
@@ -209,12 +179,6 @@ export class StatementsService {
                 totalBalance,
                 description: row.description,
             });
-        }
-
-        const account = await this.propertyRepo.findOne({ where: { accountId } });
-        if (account && Number(account.balance ?? 0) !== runningBalance) {
-            account.balance = runningBalance;
-            await this.propertyRepo.save(account);
         }
 
         return statement;

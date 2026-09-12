@@ -5,15 +5,11 @@ import { PropertyController } from './property.controller';
 import { PropertyAccount } from './property.entity';
 import { AuthModule } from '../auth/auth.module';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
-import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
-import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([
     PropertyAccount,
     FoxproBilling,
-    FoxproPayment,
-    FoxproAdjustment,
   ]), AuthModule],
   providers: [PropertyService],
   controllers: [PropertyController],

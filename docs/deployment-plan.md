@@ -59,13 +59,12 @@ The portal will have manual buttons:
 - Sync Members
 - Sync Payments
 - Sync Billing
-- Sync Adjustments
 
 Important: when admin clicks these buttons, the VPS still does NOT read DBF.
 
 Manual sync works like this:
 
-Admin clicks Sync Members / Sync Payments / Sync Billing / Sync Adjustments
+Admin clicks Sync Members / Sync Payments / Sync Billing
 → Frontend calls VPS backend endpoint
 → VPS creates a pending sync request in MySQL
 → Server PC sync service periodically checks VPS for pending sync requests
@@ -99,7 +98,6 @@ For portal/admin:
 POST /sync/request/members
 POST /sync/request/payments
 POST /sync/request/billing
-POST /sync/request/adjustments
 
 These create pending sync requests.
 
@@ -113,7 +111,6 @@ For receiving actual synced data:
 POST /sync/members
 POST /sync/payments
 POST /sync/billings
-POST /sync/adjustments
 
 All server PC endpoints must require an API key or bearer token.
 
@@ -128,8 +125,6 @@ FOXPRO_PAYMENTS_CUTOFF_DATE=2025-03-31
 FOXPRO_BILLINGS_DBF_PATH=\\SERVER-PC\parkplacevillagesystem\billing.dbf
 FOXPRO_BILLINGS_START_DATE=2026-01-01
 FOXPRO_MEMBERS_DBF_PATH=\\SERVER-PC\parkplacevillagesystem\members.dbf
-FOXPRO_ADJUSTMENTS_DBF_PATH=\\SERVER-PC\parkplacevillagesystem\adjustment.dbf
-FOXPRO_ADJUSTMENTS_START_DATE=2026-07-01
 DB_HOST=localhost
 DB_NAME=hoa_dev
 
@@ -159,8 +154,6 @@ Example:
 MEMBERS_DBF=C:\parkplacevillagesystem\members.dbf
 PAYMENTS_DBF=C:\parkplacevillagesystem\payments.dbf
 BILLINGS_DBF=C:\parkplacevillagesystem\billing.dbf
-ADJUSTMENTS_DBF=C:\parkplacevillagesystem\adjustment.dbf
-ADJUSTMENTS_START_DATE=2026-07-01
 
 PAYMENTS_CUTOFF_DATE=2025-03-31
 BILLINGS_START_DATE=2026-01-01
@@ -236,7 +229,6 @@ Manual buttons:
 - Sync Members
 - Sync Payments
 - Sync Billing
-- Sync Adjustments
 
 Button behavior:
 - If sync is already running, disable button or show "Sync in progress"

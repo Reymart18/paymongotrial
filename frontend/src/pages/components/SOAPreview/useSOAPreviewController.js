@@ -227,18 +227,6 @@ export default function useSOAPreviewController() {
         [billingRowsForYear],
     );
 
-    const balanceBillingRow = useMemo(
-        () => (billingRowsForYear.length > 1
-            ? billingRowsForYear[billingRowsForYear.length - 2]
-            : null),
-        [billingRowsForYear],
-    );
-
-    const balanceSourceRow = useMemo(
-        () => latestBillingRow || balanceBillingRow,
-        [latestBillingRow, balanceBillingRow],
-    );
-
     const paymentRows = useMemo(
         () => statementRows
             .filter((row) => row.type === 'payment')
@@ -251,83 +239,23 @@ export default function useSOAPreviewController() {
         [paymentRows, selectedBillingYear],
     );
 
-    const currentPeriodPayments = useMemo(() => {
-        if (!latestBillingRow?.dateFrom || !latestBillingRow?.dateTo) {
-            return [];
-        }
-
-        const start = new Date(latestBillingRow.dateFrom);
-        const end = new Date(latestBillingRow.dateTo);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-            return [];
-        }
-
-        return paymentRows.filter((row) => {
-            const paymentDate = new Date(row.date);
-            if (Number.isNaN(paymentDate.getTime())) {
-                return false;
-            }
-
-            return paymentDate >= start && paymentDate <= end;
-        });
-    }, [latestBillingRow, paymentRows]);
-
-    const currentPeriodMembershipPayments = useMemo(
-        () => currentPeriodPayments.filter((row) => isMembershipDues(row)),
-        [currentPeriodPayments],
-    );
-
-    const currentPeriodPaymentsTotal = useMemo(
-        () => currentPeriodMembershipPayments.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
-        [currentPeriodMembershipPayments],
-    );
-
-    const adjustmentsThroughCurrentBilling = useMemo(() => {
-        if (!latestBillingRow?.dateTo) {
-            return 0;
-        }
-
-        const asOf = new Date(latestBillingRow.dateTo);
-        if (Number.isNaN(asOf.getTime())) {
-            return 0;
-        }
-
-        return statementRows
-            .filter((row) => row.type === 'adjustment')
-            .filter((row) => {
-                const adjustmentDate = new Date(row.date);
-                return !Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= asOf;
-            })
-            .reduce(
-                (sum, row) => sum
-                    + Number(row.amountDue || 0)
-                    + Number(row.interest || 0)
-                    + Number(row.penalty || 0),
-                0,
-            );
-    }, [latestBillingRow?.dateTo, statementRows]);
-
     const totalPayments = useMemo(
         () => paymentRowsForYear.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
         [paymentRowsForYear],
     );
 
     const balanceBreakdown = useMemo(() => {
-        const principal = Number(balanceSourceRow?.prinBal ?? 0);
-        const interest = Number(balanceSourceRow?.intBal ?? 0);
-        const penalties = Number(balanceSourceRow?.penBal ?? 0);
-        const hasParts = [balanceSourceRow?.prinBal, balanceSourceRow?.intBal, balanceSourceRow?.penBal]
-            .some((value) => value !== undefined && value !== null);
-        const total = hasParts
-            ? principal + interest + penalties
-            : Number(balanceSourceRow?.previousBalance ?? 0);
+        const principal = Number(account?.principal ?? 0);
+        const interest = Number(account?.interest ?? 0);
+        const penalties = Number(account?.penalty ?? 0);
+        const total = Number(account?.balance ?? principal + interest + penalties);
         return {
             principal,
             interest,
             penalties,
             total,
         };
-    }, [balanceSourceRow]);
+    }, [account]);
 
     const currentChargesBreakdown = useMemo(() => {
         const principal = Number(latestBillingRow?.prinCurr ?? latestBillingRow?.amountDue ?? 0);
@@ -341,18 +269,7 @@ export default function useSOAPreviewController() {
         };
     }, [latestBillingRow]);
 
-    const amountDue = useMemo(
-        () => balanceBreakdown.total
-            + currentChargesBreakdown.total
-            - currentPeriodPaymentsTotal
-            + adjustmentsThroughCurrentBilling,
-        [
-            adjustmentsThroughCurrentBilling,
-            balanceBreakdown.total,
-            currentChargesBreakdown.total,
-            currentPeriodPaymentsTotal,
-        ],
-    );
+    const amountDue = balanceBreakdown.total;
 
     const balanceAsOfLabel = latestBillingRow?.dateFrom
         ? (() => {
@@ -360,9 +277,7 @@ export default function useSOAPreviewController() {
             dateBeforeCurrent.setDate(dateBeforeCurrent.getDate() - 1);
             return formatDate(dateBeforeCurrent);
         })()
-        : balanceBillingRow?.dateTo
-            ? formatDate(balanceBillingRow.dateTo)
-            : '-';
+        : '-';
 
     const currentChargesLabel = latestBillingRow?.dateFrom && latestBillingRow?.dateTo
         ? `${formatDate(latestBillingRow.dateFrom)} - ${formatDate(latestBillingRow.dateTo)}`

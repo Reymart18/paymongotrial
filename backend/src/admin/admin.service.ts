@@ -7,7 +7,6 @@ import { PropertyAccount } from '../property/property.entity';
 import { PropertyService } from '../property/property.service';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
-import { FoxproAdjustment } from '../foxpro/foxpro-adjustment.entity';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import * as nodemailer from 'nodemailer';
@@ -26,43 +25,8 @@ export class AdminService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
-        @InjectRepository(FoxproAdjustment)
-        private adjustmentRepo: Repository<FoxproAdjustment>,
         private propertyService: PropertyService,
     ) { }
-
-    private getAdjustmentsTotal(
-        adjustments: FoxproAdjustment[],
-        accountId: string,
-        endDate: unknown,
-    ): number {
-        if (!endDate) {
-            return 0;
-        }
-
-        const adjustmentEnd = endDate instanceof Date
-            ? endDate
-            : new Date(endDate as string);
-        if (Number.isNaN(adjustmentEnd.getTime())) {
-            return 0;
-        }
-
-        return adjustments
-            .filter((adjustment) => adjustment.accountId === accountId && adjustment.transDate)
-            .reduce((total, adjustment) => {
-                if (!adjustment.transDate) {
-                    return total;
-                }
-                const adjustmentDate = new Date(adjustment.transDate);
-                if (Number.isNaN(adjustmentDate.getTime()) || adjustmentDate > adjustmentEnd) {
-                    return total;
-                }
-                return total
-                    + Number(adjustment.principal || 0)
-                    + Number(adjustment.interest || 0)
-                    + Number(adjustment.penalty || 0);
-            }, 0);
-    }
 
     async logActivity(input: {
         actorId?: number;
@@ -198,7 +162,6 @@ export class AdminService {
             'memberName',
             'propertySizeSqm',
             'classification',
-            'balance',
             'username',
             'gmail',
             'telno',
@@ -210,7 +173,7 @@ export class AdminService {
                 continue;
             }
 
-            if (field === 'propertySizeSqm' || field === 'balance') {
+            if (field === 'propertySizeSqm') {
                 const numericValue = Number(updates[field]);
                 if (Number.isNaN(numericValue)) {
                     throw new BadRequestException(`Invalid ${field}`);
@@ -337,10 +300,10 @@ export class AdminService {
         notGoodStandingCount: number;
         totalCollectedPayments: number;
     }> {
-        const [billings, payments, adjustments] = await Promise.all([
+        const [accounts, billings, payments] = await Promise.all([
+            this.propertyRepo.find(),
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
-            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -422,23 +385,16 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
-        const adjustmentsByAccount = new Map<string, FoxproAdjustment[]>();
-        for (const adjustment of adjustments) {
-            if (!adjustment.accountId) {
+        const accountsByAccountId = new Map(
+            accounts.map((account) => [account.accountId ?? '', account]),
+        );
+
+        for (const account of accounts) {
+            const accountId = account.accountId || '';
+            if (!accountId) {
                 continue;
             }
-            if (!adjustmentsByAccount.has(adjustment.accountId)) {
-                adjustmentsByAccount.set(adjustment.accountId, []);
-            }
-            adjustmentsByAccount.get(adjustment.accountId)?.push(adjustment);
-        }
-
-        for (const [accountId, accountBillings] of billingsByAccount) {
-            if (accountBillings.length === 0) {
-                continue;
-            }
-
-            const latestBilling = accountBillings[0];
+            const latestBilling = billingsByAccount.get(accountId)?.[0] ?? null;
 
             // Calculate Amount Due / Excess like SOA preview:
             // (prinBal + intBal + penBal) + (prinCurr + intCurr + penCurr) - membershipDuesPayments
@@ -451,26 +407,6 @@ export class AdminService {
             const currentInterest = Number(latestBilling?.intCurr || 0);
             const currentPenalty = Number(latestBilling?.penCurr || 0);
             const currentCharges = currentPrincipal + currentInterest + currentPenalty;
-
-            const adjustmentEnd = latestBilling?.dateTo
-                ? new Date(latestBilling.dateTo)
-                : latestBilling?.dateFrom
-                    ? new Date(latestBilling.dateFrom)
-                    : null;
-            let adjustmentsTotal = 0;
-            if (adjustmentEnd && !Number.isNaN(adjustmentEnd.getTime())) {
-                for (const adjustment of adjustmentsByAccount.get(accountId) || []) {
-                    if (!adjustment.transDate) {
-                        continue;
-                    }
-                    const adjustmentDate = new Date(adjustment.transDate);
-                    if (!Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= adjustmentEnd) {
-                        adjustmentsTotal += Number(adjustment.principal || 0)
-                            + Number(adjustment.interest || 0)
-                            + Number(adjustment.penalty || 0);
-                    }
-                }
-            }
 
             // Calculate membership dues payments within the billing period
             let membershipPayments = 0;
@@ -493,7 +429,7 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
+            const amountDue = Number(accountsByAccountId.get(accountId)?.balance ?? 0);
             const amountDueCents = toCents(amountDue);
 
             const accountPayments = paymentsByAccount.get(accountId) || [];
@@ -515,7 +451,7 @@ export class AdminService {
             const lastPaymentKey = lastPaymentDate ? lastPaymentDate.toISOString().slice(0, 10) : null;
             const noRecentPayments = !lastPaymentKey || lastPaymentKey <= cutoffKey;
             const notGoodStandingThreshold = currentPrincipal * 2;
-            if (amountDueCents > 0 && amountDue >= notGoodStandingThreshold && noRecentPayments) {
+            if (currentPrincipal > 0 && amountDueCents > 0 && amountDue >= notGoodStandingThreshold && noRecentPayments) {
                 notGoodStandingCount += 1;
             }
 
@@ -812,10 +748,9 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }>;
     }> {
-        const [billings, payments, adjustments] = await Promise.all([
+        const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
-            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -891,10 +826,7 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
-        const accountIdList = Array.from(accountIds);
-        const accounts = accountIdList.length
-            ? await this.propertyRepo.find({ where: { accountId: In(accountIdList) } })
-            : [];
+        const accounts = await this.propertyRepo.find();
         const accountMap = new Map(
             accounts.map((account) => [account.accountId ?? '', account]),
         );
@@ -910,12 +842,12 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }> = [];
 
-        for (const [accountId, accountBillings] of billingsByAccount) {
-            if (accountBillings.length === 0) {
+        for (const accountEntry of accounts) {
+            const accountId = accountEntry.accountId || '';
+            if (!accountId) {
                 continue;
             }
-
-            const latestBilling = accountBillings[0];
+            const latestBilling = billingsByAccount.get(accountId)?.[0] ?? null;
             const principalBalance = Number(latestBilling?.prinBal || 0);
             const interestBalance = Number(latestBilling?.intBal || 0);
             const penaltyBalance = Number(latestBilling?.penBal || 0);
@@ -946,12 +878,7 @@ export class AdminService {
                 }
             }
 
-            const adjustmentsTotal = this.getAdjustmentsTotal(
-                adjustments,
-                accountId,
-                latestBilling?.dateTo || latestBilling?.dateFrom,
-            );
-            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
+            const amountDue = Number(accountMap.get(accountId)?.balance ?? 0);
             if (toCents(amountDue) !== 0) {
                 continue;
             }
@@ -1004,10 +931,9 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }>;
     }> {
-        const [billings, payments, adjustments] = await Promise.all([
+        const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
-            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -1083,10 +1009,7 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
-        const accountIdList = Array.from(accountIds);
-        const accounts = accountIdList.length
-            ? await this.propertyRepo.find({ where: { accountId: In(accountIdList) } })
-            : [];
+        const accounts = await this.propertyRepo.find();
         const accountMap = new Map(
             accounts.map((account) => [account.accountId ?? '', account]),
         );
@@ -1102,12 +1025,12 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }> = [];
 
-        for (const [accountId, accountBillings] of billingsByAccount) {
-            if (accountBillings.length === 0) {
+        for (const accountEntry of accounts) {
+            const accountId = accountEntry.accountId || '';
+            if (!accountId) {
                 continue;
             }
-
-            const latestBilling = accountBillings[0];
+            const latestBilling = billingsByAccount.get(accountId)?.[0] ?? null;
             const principalBalance = Number(latestBilling?.prinBal || 0);
             const interestBalance = Number(latestBilling?.intBal || 0);
             const penaltyBalance = Number(latestBilling?.penBal || 0);
@@ -1138,12 +1061,7 @@ export class AdminService {
                 }
             }
 
-            const adjustmentsTotal = this.getAdjustmentsTotal(
-                adjustments,
-                accountId,
-                latestBilling?.dateTo || latestBilling?.dateFrom,
-            );
-            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
+            const amountDue = Number(accountMap.get(accountId)?.balance ?? 0);
             if (toCents(amountDue) >= 0) {
                 continue;
             }
@@ -1196,10 +1114,9 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }>;
     }> {
-        const [billings, payments, adjustments] = await Promise.all([
+        const [billings, payments] = await Promise.all([
             this.billingRepo.find({ order: { dueDate: 'DESC' } }),
             this.paymentRepo.find({ where: { isDeletedFromFoxpro: false } }),
-            this.adjustmentRepo.find(),
         ]);
 
         const parseDate = (value: unknown) => {
@@ -1275,21 +1192,7 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
-        const adjustmentsByAccount = new Map<string, FoxproAdjustment[]>();
-        for (const adjustment of adjustments) {
-            if (!adjustment.accountId) {
-                continue;
-            }
-            if (!adjustmentsByAccount.has(adjustment.accountId)) {
-                adjustmentsByAccount.set(adjustment.accountId, []);
-            }
-            adjustmentsByAccount.get(adjustment.accountId)?.push(adjustment);
-        }
-
-        const accountIdList = Array.from(accountIds);
-        const accounts = accountIdList.length
-            ? await this.propertyRepo.find({ where: { accountId: In(accountIdList) } })
-            : [];
+        const accounts = await this.propertyRepo.find();
         const accountMap = new Map(
             accounts.map((account) => [account.accountId ?? '', account]),
         );
@@ -1305,12 +1208,12 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }> = [];
 
-        for (const [accountId, accountBillings] of billingsByAccount) {
-            if (accountBillings.length === 0) {
+        for (const accountEntry of accounts) {
+            const accountId = accountEntry.accountId || '';
+            if (!accountId) {
                 continue;
             }
-
-            const latestBilling = accountBillings[0];
+            const latestBilling = billingsByAccount.get(accountId)?.[0] ?? null;
             const principalBalance = Number(latestBilling?.prinBal || 0);
             const interestBalance = Number(latestBilling?.intBal || 0);
             const penaltyBalance = Number(latestBilling?.penBal || 0);
@@ -1320,26 +1223,6 @@ export class AdminService {
             const currentInterest = Number(latestBilling?.intCurr || 0);
             const currentPenalty = Number(latestBilling?.penCurr || 0);
             const currentCharges = currentPrincipal + currentInterest + currentPenalty;
-
-            const adjustmentEnd = latestBilling?.dateTo
-                ? new Date(latestBilling.dateTo)
-                : latestBilling?.dateFrom
-                    ? new Date(latestBilling.dateFrom)
-                    : null;
-            let adjustmentsTotal = 0;
-            if (adjustmentEnd && !Number.isNaN(adjustmentEnd.getTime())) {
-                for (const adjustment of adjustmentsByAccount.get(accountId) || []) {
-                    if (!adjustment.transDate) {
-                        continue;
-                    }
-                    const adjustmentDate = new Date(adjustment.transDate);
-                    if (!Number.isNaN(adjustmentDate.getTime()) && adjustmentDate <= adjustmentEnd) {
-                        adjustmentsTotal += Number(adjustment.principal || 0)
-                            + Number(adjustment.interest || 0)
-                            + Number(adjustment.penalty || 0);
-                    }
-                }
-            }
 
             let membershipPayments = 0;
             const billingStart = latestBilling?.dateFrom ? new Date(latestBilling.dateFrom) : null;
@@ -1361,7 +1244,7 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments + adjustmentsTotal;
+            const amountDue = Number(accountMap.get(accountId)?.balance ?? 0);
             if (toCents(amountDue) <= 0) {
                 continue;
             }
@@ -1490,10 +1373,7 @@ export class AdminService {
             paymentsByAccount.get(payment.accountId)?.push(payment);
         }
 
-        const accountIdList = Array.from(accountIds);
-        const accounts = accountIdList.length
-            ? await this.propertyRepo.find({ where: { accountId: In(accountIdList) } })
-            : [];
+        const accounts = await this.propertyRepo.find();
         const accountMap = new Map(
             accounts.map((account) => [account.accountId ?? '', account]),
         );
@@ -1514,12 +1394,12 @@ export class AdminService {
             lastPaymentDate: Date | null;
         }> = [];
 
-        for (const [accountId, accountBillings] of billingsByAccount) {
-            if (accountBillings.length === 0) {
+        for (const accountEntry of accounts) {
+            const accountId = accountEntry.accountId || '';
+            if (!accountId) {
                 continue;
             }
-
-            const latestBilling = accountBillings[0];
+            const latestBilling = billingsByAccount.get(accountId)?.[0] ?? null;
             const principalBalance = Number(latestBilling?.prinBal || 0);
             const interestBalance = Number(latestBilling?.intBal || 0);
             const penaltyBalance = Number(latestBilling?.penBal || 0);
@@ -1554,7 +1434,7 @@ export class AdminService {
                 }
             }
 
-            const amountDue = carryingBalance + currentCharges - membershipPayments;
+            const amountDue = Number(accountMap.get(accountId)?.balance ?? 0);
             const threshold = currentPrincipal * 2;
             const accountPayments = paymentsByAccount.get(accountId) || [];
             const lastMembershipPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {

@@ -54,8 +54,6 @@ Edit `.env`:
 MEMBERS_DBF=C:\parkplacevillagesystem\members.dbf
 PAYMENTS_DBF=C:\parkplacevillagesystem\payments.dbf
 BILLINGS_DBF=C:\parkplacevillagesystem\billing.dbf
-ADJUSTMENTS_DBF=C:\parkplacevillagesystem\adjustment.dbf
-ADJUSTMENTS_START_DATE=2026-07-01
 
 PAYMENTS_CUTOFF_DATE=2025-03-31
 BILLINGS_START_DATE=2026-01-01
@@ -100,7 +98,7 @@ The service will:
 - poll `GET /sync/requests/pending`
 - start pending jobs
 - read the matching local DBF
-- push JSON to `/sync/members`, `/sync/payments`, `/sync/billings`, or `/sync/adjustments`
+- push JSON to `/sync/members`, `/sync/payments`, or `/sync/billings`
 - complete or fail the sync request
 - optionally auto-sync when DBF modified times change
 
@@ -110,7 +108,7 @@ The service will:
 2. Start the portal frontend.
 3. Start this sync service.
 4. Log in as admin.
-5. Click `Sync Members`, `Sync Payments`, `Sync Billing`, or `Sync Adjustments`.
+5. Click `Sync Members`, `Sync Payments`, or `Sync Billing`.
 6. Watch this service terminal for logs.
 
 ## 8. Auto Sync Behavior
