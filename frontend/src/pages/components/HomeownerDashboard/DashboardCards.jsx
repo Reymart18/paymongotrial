@@ -20,16 +20,6 @@ export default function DashboardCards({ account, statementRows }) {
         return parsed.getFullYear();
     };
 
-    const getEffectiveRowDate = (row) => {
-        const dateValue = row?.dateTo || row?.dateFrom || row?.date;
-        const parsed = dateValue ? new Date(dateValue) : null;
-        if (!parsed || Number.isNaN(parsed.getTime())) {
-            return null;
-        }
-
-        return parsed;
-    };
-
     const isMembershipDues = (row) => {
         if (!row?.paycat) {
             return false;
@@ -80,22 +70,6 @@ export default function DashboardCards({ account, statementRows }) {
     }, null);
 
     const billingRows = rows.filter((row) => row.type === 'billing');
-    const latestBillingDateFrom = billingRows.reduce((latest, row) => {
-        if (!row?.dateFrom) {
-            return latest;
-        }
-
-        const current = new Date(row.dateFrom);
-        if (Number.isNaN(current.getTime())) {
-            return latest;
-        }
-
-        if (!latest) {
-            return current;
-        }
-
-        return current > latest ? current : latest;
-    }, null);
     const selectedBillingYear = (() => {
         if (billingRows.length === 0) {
             const fallback = latestDate || new Date();
@@ -114,37 +88,6 @@ export default function DashboardCards({ account, statementRows }) {
 
             return latestYear;
         }, null);
-    })();
-
-    const previousUnpaidBalance = (() => {
-        if (!selectedBillingYear) {
-            return 0;
-        }
-
-        const previousYear = selectedBillingYear - 1;
-        const rowsInPreviousYear = rows.filter((row) => getRowYear(row) === previousYear);
-
-        if (rowsInPreviousYear.length === 0) {
-            return 0;
-        }
-
-        const sortedRows = [...rowsInPreviousYear].sort((a, b) => {
-            const dateA = getEffectiveRowDate(a)?.getTime() ?? 0;
-            const dateB = getEffectiveRowDate(b)?.getTime() ?? 0;
-
-            if (dateA !== dateB) {
-                return dateA - dateB;
-            }
-
-            if (a.type === b.type) {
-                return 0;
-            }
-
-            return a.type === 'payment' ? 1 : -1;
-        });
-
-        const latestRow = sortedRows[sortedRows.length - 1] || null;
-        return latestRow ? Number(latestRow.totalBalance || 0) : 0;
     })();
 
     // Get latest billing row for the selected year
@@ -169,40 +112,14 @@ export default function DashboardCards({ account, statementRows }) {
         ? `AS OF ${formatDate(latestBilling.dateTo)}`
         : '';
 
-    // FoxPro's MEMBERS.DBF balance fields are the source of truth.
-    const carryingBalanceBreakdown = {
-        principal: Number(account?.principal || 0),
-        interest: Number(account?.interest || 0),
-        penalties: Number(account?.penalty || 0),
-    };
-
-    const carryingBalanceTotal = carryingBalanceBreakdown.principal
-        + carryingBalanceBreakdown.interest
-        + carryingBalanceBreakdown.penalties;
-
-    // Calculate summary values from account and statement data
-    const previousBalance = previousUnpaidBalance;
-
-    // Calculate current billing charges using the most recent billing dateFrom
-    const currentBillingCharges = latestBillingDateFrom
-        ? billingRows
-            .filter((row) => {
-                if (!row?.dateFrom) {
-                    return false;
-                }
-
-                const current = new Date(row.dateFrom);
-                return !Number.isNaN(current.getTime())
-                    && current.getTime() === latestBillingDateFrom.getTime();
-            })
-            .reduce(
-                (sum, row) => sum
-                    + Number(row.amountDue || 0)
-                    + Number(row.interest || 0)
-                    + Number(row.penalty || 0),
-                0,
-            )
-        : 0;
+    // These two cards are fixed values from the current BILLING.DBF record.
+    // Payments and adjustments change only the live MEMBERS.DBF balance below.
+    const previousBalance = Number(latestBilling?.prinBal || 0)
+        + Number(latestBilling?.intBal || 0)
+        + Number(latestBilling?.penBal || 0);
+    const currentBillingCharges = Number(latestBilling?.prinCurr || 0)
+        + Number(latestBilling?.intCurr || 0)
+        + Number(latestBilling?.penCurr || 0);
 
     // Calculate recent payment made using the most recent payment date
     const paymentRows = rows.filter((row) => row.type === 'payment');
@@ -234,12 +151,12 @@ export default function DashboardCards({ account, statementRows }) {
         : 0;
     const recentPaymentDescription = latestPaymentRow?.description || '';
 
-    const amountDue = Number(account?.balance ?? carryingBalanceTotal);
+    const amountDue = Number(account?.balance ?? 0);
 
     const cards = [
         {
             title: 'Previous Balance',
-            value: carryingBalanceTotal.toFixed(2),
+            value: previousBalance.toFixed(2),
             icon: pbIcon,
             color: 'from-amber-400 to-orange-400',
         },

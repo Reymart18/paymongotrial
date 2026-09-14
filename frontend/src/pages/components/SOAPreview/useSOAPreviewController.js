@@ -245,17 +245,19 @@ export default function useSOAPreviewController() {
     );
 
     const balanceBreakdown = useMemo(() => {
-        const principal = Number(account?.principal ?? 0);
-        const interest = Number(account?.interest ?? 0);
-        const penalties = Number(account?.penalty ?? 0);
-        const total = Number(account?.balance ?? principal + interest + penalties);
+        // This is the fixed balance on the selected BILLING.DBF record,
+        // not the live MEMBERS.DBF Amount Due / Excess.
+        const principal = Number(latestBillingRow?.prinBal ?? 0);
+        const interest = Number(latestBillingRow?.intBal ?? 0);
+        const penalties = Number(latestBillingRow?.penBal ?? 0);
+        const total = principal + interest + penalties;
         return {
             principal,
             interest,
             penalties,
             total,
         };
-    }, [account]);
+    }, [latestBillingRow]);
 
     const currentChargesBreakdown = useMemo(() => {
         const principal = Number(latestBillingRow?.prinCurr ?? latestBillingRow?.amountDue ?? 0);

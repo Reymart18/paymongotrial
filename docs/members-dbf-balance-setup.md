@@ -121,12 +121,18 @@ balance.
 
 `BILLING.DBF` may still be used to display:
 
+- The SOA's fixed **Balance as of [prior cutoff]** breakdown from the selected
+  billing row: `PRINBAL + INTBAL + PENBAL`
+- The SOA's fixed **Current Charges** breakdown from that row:
+  `PRINCURR + INTCURR + PENCURR`
 - Current billing period
 - Billing date and due date
 - Current billing charges
 - Rules that compare total Amount Due with a current billing charge
 
-It must not modify or recreate the final Amount Due / Excess total.
+Payments or adjustments must not change those two billing-based SOA sections.
+`BILLING.DBF` must not modify or recreate the final/current Amount Due / Excess
+total, which always comes from `MEMBERS.DBF`.
 
 ### Payment Information
 
@@ -152,6 +158,10 @@ The portal must not show adjustment rows in its statement history because
 The SOA transaction history may still list billing and payment rows, but its
 running balance must not replace the members balance. The SOA Amount Due /
 Excess header must use the same members balance as the dashboards and reports.
+
+The homeowner dashboard follows the same split: its **Previous Balance** and
+**Current Billing Charges** cards use the latest billing row's fields, while
+its **Total Outstanding** card uses the live `MEMBERS.DBF` balance.
 
 ## Historical Date Rule
 
