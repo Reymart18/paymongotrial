@@ -245,7 +245,8 @@ export class FoxproService {
             emailFailed: 0,
             errors: [] as string[],
         };
-        const createdCredentials: Array<{
+        const pendingAccounts: Array<{
+            account: PropertyAccount;
             accountId: string;
             memberName: string;
             gmail: string;
@@ -408,27 +409,35 @@ export class FoxproService {
                     ),
                 });
 
-                await propertyRepo.save(account);
-                createdCredentials.push({
+                pendingAccounts.push({
+                    account,
                     accountId: record.accountId,
                     memberName: record.memberName,
                     gmail: record.gmail,
                     temporaryPassword,
                 });
-                result.inserted += 1;
             }
         });
 
-        for (const credentials of createdCredentials) {
+        for (const credentials of pendingAccounts) {
+            let emailSent = false;
             try {
                 await this.sendMemberCredentialsEmail(credentials);
+                emailSent = true;
+                await this.propertyRepo.save(credentials.account);
+                result.inserted += 1;
                 result.emailed += 1;
             } catch (err) {
                 result.emailFailed += 1;
                 result.errors.push(
-                    `Account ${credentials.accountId}: Failed to email credentials to ${credentials.gmail}`,
+                    emailSent
+                        ? `Account ${credentials.accountId}: Credentials email was sent, but the account could not be saved.`
+                        : `Account ${credentials.accountId}: Failed to email credentials to ${credentials.gmail}`,
                 );
-                console.error('Member credentials email error:', err);
+                console.error(
+                    emailSent ? 'Member account save error after credentials email:' : 'Member credentials email error:',
+                    err,
+                );
             }
         }
 
