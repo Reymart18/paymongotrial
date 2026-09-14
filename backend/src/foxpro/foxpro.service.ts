@@ -278,48 +278,40 @@ export class FoxproService {
                 const existing = await propertyRepo.findOne({ where: { accountId: record.accountId } });
                 if (existing) {
                     let changed = false;
-                    const changedFields: string[] = [];
 
                     if (record.neighborhood && existing.neighborhood !== record.neighborhood) {
                         existing.neighborhood = record.neighborhood;
                         changed = true;
-                        changedFields.push('neighborhood');
                     }
 
                     if (record.block && existing.block !== record.block) {
                         existing.block = record.block;
                         changed = true;
-                        changedFields.push('block');
                     }
 
                     if (record.lot && existing.lot !== record.lot) {
                         existing.lot = record.lot;
                         changed = true;
-                        changedFields.push('lot');
                     }
 
                     if (record.memberName && existing.memberName !== record.memberName) {
                         existing.memberName = record.memberName;
                         changed = true;
-                        changedFields.push('memberName');
                     }
 
                     if (record.gmail && existing.gmail !== record.gmail) {
                         existing.gmail = record.gmail;
                         changed = true;
-                        changedFields.push('gmail');
                     }
 
                     if (record.telno && existing.telno !== record.telno) {
                         existing.telno = record.telno;
                         changed = true;
-                        changedFields.push('telno');
                     }
 
                     if (record.celno && existing.celno !== record.celno) {
                         existing.celno = record.celno;
                         changed = true;
-                        changedFields.push('celno');
                     }
 
                     if (record.propertySizeSqm !== null && record.propertySizeSqm !== undefined) {
@@ -328,14 +320,12 @@ export class FoxproService {
                         if (existingSize === null || !this.isSameTwoDecimalValue(existingSize, propertySizeSqm)) {
                             existing.propertySizeSqm = propertySizeSqm;
                             changed = true;
-                            changedFields.push('propertySizeSqm');
                         }
                     }
 
                     if (existing.classification !== normalizedClass) {
                         existing.classification = normalizedClass;
                         changed = true;
-                        changedFields.push('classification');
                     }
 
                     if (record.principal !== null) {
@@ -343,7 +333,6 @@ export class FoxproService {
                         if (!this.isSameTwoDecimalValue(existing.principal, principal)) {
                             existing.principal = principal;
                             changed = true;
-                            changedFields.push('principal');
                         }
                     }
 
@@ -352,7 +341,6 @@ export class FoxproService {
                         if (!this.isSameTwoDecimalValue(existing.interest, interest)) {
                             existing.interest = interest;
                             changed = true;
-                            changedFields.push('interest');
                         }
                     }
 
@@ -361,7 +349,6 @@ export class FoxproService {
                         if (!this.isSameTwoDecimalValue(existing.penalty, penalty)) {
                             existing.penalty = penalty;
                             changed = true;
-                            changedFields.push('penalty');
                         }
                     }
 
@@ -374,16 +361,10 @@ export class FoxproService {
                         if (!this.isSameTwoDecimalValue(existing.balance, memberBalance)) {
                             existing.balance = memberBalance;
                             changed = true;
-                            changedFields.push('balance');
                         }
                     }
 
                     if (changed) {
-                        if (process.env.SYNC_DEBUG_MEMBERS === 'true') {
-                            console.log(
-                                `[Members sync] ${record.accountId} updated: ${changedFields.join(', ')}`,
-                            );
-                        }
                         await propertyRepo.save(existing);
                         result.updated += 1;
                     } else {
