@@ -271,7 +271,14 @@ export default function useSOAPreviewController() {
         };
     }, [latestBillingRow]);
 
-    const amountDue = balanceBreakdown.total;
+    // The final Amount Due / Excess is the live MEMBERS.DBF balance. It is
+    // intentionally separate from the fixed BILLING.DBF balance above.
+    const amountDue = Number(
+        account?.balance
+            ?? Number(account?.principal ?? 0)
+                + Number(account?.interest ?? 0)
+                + Number(account?.penalty ?? 0),
+    );
 
     const balanceAsOfLabel = latestBillingRow?.dateFrom
         ? (() => {
