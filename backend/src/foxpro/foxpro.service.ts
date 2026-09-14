@@ -316,8 +316,9 @@ export class FoxproService {
 
                     if (record.propertySizeSqm !== null && record.propertySizeSqm !== undefined) {
                         const existingSize = existing.propertySizeSqm ?? null;
-                        if (existingSize === null || Number(existingSize) !== Number(record.propertySizeSqm)) {
-                            existing.propertySizeSqm = record.propertySizeSqm;
+                        const propertySizeSqm = this.toTwoDecimalNumber(record.propertySizeSqm);
+                        if (existingSize === null || !this.isSameTwoDecimalValue(existingSize, propertySizeSqm)) {
+                            existing.propertySizeSqm = propertySizeSqm;
                             changed = true;
                         }
                     }
@@ -327,24 +328,37 @@ export class FoxproService {
                         changed = true;
                     }
 
-                    if (record.principal !== null && Number(existing.principal ?? 0) !== record.principal) {
-                        existing.principal = record.principal;
-                        changed = true;
+                    if (record.principal !== null) {
+                        const principal = this.toTwoDecimalNumber(record.principal);
+                        if (!this.isSameTwoDecimalValue(existing.principal, principal)) {
+                            existing.principal = principal;
+                            changed = true;
+                        }
                     }
 
-                    if (record.interest !== null && Number(existing.interest ?? 0) !== record.interest) {
-                        existing.interest = record.interest;
-                        changed = true;
+                    if (record.interest !== null) {
+                        const interest = this.toTwoDecimalNumber(record.interest);
+                        if (!this.isSameTwoDecimalValue(existing.interest, interest)) {
+                            existing.interest = interest;
+                            changed = true;
+                        }
                     }
 
-                    if (record.penalty !== null && Number(existing.penalty ?? 0) !== record.penalty) {
-                        existing.penalty = record.penalty;
-                        changed = true;
+                    if (record.penalty !== null) {
+                        const penalty = this.toTwoDecimalNumber(record.penalty);
+                        if (!this.isSameTwoDecimalValue(existing.penalty, penalty)) {
+                            existing.penalty = penalty;
+                            changed = true;
+                        }
                     }
 
                     if (record.principal !== null && record.interest !== null && record.penalty !== null) {
-                        const memberBalance = record.principal + record.interest + record.penalty;
-                        if (Number(existing.balance ?? 0) !== memberBalance) {
+                        const memberBalance = this.sumTwoDecimalValues(
+                            record.principal,
+                            record.interest,
+                            record.penalty,
+                        );
+                        if (!this.isSameTwoDecimalValue(existing.balance, memberBalance)) {
                             existing.balance = memberBalance;
                             changed = true;
                         }
@@ -378,16 +392,20 @@ export class FoxproService {
                     celno: record.celno || undefined,
                     propertySizeSqm:
                         record.propertySizeSqm !== undefined && record.propertySizeSqm !== null
-                            ? Number(record.propertySizeSqm)
+                            ? this.toTwoDecimalNumber(record.propertySizeSqm)
                             : undefined,
                     classification: normalizedClass,
                     username: record.accountId,
                     password: hashedPassword,
                     passwordChanged: false,
-                    principal: record.principal ?? 0,
-                    interest: record.interest ?? 0,
-                    penalty: record.penalty ?? 0,
-                    balance: (record.principal ?? 0) + (record.interest ?? 0) + (record.penalty ?? 0),
+                    principal: this.toTwoDecimalNumber(record.principal),
+                    interest: this.toTwoDecimalNumber(record.interest),
+                    penalty: this.toTwoDecimalNumber(record.penalty),
+                    balance: this.sumTwoDecimalValues(
+                        record.principal,
+                        record.interest,
+                        record.penalty,
+                    ),
                 });
 
                 await propertyRepo.save(account);
@@ -415,6 +433,27 @@ export class FoxproService {
         }
 
         return result;
+    }
+
+    private toTwoDecimalNumber(value: unknown): number {
+        const number = Number(value ?? 0);
+        if (!Number.isFinite(number)) {
+            return 0;
+        }
+
+        return Math.round((number + Number.EPSILON) * 100) / 100;
+    }
+
+    private isSameTwoDecimalValue(left: unknown, right: unknown): boolean {
+        return this.toTwoDecimalNumber(left) === this.toTwoDecimalNumber(right);
+    }
+
+    private sumTwoDecimalValues(...values: Array<unknown>): number {
+        const cents = values.reduce<number>(
+            (total, value) => total + Math.round(this.toTwoDecimalNumber(value) * 100),
+            0,
+        );
+        return cents / 100;
     }
 
     private async parseBillingFile(file: Express.Multer.File): Promise<FoxproBillingRecord[]> {
