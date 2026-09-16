@@ -116,6 +116,9 @@ export default function SummaryCard({
                     {formatSignedMoney(amountDue)}
                 </span>
             </div>
+            <p className="mt-3 text-sm text-slate-500">
+                <strong className="font-bold text-slate-700">Disclaimer:</strong> If you notice any discrepancies, please be assured that balance adjustments are currently ongoing. Any necessary corrections will be reflected accordingly.
+            </p>
         </div>
     );
 }
