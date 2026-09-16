@@ -15,6 +15,7 @@ import WaterPreview from './pages/WaterPreview';
 import ProfilePage from './pages/ProfilePage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import PortalAccessGuide from './pages/PortalAccessGuide';
+import MemberAgreement from './pages/MemberAgreement';
 
 /**
  * Protected Route Component
@@ -24,6 +25,7 @@ function ProtectedRoute({ children, requiredRole }) {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
   const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+  const mustAcceptMemberAgreement = localStorage.getItem('mustAcceptMemberAgreement') === 'true';
   const currentPath = window.location.pathname;
 
   if (!token) {
@@ -52,6 +54,10 @@ function ProtectedRoute({ children, requiredRole }) {
     if ((userRole === 'admin' || userRole === 'super_admin') && currentPath !== '/admin/change-password') {
       return <Navigate to="/admin/change-password" replace />;
     }
+  }
+
+  if (userRole === 'homeowner' && mustAcceptMemberAgreement && currentPath !== '/homeowner/member-agreement') {
+    return <Navigate to="/homeowner/member-agreement" replace />;
   }
 
   return children;
@@ -144,6 +150,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="homeowner">
               <ChangePassword />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/homeowner/member-agreement"
+          element={
+            <ProtectedRoute requiredRole="homeowner">
+              <MemberAgreement />
             </ProtectedRoute>
           }
         />

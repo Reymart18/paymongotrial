@@ -65,9 +65,14 @@ export default function ChangePassword() {
                 return;
             }
 
-            setStatus('Password updated. Redirecting to dashboard...');
             localStorage.removeItem('mustChangePassword');
-            setTimeout(() => navigate(dashboardPath), 800);
+            const nextPath = !isAdmin && localStorage.getItem('mustAcceptMemberAgreement') === 'true'
+                ? '/homeowner/member-agreement'
+                : dashboardPath;
+            setStatus(nextPath === '/homeowner/member-agreement'
+                ? 'Password updated. Please review the member agreement...'
+                : 'Password updated. Redirecting to dashboard...');
+            setTimeout(() => navigate(nextPath), 800);
         } catch (err) {
             console.error('Change password error:', err);
             setError('Password update failed. Please try again.');

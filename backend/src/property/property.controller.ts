@@ -81,4 +81,18 @@ export class PropertyController {
         await this.propertyService.changePassword(req.user.id, body.oldPassword, body.newPassword);
         return { success: true };
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('member-agreement')
+    async acceptMemberAgreement(
+        @Body() body: { version?: string },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'homeowner') {
+            throw new ForbiddenException('Only homeowners can accept the member agreement');
+        }
+
+        await this.propertyService.acceptMemberAgreement(req.user.id, body?.version || '');
+        return { success: true };
+    }
 }

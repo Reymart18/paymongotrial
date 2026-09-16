@@ -69,7 +69,17 @@ export default function useLoginPageController() {
             localStorage.removeItem('mustChangePassword');
         }
 
-        navigate('/homeowner/dashboard');
+        if (data.requireMemberAgreement) {
+            localStorage.setItem('mustAcceptMemberAgreement', 'true');
+        } else {
+            localStorage.removeItem('mustAcceptMemberAgreement');
+        }
+
+        navigate(data.requirePasswordChange
+            ? '/homeowner/change-password'
+            : data.requireMemberAgreement
+                ? '/homeowner/member-agreement'
+                : '/homeowner/dashboard');
     };
 
     const handleAdminLogin = async (e) => {

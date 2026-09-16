@@ -8,6 +8,8 @@ import * as bcrypt from 'bcrypt';
 import * as nodemailer from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
+export const MEMBER_AGREEMENT_VERSION = '2026-09-16';
+
 @Injectable()
 export class AuthService {
     constructor(
@@ -204,6 +206,7 @@ export class AuthService {
         return {
             access_token: this.jwtService.sign(payload),
             requirePasswordChange: !homeowner.passwordChanged,
+            requireMemberAgreement: homeowner.memberAgreementVersion !== MEMBER_AGREEMENT_VERSION,
             accountId: homeowner.accountId,
         };
     }

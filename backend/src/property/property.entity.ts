@@ -49,6 +49,12 @@ export class PropertyAccount {
     @Column({ default: false })
     passwordChanged?: boolean;
 
+    @Column({ type: 'varchar', length: 32, nullable: true })
+    memberAgreementVersion?: string;
+
+    @Column({ type: 'datetime', nullable: true })
+    memberAgreementAcceptedAt?: Date;
+
     @Column({ nullable: true })
     otpHash?: string;
 

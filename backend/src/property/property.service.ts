@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { MEMBER_AGREEMENT_VERSION } from '../auth/auth.service';
 import { PropertyAccount } from './property.entity';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 
@@ -122,6 +123,25 @@ export class PropertyService {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         account.password = hashedPassword;
         account.passwordChanged = true;
+        await this.propertyRepo.save(account);
+    }
+
+    async acceptMemberAgreement(accountId: number, version: string): Promise<void> {
+        if (version !== MEMBER_AGREEMENT_VERSION) {
+            throw new BadRequestException('This member agreement version is no longer current. Please reload and try again.');
+        }
+
+        const account = await this.propertyRepo.findOne({ where: { id: accountId } });
+        if (!account) {
+            throw new BadRequestException('Account not found');
+        }
+
+        if (!account.passwordChanged) {
+            throw new BadRequestException('Please change your temporary password before accepting the member agreement.');
+        }
+
+        account.memberAgreementVersion = MEMBER_AGREEMENT_VERSION;
+        account.memberAgreementAcceptedAt = new Date();
         await this.propertyRepo.save(account);
     }
 
