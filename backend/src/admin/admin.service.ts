@@ -1110,6 +1110,9 @@ export class AdminService {
             neighborhood: string;
             block: string;
             lot: string;
+            gmail: string | null;
+            telno: string | null;
+            celno: string | null;
             amountDue: number;
             lastPaymentDate: Date | null;
         }>;
@@ -1204,6 +1207,9 @@ export class AdminService {
             neighborhood: string;
             block: string;
             lot: string;
+            gmail: string | null;
+            telno: string | null;
+            celno: string | null;
             amountDue: number;
             lastPaymentDate: Date | null;
         }> = [];
@@ -1269,6 +1275,9 @@ export class AdminService {
                 neighborhood: account?.neighborhood ?? '-',
                 block: account?.block ?? '-',
                 lot: account?.lot ?? '-',
+                gmail: account?.gmail ?? null,
+                telno: account?.telno ?? null,
+                celno: account?.celno ?? null,
                 amountDue,
                 lastPaymentDate,
             });

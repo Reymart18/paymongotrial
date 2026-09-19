@@ -800,6 +800,9 @@ export default function useReportsPageState() {
                     <td>${index + 1}</td>
                     <td>${item.accountId || '-'}</td>
                     <td>${item.memberName || '-'}</td>
+                    <td>${item.gmail || '-'}</td>
+                    <td>${item.telno || '-'}</td>
+                    <td>${item.celno || '-'}</td>
                     <td>${item.neighborhood || '-'}</td>
                     <td>${item.block || '-'}</td>
                     <td>${item.lot || '-'}</td>
@@ -844,6 +847,9 @@ export default function useReportsPageState() {
                             <th>#</th>
                             <th>Account ID</th>
                             <th>Name</th>
+                            <th>Gmail</th>
+                            <th>Telno</th>
+                            <th>Celno</th>
                             <th>Neighborhood</th>
                             <th>Block</th>
                             <th>Lot</th>
@@ -853,9 +859,9 @@ export default function useReportsPageState() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml || '<tr><td colspan="9">No outstanding accounts found.</td></tr>'}
+                        ${rowsHtml || '<tr><td colspan="12">No outstanding accounts found.</td></tr>'}
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: 600;">Grand Total</td>
+                            <td colspan="9" style="text-align: right; font-weight: 600;">Grand Total</td>
                             <td style="font-weight: 600;">PHP ${formatMoney(outstandingTotal)}</td>
                             <td colspan="2"></td>
                         </tr>
@@ -880,6 +886,9 @@ export default function useReportsPageState() {
         const headers = [
             'Account ID',
             'Member Name',
+            'Gmail',
+            'Telno',
+            'Celno',
             'Neighborhood',
             'Block',
             'Lot',
@@ -890,6 +899,9 @@ export default function useReportsPageState() {
         const rows = filteredOutstandingItems.map((item) => [
             item.accountId || '',
             item.memberName || '',
+            item.gmail || '',
+            item.telno || '',
+            item.celno || '',
             item.neighborhood || '',
             item.block || '',
             item.lot || '',

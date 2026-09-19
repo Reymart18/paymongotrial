@@ -87,6 +87,9 @@ export default function OutstandingAccountsModal({
                                 <th className="px-4 py-3">#</th>
                                 <th className="px-4 py-3">Account ID</th>
                                 <th className="px-4 py-3">Name</th>
+                                <th className="px-4 py-3">Gmail</th>
+                                <th className="px-4 py-3">Telno</th>
+                                <th className="px-4 py-3">Celno</th>
                                 <th className="px-4 py-3">Neighborhood</th>
                                 <th className="px-4 py-3">Block</th>
                                 <th className="px-4 py-3">Lot</th>
@@ -98,7 +101,7 @@ export default function OutstandingAccountsModal({
                         <tbody className="divide-y divide-slate-100">
                             {items.length === 0 && (
                                 <tr>
-                                    <td colSpan="9" className="px-4 py-6 text-center text-slate-400">
+                                    <td colSpan="12" className="px-4 py-6 text-center text-slate-400">
                                         {allItemsCount === 0
                                             ? 'No outstanding accounts found.'
                                             : 'No accounts match the selected filters.'}
@@ -110,6 +113,9 @@ export default function OutstandingAccountsModal({
                                     <td className="px-4 py-3 text-slate-600">{index + 1}</td>
                                     <td className="px-4 py-3 font-semibold text-slate-700">{item.accountId || '-'}</td>
                                     <td className="px-4 py-3 text-slate-600">{item.memberName || '-'}</td>
+                                    <td className="px-4 py-3 text-slate-600">{item.gmail || '-'}</td>
+                                    <td className="px-4 py-3 text-slate-600">{item.telno || '-'}</td>
+                                    <td className="px-4 py-3 text-slate-600">{item.celno || '-'}</td>
                                     <td className="px-4 py-3 text-slate-600">{item.neighborhood || '-'}</td>
                                     <td className="px-4 py-3 text-slate-600">{item.block || '-'}</td>
                                     <td className="px-4 py-3 text-slate-600">{item.lot || '-'}</td>
