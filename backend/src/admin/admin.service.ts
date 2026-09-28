@@ -1262,7 +1262,12 @@ export class AdminService {
 
             const account = accountMap.get(accountId);
             const accountPayments = paymentsByAccount.get(accountId) || [];
-            const lastPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
+            const lastMembershipDuesPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
+                const paycat = String(payment.paycat || '').trim().toLowerCase();
+                if (paycat !== 'membership dues') {
+                    return latest;
+                }
+
                 const parsed = parseDate(payment.paymentDate);
                 if (!parsed) {
                     return latest;
@@ -1284,7 +1289,7 @@ export class AdminService {
                 telno: account?.telno ?? null,
                 celno: account?.celno ?? null,
                 amountDue,
-                lastPaymentDate,
+                lastPaymentDate: lastMembershipDuesPaymentDate,
             });
         }
 
