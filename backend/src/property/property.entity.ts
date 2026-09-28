@@ -35,13 +35,13 @@ export class PropertyAccount {
     username?: string;
 
     @Column({ nullable: true })
-    gmail?: string;
+    gmail?: string | null;
 
     @Column({ nullable: true })
-    telno?: string;
+    telno?: string | null;
 
     @Column({ nullable: true })
-    celno?: string;
+    celno?: string | null;
 
     @Column()
     password?: string;

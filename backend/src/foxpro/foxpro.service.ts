@@ -53,6 +53,9 @@ export interface FoxproMemberRecord {
     gmail?: string | null;
     telno?: string | null;
     celno?: string | null;
+    gmailFieldPresent?: boolean;
+    telnoFieldPresent?: boolean;
+    celnoFieldPresent?: boolean;
     principal: number | null;
     interest: number | null;
     penalty: number | null;
@@ -300,18 +303,18 @@ export class FoxproService {
                         changed = true;
                     }
 
-                    if (record.gmail && existing.gmail !== record.gmail) {
-                        existing.gmail = record.gmail;
+                    if (record.gmailFieldPresent && existing.gmail !== (record.gmail || null)) {
+                        existing.gmail = record.gmail || null;
                         changed = true;
                     }
 
-                    if (record.telno && existing.telno !== record.telno) {
-                        existing.telno = record.telno;
+                    if (record.telnoFieldPresent && existing.telno !== (record.telno || null)) {
+                        existing.telno = record.telno || null;
                         changed = true;
                     }
 
-                    if (record.celno && existing.celno !== record.celno) {
-                        existing.celno = record.celno;
+                    if (record.celnoFieldPresent && existing.celno !== (record.celno || null)) {
+                        existing.celno = record.celno || null;
                         changed = true;
                     }
 
@@ -691,6 +694,17 @@ export class FoxproService {
             gmail: gmail || null,
             telno: telno || null,
             celno: celno || null,
+            gmailFieldPresent: this.hasNormalizedKey(normalized, [
+                'gmail',
+                'email',
+                'emailadd',
+                'emailaddress',
+                'mail',
+                'mailadd',
+                'mailaddress',
+            ]),
+            telnoFieldPresent: this.hasNormalizedKey(normalized, ['telno']),
+            celnoFieldPresent: this.hasNormalizedKey(normalized, ['celno']),
             principal: this.toNumberOrNull(normalized.principal),
             interest: this.toNumberOrNull(normalized.interest),
             penalty: this.toNumberOrNull(normalized.penalty),
@@ -771,6 +785,14 @@ export class FoxproService {
             gmail: gmail || null,
             telno: this.cleanText(normalized.telno) || null,
             celno: this.cleanText(normalized.celno) || null,
+            gmailFieldPresent: this.hasNormalizedKey(normalized, [
+                'gmail',
+                'email',
+                'emailadd',
+                'emailaddress',
+            ]),
+            telnoFieldPresent: this.hasNormalizedKey(normalized, ['telno']),
+            celnoFieldPresent: this.hasNormalizedKey(normalized, ['celno']),
             principal: this.toNumberOrNull(normalized.principal),
             interest: this.toNumberOrNull(normalized.interest),
             penalty: this.toNumberOrNull(normalized.penalty),
@@ -1293,6 +1315,10 @@ export class FoxproService {
         });
 
         return normalized;
+    }
+
+    private hasNormalizedKey(normalized: Record<string, unknown>, keys: string[]): boolean {
+        return keys.some((key) => Object.prototype.hasOwnProperty.call(normalized, key));
     }
 
     private detectDelimiter(buffer: Buffer): string {
