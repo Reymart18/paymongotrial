@@ -160,6 +160,11 @@ export class ReportsService {
 
     private lastPaymentDate(payments: FoxproPayment[]): string | null {
         const latest = payments.reduce<Date | null>((current, payment) => {
+            const paycat = String(payment.paycat || '').trim().toLowerCase();
+            if (paycat !== 'membership dues') {
+                return current;
+            }
+
             const date = this.toDate(payment.paymentDate);
             return date && (!current || date > current) ? date : current;
         }, null);
