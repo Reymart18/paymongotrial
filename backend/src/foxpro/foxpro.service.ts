@@ -737,9 +737,9 @@ export class FoxproService {
         const descriptionSource = normalizedPaycat === 'rental of facilities'
             ? normalized.particular || normalized.description
             : normalized.description
-                || (normalizedPaycat === 'membership dues'
-                    ? normalized.applicable
-                    : normalized.particula3);
+            || (normalizedPaycat === 'membership dues'
+                ? normalized.applicable
+                : normalized.particula3);
         const accountId = this.cleanText(normalized.accountid || normalized.keysearch);
         const referenceNumber = this.cleanText(normalized.referencenumber || normalized.orno);
 

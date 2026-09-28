@@ -886,6 +886,11 @@ export class AdminService {
             const account = accountMap.get(accountId);
             const accountPayments = paymentsByAccount.get(accountId) || [];
             const lastPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
+                const paycat = String(payment.paycat || '').trim().toLowerCase();
+                if (paycat !== 'membership dues') {
+                    return latest;
+                }
+
                 const parsed = parseDate(payment.paymentDate);
                 if (!parsed) {
                     return latest;
