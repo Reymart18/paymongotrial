@@ -34,13 +34,13 @@ export class PropertyAccount {
     @Column({ unique: true })
     username?: string;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     gmail?: string | null;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     telno?: string | null;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     celno?: string | null;
 
     @Column()
