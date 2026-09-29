@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as XLSX from 'xlsx';
 import { MEMBER_AGREEMENT_VERSION } from '../auth/auth.service';
 import { PropertyAccount } from './property.entity';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
@@ -27,6 +28,7 @@ export class PropertyService {
         private propertyRepo: Repository<PropertyAccount>,
         @InjectRepository(FoxproBilling)
         private billingRepo: Repository<FoxproBilling>,
+        private dataSource: DataSource,
     ) { }
 
     async createHomeowner(input: CreateHomeownerInput): Promise<PropertyAccount> {
@@ -53,6 +55,99 @@ export class PropertyService {
 
     async getByAccountId(accountId: string): Promise<PropertyAccount | null> {
         return this.propertyRepo.findOne({ where: { accountId } });
+    }
+
+    async uploadSoaNumbers(file: Express.Multer.File) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+
+        const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+        const result = {
+            updated: 0,
+            skipped: 0,
+            errors: [] as string[],
+        };
+
+        await this.dataSource.transaction(async (manager) => {
+            const propertyRepo = manager.getRepository(PropertyAccount);
+
+            for (let index = 0; index < rows.length; index += 1) {
+                const row = index + 2;
+                const normalized = this.normalizeSoaUploadRow(rows[index]);
+                const accountId = this.buildSoaAccountId(
+                    normalized.neighborhood,
+                    normalized.block,
+                    normalized.lot,
+                );
+
+                if (!accountId || normalized.soa === '') {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Missing neighborhood, block, lot, or SOA`);
+                    continue;
+                }
+
+                const soa = Number(normalized.soa);
+                if (!Number.isFinite(soa) || soa < 0) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Invalid SOA value (${normalized.soa})`);
+                    continue;
+                }
+
+                const account = await propertyRepo.findOne({ where: { accountId } });
+                if (!account) {
+                    result.skipped += 1;
+                    result.errors.push(`Row ${row}: Account not found (${accountId})`);
+                    continue;
+                }
+
+                const normalizedSoa = Math.round(soa * 100) / 100;
+                if (Number(account.soa ?? 0) === normalizedSoa) {
+                    result.skipped += 1;
+                    continue;
+                }
+
+                account.soa = normalizedSoa;
+                await propertyRepo.save(account);
+                result.updated += 1;
+            }
+        });
+
+        return result;
+    }
+
+    private normalizeSoaUploadRow(row: Record<string, unknown>): {
+        neighborhood: string;
+        block: string;
+        lot: string;
+        soa: string;
+    } {
+        const normalized: Record<string, unknown> = {};
+        Object.entries(row).forEach(([key, value]) => {
+            const normalizedKey = key
+                .trim()
+                .toLowerCase()
+                .replace(/[\s_-]/g, '');
+            normalized[normalizedKey] = value;
+        });
+
+        return {
+            neighborhood: String(normalized.neighborhood || normalized.neighbor || '').trim(),
+            block: String(normalized.block || '').trim(),
+            lot: String(normalized.lot || '').trim(),
+            soa: String(normalized.soa || '').replace(/[^0-9.-]/g, '').trim(),
+        };
+    }
+
+    private buildSoaAccountId(neighborhood: string, block: string, lot: string): string {
+        if (!neighborhood || !/^\d+$/.test(block) || !/^\d+$/.test(lot)) {
+            return '';
+        }
+
+        return `${neighborhood}${block.padStart(3, '0')}${lot.padStart(3, '0')}`;
     }
 
     async getGoodStandingStatus(accountId: string): Promise<string> {

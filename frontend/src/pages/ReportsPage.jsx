@@ -5,6 +5,7 @@ import ReportsHeader from './components/Reports/ReportsHeader';
 import ReportsModals from './components/Reports/ReportsModals';
 import ReportsPrintStyles from './components/Reports/ReportsPrintStyles';
 import ReportsSummaryCards from './components/Reports/ReportsSummaryCards';
+import ReportsSoaUpload from './components/Reports/ReportsSoaUpload';
 import ReportsWaterBillingUpload from './components/Reports/ReportsWaterBillingUpload';
 import useReportsPageState from './components/Reports/useReportsPageState';
 import pvhaiImg from '../images/pvhai.png';
@@ -27,6 +28,7 @@ export default function ReportsPage() {
         summaryProps,
         dataToolsProps,
         waterBillingProps,
+        soaProps,
         modalsProps,
     } = useReportsPageState();
 
@@ -77,7 +79,10 @@ export default function ReportsPage() {
 
                         <ReportsDataTools {...dataToolsProps} />
 
-                        <ReportsWaterBillingUpload {...waterBillingProps} />
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                            <ReportsWaterBillingUpload {...waterBillingProps} />
+                            <ReportsSoaUpload {...soaProps} />
+                        </div>
                     </div>
                 </main>
             </div>

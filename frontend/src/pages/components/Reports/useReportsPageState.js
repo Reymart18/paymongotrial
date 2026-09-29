@@ -36,6 +36,10 @@ export default function useReportsPageState() {
     const [waterBillingStatus, setWaterBillingStatus] = useState('');
     const [waterBillingError, setWaterBillingError] = useState('');
     const [waterBillingLoading, setWaterBillingLoading] = useState(false);
+    const [soaFile, setSoaFile] = useState(null);
+    const [soaStatus, setSoaStatus] = useState('');
+    const [soaError, setSoaError] = useState('');
+    const [soaLoading, setSoaLoading] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [paymentStatus, setPaymentStatus] = useState('');
     const [paymentError, setPaymentError] = useState('');
@@ -520,6 +524,57 @@ export default function useReportsPageState() {
             setWaterBillingError('Upload failed. Please try again.');
         } finally {
             setWaterBillingLoading(false);
+        }
+    };
+
+    const handleUploadSoa = async (event) => {
+        event.preventDefault();
+        setSoaStatus('');
+        setSoaError('');
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setSoaError('Session expired. Please log in again.');
+            return;
+        }
+
+        if (!soaFile) {
+            setSoaError('Please choose an XLS or XLSX file first.');
+            return;
+        }
+
+        setSoaLoading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', soaFile);
+
+            const response = await fetch(`${API_URL}/property/soa/upload`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setSoaError(data.message || 'Upload failed. Please try again.');
+                return;
+            }
+
+            const previewErrors = Array.isArray(data?.errors) && data.errors.length
+                ? ` ${data.errors.slice(0, 5).join(' ')}${data.errors.length > 5 ? ' ...' : ''}`
+                : '';
+            setSoaStatus(
+                `Upload complete: ${data.updated || 0} updated, ${data.skipped || 0} skipped.${previewErrors}`,
+            );
+        } catch (err) {
+            console.error('SOA upload error:', err);
+            setSoaError('Upload failed. Please try again.');
+        } finally {
+            setSoaLoading(false);
         }
     };
 
@@ -1238,6 +1293,13 @@ export default function useReportsPageState() {
             waterBillingLoading,
             waterBillingStatus,
             waterBillingError,
+        },
+        soaProps: {
+            onUploadSoa: handleUploadSoa,
+            onSoaFileChange: (event) => setSoaFile(event.target.files?.[0] || null),
+            soaLoading,
+            soaStatus,
+            soaError,
         },
         modalsProps: {
             overdue: {

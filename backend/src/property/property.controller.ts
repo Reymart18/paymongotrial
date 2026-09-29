@@ -1,4 +1,18 @@
-import { Controller, Get, Param, UseGuards, Request, ForbiddenException, Post, Body, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    Body,
+    Controller,
+    ForbiddenException,
+    Get,
+    NotFoundException,
+    Param,
+    Post,
+    Request,
+    UploadedFile,
+    UseGuards,
+    UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PropertyService } from './property.service';
@@ -32,6 +46,34 @@ export class PropertyController {
         const homeowner = await this.propertyService.createHomeowner(body);
         const { password, ...result } = homeowner;
         return result;
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('soa/upload')
+    @UseInterceptors(
+        FileInterceptor('file', {
+            limits: { fileSize: 20 * 1024 * 1024 },
+            fileFilter: (_req, file, cb) => {
+                const name = file.originalname.toLowerCase();
+                const allowed = name.endsWith('.xlsx') || name.endsWith('.xls');
+
+                if (!allowed) {
+                    return cb(new BadRequestException('Only XLS or XLSX files are allowed'), false);
+                }
+
+                return cb(null, true);
+            },
+        }),
+    )
+    async uploadSoaNumbers(
+        @UploadedFile() file: Express.Multer.File,
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only admins can upload SOA numbers');
+        }
+
+        return this.propertyService.uploadSoaNumbers(file);
     }
 
     /**
