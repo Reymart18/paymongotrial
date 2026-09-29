@@ -74,6 +74,7 @@ export default function LandingPage() {
                     <div className="flex min-w-0 flex-1 items-center justify-center gap-4 text-xs font-abhaya sm:gap-10 sm:text-base md:justify-start md:gap-12 md:text-xl">
                         <button onClick={() => scrollToSection('home')} className="cursor-pointer hover:opacity-70 transition">Home</button>
                         <button onClick={() => scrollToSection('about')} className="cursor-pointer hover:opacity-70 transition">About</button>
+                        <button onClick={() => scrollToSection('faq')} className="cursor-pointer hover:opacity-70 transition">FAQ</button>
                     </div>
                     <div className="relative -top-3 w-32 shrink-0 sm:-top-4 sm:w-50 md:w-60">
                         <img
@@ -151,6 +152,167 @@ export default function LandingPage() {
                             alt="About the Community"
                             className="w-full rounded-tl-[80px] rounded-br-[100px] relative z-10"
                         />
+                    </div>
+                </div>
+            </section>
+            <section className="bg-[#FFFBFB] px-6 py-16 sm:px-10 lg:px-11" id="faq">
+                <style>{`
+                    #faq summary {
+                        position: relative;
+                        display: flex;
+                        align-items: center;
+                            justify-content: space-between;
+                        min-height: 1.5rem;
+                        padding: 0 2.5rem;
+                            text-align: left;
+                    }
+                    #faq summary::after {
+                        content: '+';
+                        display: inline-flex;
+                        position: absolute;
+                        right: 0;
+                        flex: 0 0 auto;
+                        align-items: center;
+                        justify-content: center;
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        border: 1px solid rgba(140, 65, 0, 0.35);
+                        border-radius: 9999px;
+                        color: #8C4100;
+                        font-size: 1.1rem;
+                        font-weight: 400;
+                        line-height: 1;
+                    }
+                    #faq details[open] summary::after {
+                        content: '-';
+                    }
+                `}</style>
+                <div className="mx-auto max-w-6xl scroll-reveal">
+                    <div className="mx-auto max-w-3xl text-center">
+                        <span className="inline-flex rounded-full border border-[#8C4100]/30 bg-[#F0E8E8] px-4 py-1.5 font-poppins text-[11px] font-semibold uppercase tracking-[0.25em] text-[#8C4100] shadow-sm sm:text-xs">
+                            Member support
+                        </span>
+                        <h2 className="mt-4 font-abhaya text-4xl font-medium text-[#363232] sm:text-5xl md:text-7xl">
+                            Frequently Asked Questions
+                        </h2>
+                    </div>
+                    <div className="mt-10 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
+                        <div className="flex flex-col gap-3">
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-0 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What is my Account ID?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Your Account ID identifies your property and is based on your neighborhood, block, and lot, such as <strong className="font-semibold">A001001</strong>. Your Account ID will be sent to your <strong className="font-semibold">registered Gmail address</strong> when your member account is created.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    Where can I get my temporary password?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    When your member account is created, the system will send your <strong className="font-semibold">Account ID and temporary password</strong> to your registered Gmail address.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    How do I log in for the first time?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Use the <strong className="font-semibold">Account ID and temporary password</strong> provided in the email sent to your registered Gmail address.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    I did not receive the email containing my Account ID and temporary password. What should I do?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    First, check your <strong className="font-semibold">spam or junk folder</strong>. If you still cannot find the email, your Gmail address may <strong className="font-semibold">not yet be registered with the HOA</strong>. Please contact the <strong className="font-semibold">HOA office</strong> to confirm or update your registered Gmail address and request assistance with your account credentials.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    Where will I receive the OTP?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    The OTP will be sent to the <strong className="font-semibold">Gmail address registered to your member account</strong>.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What should I do if I do not receive the OTP?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Check your <strong className="font-semibold">spam or junk folder</strong> and verify your internet connection. You may request another OTP after the resend waiting period. If you still do not receive it, contact the HOA office.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What if I forget my password?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Contact the HOA office and request a password reset. A new temporary password will be sent to your registered Gmail address.
+                                </p>
+                            </details>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What is the Member Agreement?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    The Member Agreement contains the <strong className="font-semibold">terms and conditions for using the member portal</strong>. You must accept the current agreement before accessing the dashboard.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What is my Statement of Account?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Your Statement of Account, or <strong className="font-semibold">SOA</strong>, shows your billing information, payments, balance, amount due, and other account details.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What does Amount Due / Excess mean?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    A <strong className="font-semibold">positive amount</strong> means you still have an amount to pay. A <strong className="font-semibold">negative amount</strong> means you have paid more than the amount due.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    Can I print or download my SOA?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Yes. Open <strong className="font-semibold">Preview SOA</strong> and use the available <strong className="font-semibold">export or print option</strong>.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    Why is my payment not showing yet?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Payments must first be <strong className="font-semibold">recorded and synchronized by the HOA office</strong> before they appear in your account.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    Can other people use my Account ID to access my account?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    <strong className="font-semibold">No.</strong> Your Account ID alone cannot be used to access your account. Access also requires your <strong className="font-semibold">password and, when required, the OTP</strong> sent to your registered Gmail address.
+                                </p>
+                            </details>
+                            <details className="group rounded-2xl border border-[#8C4100]/15 bg-[#F0E8E8] px-5 py-4 shadow-sm">
+                                <summary className="cursor-pointer list-none pr-8 font-poppins text-sm font-semibold text-[#363232] marker:hidden sm:text-base">
+                                    What should I do if my Gmail address is incorrect?
+                                </summary>
+                                <p className="mt-3 font-poppins text-sm font-light leading-relaxed text-[#363232]/80">
+                                    Contact the HOA office and request that your <strong className="font-semibold">registered Gmail address be updated</strong> before attempting account verification.
+                                </p>
+                            </details>
+                        </div>
                     </div>
                 </div>
             </section>
