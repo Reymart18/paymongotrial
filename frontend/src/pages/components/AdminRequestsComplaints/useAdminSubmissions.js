@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { requestReference } from '../RequestComplaint/requestComplaintUtils.js';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -16,6 +17,13 @@ export default function useAdminSubmissions() {
     const [statusError, setStatusError] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const today = new Date();
+    const [reportYear, setReportYear] = useState(today.getFullYear());
+    const [reportMonth, setReportMonth] = useState(today.getMonth() + 1);
+    const [reportKind, setReportKind] = useState('all');
+    const [monthlyReportItems, setMonthlyReportItems] = useState([]);
+    const [monthlyReportLoading, setMonthlyReportLoading] = useState(false);
+    const [showMonthlyReport, setShowMonthlyReport] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -98,6 +106,88 @@ export default function useAdminSubmissions() {
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         setStatusFilter('all');
+    };
+
+    const handleGenerateMonthlyReport = () => {
+        setMonthlyReportLoading(true);
+
+        const items = [
+            ...requests.map((item) => ({ ...item, kind: 'request' })),
+            ...complaints.map((item) => ({ ...item, kind: 'complaint' })),
+        ]
+            .filter((item) => {
+                const date = new Date(item.createdAt);
+                const matchesKind = reportKind === 'all' || item.kind === reportKind;
+                return matchesKind
+                    && !Number.isNaN(date.getTime())
+                    && date.getFullYear() === reportYear
+                    && date.getMonth() + 1 === reportMonth;
+            })
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .map((item) => ({
+                ...item,
+                reference: requestReference({ ...item, submissionKind: item.kind }),
+            }));
+
+        setMonthlyReportItems(items);
+        setShowMonthlyReport(true);
+        setMonthlyReportLoading(false);
+    };
+
+    const handlePrintMonthlyReport = () => {
+        const printWindow = window.open('', '_blank', 'width=1200,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        const monthLabel = new Date(reportYear, reportMonth - 1, 1).toLocaleDateString('en-PH', {
+            month: 'long',
+            year: 'numeric',
+        });
+        const rows = monthlyReportItems.map((item, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${item.reference || '-'}</td>
+                <td>${item.kind === 'complaint' ? 'Complaint' : 'Request'}</td>
+                <td>${item.accountId || '-'}</td>
+                <td>${item.account?.memberName || '-'}</td>
+                <td>${item.subject || '-'}</td>
+                <td>${item.status || '-'}</td>
+                <td>${item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-PH') : '-'}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.open();
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Monthly Requests and Complaints - ${monthLabel}</title>
+                <style>
+                    @page { size: landscape; margin: 16mm; }
+                    body { font-family: Arial, sans-serif; color: #0f172a; }
+                    h1 { font-size: 18px; margin: 0 0 6px; }
+                    p { margin: 0 0 12px; font-size: 12px; color: #475569; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                    th { background: #f8fafc; text-transform: uppercase; font-size: 10px; }
+                    tr { page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <h1>Monthly Requests and Complaints</h1>
+                <p>${monthLabel}</p>
+                <table>
+                    <thead><tr><th>#</th><th>Reference</th><th>Type</th><th>Account ID</th><th>Member</th><th>Subject</th><th>Status</th><th>Submitted</th></tr></thead>
+                    <tbody>${rows || '<tr><td colspan="8">No submissions found for this month.</td></tr>'}</tbody>
+                </table>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
     };
 
     const openDetails = (item) => {
@@ -187,6 +277,20 @@ export default function useAdminSubmissions() {
             statusDraft,
             statusError,
             statusUpdating,
+        },
+        monthlyReportProps: {
+            year: reportYear,
+            month: reportMonth,
+            kind: reportKind,
+            onKindChange: setReportKind,
+            onYearChange: setReportYear,
+            onMonthChange: setReportMonth,
+            onGenerate: handleGenerateMonthlyReport,
+            onPrint: handlePrintMonthlyReport,
+            items: monthlyReportItems,
+            loading: monthlyReportLoading,
+            show: showMonthlyReport,
+            onClose: () => setShowMonthlyReport(false),
         },
         openCardFilter,
     };

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardNav from './components/HomeownerDashboard/DashboardNav';
 import Sidebar from './components/HomeownerDashboard/Sidebar';
 import ServiceOverview from './components/AdminRequestsComplaints/ServiceOverview';
+import MonthlySubmissionsReport from './components/AdminRequestsComplaints/MonthlySubmissionsReport';
 import SubmissionDetailsModal from './components/AdminRequestsComplaints/SubmissionDetailsModal';
 import SubmissionQueue from './components/AdminRequestsComplaints/SubmissionQueue';
 import SubmissionSummaryCards from './components/AdminRequestsComplaints/SubmissionSummaryCards';
@@ -25,6 +26,7 @@ export default function AdminRequestsComplaints() {
         queueProps,
         modalProps,
         openCardFilter,
+        monthlyReportProps,
     } = useAdminSubmissions();
 
     const handleLogout = () => {
@@ -103,6 +105,7 @@ export default function AdminRequestsComplaints() {
                 <main className="min-w-0 flex-1 overflow-auto">
                     <div className="mx-auto max-w-7xl space-y-10 px-4 py-7 md:space-y-12 md:px-10 md:py-10">
                         <ServiceOverview loading={loading} requestCount={requests.length} complaintCount={complaints.length} />
+                        <MonthlySubmissionsReport {...monthlyReportProps} />
                         <SubmissionSummaryCards cards={cards} loading={loading} />
                         <SubmissionQueue
                             {...queueProps}
