@@ -124,7 +124,11 @@ export default function MonthlySubmissionsReport({
                                         <tr key={`${item.kind}-${item.id}`}>
                                             <td className="px-4 py-3 text-slate-500">{index + 1}</td>
                                             <td className="px-4 py-3 font-semibold text-slate-700">{item.reference}</td>
-                                            <td className="px-4 py-3">{item.kind === 'complaint' ? 'Complaint' : 'Request'}</td>
+                                            <td className="px-4 py-3">
+                                                {item.kind === 'complaint'
+                                                    ? item.complaintType || 'Complaint'
+                                                    : item.requestType || 'Request'}
+                                            </td>
                                             <td className="px-4 py-3">{item.accountId || '-'}</td>
                                             <td className="px-4 py-3">{item.account?.memberName || '-'}</td>
                                             <td className="px-4 py-3">{item.subject || '-'}</td>

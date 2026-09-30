@@ -148,7 +148,7 @@ export default function useAdminSubmissions() {
             <tr>
                 <td>${index + 1}</td>
                 <td>${item.reference || '-'}</td>
-                <td>${item.kind === 'complaint' ? 'Complaint' : 'Request'}</td>
+                <td>${item.kind === 'complaint' ? (item.complaintType || 'Complaint') : (item.requestType || 'Request')}</td>
                 <td>${item.accountId || '-'}</td>
                 <td>${item.account?.memberName || '-'}</td>
                 <td>${item.subject || '-'}</td>
