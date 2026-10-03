@@ -246,13 +246,14 @@ export class AdminService {
             .groupBy('account.invitation_status')
             .getRawMany<{ status: string; count: string }>();
         const countByStatus = new Map(rows.map((row) => [row.status, Number(row.count || 0)]));
-        const [gmailMissing, active, latestBatch] = await Promise.all([
+        const [gmailMissing, active, latestBatches] = await Promise.all([
             this.propertyRepo.createQueryBuilder('account')
                 .where("account.gmail IS NULL OR TRIM(account.gmail) = ''")
                 .getCount(),
             this.propertyRepo.count({ where: { portalAccessEnabled: true } }),
-            this.invitationBatchRepo.findOne({ order: { id: 'DESC' } }),
+            this.invitationBatchRepo.find({ order: { id: 'DESC' }, take: 1 }),
         ]);
+        const latestBatch = latestBatches[0] || null;
 
         return {
             pending: countByStatus.get('pending') || 0,
