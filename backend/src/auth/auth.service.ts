@@ -59,7 +59,12 @@ export class AuthService {
      */
     async validateHomeowner(accountId: string, password: string): Promise<any> {
         const homeowner = await this.propertyAccountRepo.findOne({ where: { accountId } });
-        if (homeowner && homeowner.password && (await bcrypt.compare(password, homeowner.password))) {
+        if (
+            homeowner
+            && homeowner.portalAccessEnabled !== false
+            && homeowner.password
+            && (await bcrypt.compare(password, homeowner.password))
+        ) {
             const { password, ...result } = homeowner;
             return result;
         }
@@ -136,6 +141,10 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
+        if (homeowner.portalAccessEnabled === false) {
+            throw new BadRequestException('Portal access is not active for this account. Please contact the HOA office.');
+        }
+
         if (homeowner.passwordChanged) {
             return this.loginHomeowner(homeowner);
         }
@@ -202,6 +211,10 @@ export class AuthService {
      * @returns Object with access_token
      */
     async loginHomeowner(homeowner: PropertyAccount) {
+        if (homeowner.portalAccessEnabled === false) {
+            throw new UnauthorizedException('Portal access is not active for this account.');
+        }
+
         const payload = { username: homeowner.username, sub: homeowner.id, role: 'homeowner' };
         return {
             access_token: this.jwtService.sign(payload),

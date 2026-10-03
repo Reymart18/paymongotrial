@@ -263,9 +263,9 @@ export class FoxproService {
                 const record = records[index];
                 const row = index + 1;
 
-                if (!record.accountId || !record.memberName) {
+                if (!record.accountId) {
                     result.skipped += 1;
-                    result.errors.push(`Row ${row}: Missing accountId or memberName`);
+                    result.errors.push(`Row ${row}: Missing accountId`);
                     continue;
                 }
 
@@ -306,6 +306,13 @@ export class FoxproService {
                     if (record.gmailFieldPresent && existing.gmail !== (record.gmail || null)) {
                         existing.gmail = record.gmail || null;
                         changed = true;
+
+                        // An explicit removal of the source Gmail also removes
+                        // portal access. Adding a Gmail later still requires the
+                        // super admin to activate the account via Reset Password.
+                        if (!record.gmail && existing.portalAccessEnabled !== false) {
+                            existing.portalAccessEnabled = false;
+                        }
                     }
 
                     if (record.telnoFieldPresent && existing.telno !== (record.telno || null)) {
@@ -377,12 +384,6 @@ export class FoxproService {
                     continue;
                 }
 
-                if (!record.gmail) {
-                    result.skipped += 1;
-                    result.errors.push(`Row ${row}: Gmail is required to create a new account (${record.accountId})`);
-                    continue;
-                }
-
                 const temporaryPassword = this.generateTemporaryPassword();
                 const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
                 const account = propertyRepo.create({
@@ -390,7 +391,7 @@ export class FoxproService {
                     neighborhood: record.neighborhood,
                     block: record.block,
                     lot: record.lot,
-                    memberName: record.memberName,
+                    memberName: record.memberName || '',
                     gmail: record.gmail || undefined,
                     telno: record.telno || undefined,
                     celno: record.celno || undefined,
@@ -402,6 +403,9 @@ export class FoxproService {
                     username: record.accountId,
                     password: hashedPassword,
                     passwordChanged: false,
+                    // New records remain unavailable to the portal until the
+                    // credentials email has been accepted by the mail server.
+                    portalAccessEnabled: false,
                     principal: this.toTwoDecimalNumber(record.principal),
                     interest: this.toTwoDecimalNumber(record.interest),
                     penalty: this.toTwoDecimalNumber(record.penalty),
@@ -412,35 +416,41 @@ export class FoxproService {
                     ),
                 });
 
-                pendingAccounts.push({
-                    account,
-                    accountId: record.accountId,
-                    memberName: record.memberName,
-                    gmail: record.gmail,
-                    temporaryPassword,
-                });
+                await propertyRepo.save(account);
+                result.inserted += 1;
+
+                if (record.gmail) {
+                    pendingAccounts.push({
+                        account,
+                        accountId: record.accountId,
+                        memberName: record.memberName || 'Member',
+                        gmail: record.gmail,
+                        temporaryPassword,
+                    });
+                }
             }
         });
 
         for (const credentials of pendingAccounts) {
-            let emailSent = false;
             try {
+                // Enable access immediately before emailing. If email sending
+                // fails, disable it again so an uninvited account cannot log in.
+                await this.propertyRepo.update(
+                    { accountId: credentials.accountId },
+                    { portalAccessEnabled: true },
+                );
                 await this.sendMemberCredentialsEmail(credentials);
-                emailSent = true;
-                await this.propertyRepo.save(credentials.account);
-                result.inserted += 1;
                 result.emailed += 1;
             } catch (err) {
+                await this.propertyRepo.update(
+                    { accountId: credentials.accountId },
+                    { portalAccessEnabled: false },
+                );
                 result.emailFailed += 1;
                 result.errors.push(
-                    emailSent
-                        ? `Account ${credentials.accountId}: Credentials email was sent, but the account could not be saved.`
-                        : `Account ${credentials.accountId}: Failed to email credentials to ${credentials.gmail}`,
+                    `Account ${credentials.accountId}: Failed to email credentials to ${credentials.gmail}`,
                 );
-                console.error(
-                    emailSent ? 'Member account save error after credentials email:' : 'Member credentials email error:',
-                    err,
-                );
+                console.error('Member credentials email error:', err);
             }
         }
 

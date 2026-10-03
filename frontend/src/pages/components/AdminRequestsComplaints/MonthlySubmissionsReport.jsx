@@ -90,7 +90,7 @@ export default function MonthlySubmissionsReport({
                             <div>
                                 <h2 className="text-xl font-bold text-slate-900">Monthly Requests & Complaints</h2>
                                 <p className="mt-1 text-sm text-slate-500">{monthLabel}</p>
-                            </div>
+                            </div> 
                             <div className="flex gap-2">
                                 <button type="button" onClick={onPrint} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                                     Print

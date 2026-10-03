@@ -35,6 +35,9 @@ export default function MemberDetailsDrawer({
 }) {
     if (!account) return null;
 
+    const portalAccessEnabled = account.portalAccessEnabled !== false;
+    const canSendCredentials = Boolean(account.gmail);
+
     return (
         <div className="fixed inset-0 z-50">
             <div className="absolute inset-0 bg-black/50" onClick={onClose} />
@@ -114,15 +117,19 @@ export default function MemberDetailsDrawer({
                         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
                             <h3 className="text-sm font-bold text-amber-950">Account Access</h3>
                             <p className="mt-1 text-xs leading-5 text-amber-800">
-                                Generate a new temporary password and email it to the member.
+                                {portalAccessEnabled
+                                    ? 'Portal access is active. Generate a new temporary password and email it to the member.'
+                                    : canSendCredentials
+                                        ? 'Portal access is inactive. Activate it by emailing a new temporary password.'
+                                        : 'Portal access is inactive because no Gmail address is on file.'}
                             </p>
                             <button
                                 type="button"
                                 onClick={() => onResetPassword(account.accountId)}
-                                disabled={resetLoading}
+                                disabled={resetLoading || !canSendCredentials}
                                 className="mt-4 w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {resetLoading ? 'Resetting...' : 'Reset Password'}
+                                {resetLoading ? 'Sending...' : portalAccessEnabled ? 'Reset Password' : 'Activate & Email Password'}
                             </button>
                             {resetStatus && <p role="status" className="mt-3 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-semibold leading-5 text-emerald-800">{resetStatus}</p>}
                             {resetError && <p role="alert" className="mt-3 rounded-lg bg-rose-100 px-3 py-2 text-xs font-semibold leading-5 text-rose-700">{resetError}</p>}

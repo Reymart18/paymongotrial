@@ -207,7 +207,13 @@ export default function useMembersPage() {
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'Password reset failed. Please try again.');
-            setResetStatus('A new temporary password was generated and emailed to the member.');
+            setViewAccount((current) => (
+                current?.accountId === accountId
+                    ? { ...current, portalAccessEnabled: true }
+                    : current
+            ));
+            await refreshAccounts(token);
+            setResetStatus('Portal access is active. A new temporary password was emailed to the member.');
         } catch (resetFailure) {
             setResetError(resetFailure.message || 'Password reset failed. Please try again.');
         } finally {

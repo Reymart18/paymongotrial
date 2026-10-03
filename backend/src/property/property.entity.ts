@@ -49,6 +49,11 @@ export class PropertyAccount {
     @Column({ default: false })
     passwordChanged?: boolean;
 
+    // A property may be included in financial reporting before its owner has
+    // provided an email address and been invited to use the portal.
+    @Column({ name: 'portal_access_enabled', type: 'boolean', default: true })
+    portalAccessEnabled?: boolean;
+
     @Column({ type: 'varchar', length: 32, nullable: true })
     memberAgreementVersion?: string;
 

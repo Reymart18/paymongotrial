@@ -209,13 +209,6 @@ export class AdminService {
 
         const temporaryPassword = randomBytes(6).toString('hex');
         const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-        const previousPassword = account.password;
-        const previousPasswordChanged = account.passwordChanged;
-        account.password = hashedPassword;
-        account.passwordChanged = false;
-
-        await this.propertyRepo.save(account);
-
         try {
             await this.sendResetCredentialsEmail({
                 accountId: account.accountId || accountId,
@@ -225,11 +218,13 @@ export class AdminService {
             });
         } catch (err) {
             console.error('Reset member password email error:', err);
-            account.password = previousPassword;
-            account.passwordChanged = previousPasswordChanged;
-            await this.propertyRepo.save(account);
             throw new BadRequestException('Password reset was cancelled because the credentials email could not be sent.');
         }
+
+        account.password = hashedPassword;
+        account.passwordChanged = false;
+        account.portalAccessEnabled = true;
+        await this.propertyRepo.save(account);
 
         return { success: true, emailedTo: account.gmail };
     }
