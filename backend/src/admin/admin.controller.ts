@@ -329,4 +329,50 @@ export class AdminController {
         return result;
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Get('member-invitations/summary')
+    async getInvitationSummary(@Request() req: AuthenticatedRequest) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can access invitation controls');
+        }
+        return this.adminService.getInvitationSummary();
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('member-invitations/next')
+    async inviteNextMembers(
+        @Body() body: { batchSize?: number },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can send invitations');
+        }
+
+        const batch = await this.adminService.createNextInvitationBatch(
+            req.user.username || `admin:${req.user.id}`,
+            body?.batchSize,
+        );
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'send_member_invitation_batch',
+            targetType: 'member_invitation_batch',
+            targetId: String(batch.id || ''),
+            details: `Started an invitation batch for ${batch.requestedCount} member(s).`,
+        });
+        return batch;
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('member-invitations/batches/:id')
+    async getInvitationBatch(
+        @Param('id') id: string,
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can access invitation controls');
+        }
+        return this.adminService.getInvitationBatch(Number(id));
+    }
+
 }

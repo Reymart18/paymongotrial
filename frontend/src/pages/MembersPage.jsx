@@ -5,6 +5,7 @@ import Sidebar from './components/HomeownerDashboard/Sidebar';
 import MemberDetailsDrawer from './components/Members/MemberDetailsDrawer';
 import MembersTable from './components/Members/MembersTable';
 import MembersToolbar from './components/Members/MembersToolbar';
+import MemberInvitationPanel from './components/Members/MemberInvitationPanel';
 import useMembersPage from './components/Members/useMembersPage';
 import pvhaiImg from '../images/pvhai.png';
 import { clearAdminIdentity, getAdminDisplayName, getAdminRoleLabel } from '../utils/adminIdentity';
@@ -75,13 +76,22 @@ export default function MembersPage() {
                                 onOwnershipChange={members.setOwnershipType}
                                 onSearchChange={members.setSearchQuery}
                                 onStatusChange={members.setStatusType}
+                                onInvitationChange={members.setInvitationType}
                                 onSync={members.syncMembers}
                                 ownershipType={members.ownershipType}
                                 searchQuery={members.searchQuery}
                                 statusType={members.statusType}
+                                invitationType={members.invitationType}
                                 syncError={members.syncError}
                                 syncLoading={members.syncLoading}
                                 syncStatus={members.syncStatus}
+                            />
+                            <MemberInvitationPanel
+                                summary={members.invitationSummary}
+                                loading={members.invitationLoading}
+                                error={members.invitationError}
+                                isSuperAdmin={members.isSuperAdmin}
+                                onSendNext={members.sendNextInvitations}
                             />
                             <MembersTable
                                 accounts={members.paginatedAccounts}

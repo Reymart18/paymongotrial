@@ -54,6 +54,21 @@ export class PropertyAccount {
     @Column({ name: 'portal_access_enabled', type: 'boolean', default: true })
     portalAccessEnabled?: boolean;
 
+    @Column({ name: 'invitation_status', type: 'varchar', length: 20, default: 'not_eligible' })
+    invitationStatus?: 'not_eligible' | 'pending' | 'processing' | 'sent' | 'failed';
+
+    @Column({ name: 'invitation_attempted_at', type: 'datetime', nullable: true })
+    invitationAttemptedAt?: Date | null;
+
+    @Column({ name: 'invitation_sent_at', type: 'datetime', nullable: true })
+    invitationSentAt?: Date | null;
+
+    @Column({ name: 'invitation_error', type: 'text', nullable: true })
+    invitationError?: string | null;
+
+    @Column({ name: 'invitation_batch_id', type: 'int', nullable: true })
+    invitationBatchId?: number | null;
+
     @Column({ type: 'varchar', length: 32, nullable: true })
     memberAgreementVersion?: string;
 

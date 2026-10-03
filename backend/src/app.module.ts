@@ -8,6 +8,7 @@ import { FoxproBilling } from './foxpro/foxpro-billing.entity';
 import { FoxproPayment } from './foxpro/foxpro-payment.entity';
 import { FoxproAdjustment } from './foxpro/foxpro-adjustment.entity';
 import { AdminActivity } from './admin/admin-activity.entity';
+import { MemberInvitationBatch } from './admin/member-invitation-batch.entity';
 import { Announcement } from './announcements/announcement.entity';
 import { QuarterlyReportSnapshot } from './reports/quarterly-report.entity';
 import { WaterBilling } from './water-bills/water-billing.entity';
@@ -51,6 +52,7 @@ function shouldSynchronizeDatabase(): boolean {
       entities: [
         Admin,
         AdminActivity,
+        MemberInvitationBatch,
         PropertyAccount,
         Billing,
         FoxproBilling,
@@ -68,6 +70,7 @@ function shouldSynchronizeDatabase(): boolean {
     TypeOrmModule.forFeature([
       Admin,
       AdminActivity,
+      MemberInvitationBatch,
       PropertyAccount,
       Billing,
       FoxproBilling,

@@ -9,6 +9,7 @@ export default function useMembersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [ownershipType, setOwnershipType] = useState('');
     const [statusType, setStatusType] = useState('');
+    const [invitationType, setInvitationType] = useState('');
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -23,6 +24,10 @@ export default function useMembersPage() {
     const [resetLoading, setResetLoading] = useState(false);
     const [resetStatus, setResetStatus] = useState('');
     const [resetError, setResetError] = useState('');
+    const [invitationSummary, setInvitationSummary] = useState(null);
+    const [invitationLoading, setInvitationLoading] = useState(false);
+    const [invitationError, setInvitationError] = useState('');
+    const [invitationBatchId, setInvitationBatchId] = useState(null);
     const [previewingWaterAccountId, setPreviewingWaterAccountId] = useState(null);
     const previewWaterInProgressRef = useRef(false);
     const navigate = useNavigate();
@@ -62,6 +67,17 @@ export default function useMembersPage() {
         }
     }, []);
 
+    const refreshInvitationSummary = useCallback(async (token, signal) => {
+        if (!isSuperAdmin) return;
+        const response = await fetch(`${API_URL}/admin/member-invitations/summary`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to load invitation status.');
+        setInvitationSummary(data);
+    }, [isSuperAdmin]);
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('userRole');
@@ -71,8 +87,11 @@ export default function useMembersPage() {
         }
         const controller = new AbortController();
         refreshAccounts(token, controller.signal);
+        refreshInvitationSummary(token, controller.signal).catch((summaryError) => {
+            if (summaryError.name !== 'AbortError') setInvitationError(summaryError.message || 'Failed to load invitation status.');
+        });
         return () => controller.abort();
-    }, [navigate, refreshAccounts]);
+    }, [navigate, refreshAccounts, refreshInvitationSummary]);
 
     useEffect(() => {
         if (!syncRequestId) return undefined;
@@ -105,6 +124,7 @@ export default function useMembersPage() {
                     setSyncStatus(`Members sync complete: ${Number(data.recordsUpdated || 0)} records updated.`);
                     setSyncRequestId(null);
                     await refreshAccounts(token);
+                    await refreshInvitationSummary(token);
                 } else if (data.syncStatus === 'failed') {
                     setSyncError(data.errorMessage || 'Members sync failed.');
                     setSyncRequestId(null);
@@ -122,7 +142,38 @@ export default function useMembersPage() {
             window.clearInterval(interval);
             controller.abort();
         };
-    }, [refreshAccounts, syncRequestId]);
+    }, [refreshAccounts, refreshInvitationSummary, syncRequestId]);
+
+    useEffect(() => {
+        if (!invitationBatchId) return undefined;
+        const token = localStorage.getItem('token');
+        if (!token) return undefined;
+        const controller = new AbortController();
+        const pollBatch = async () => {
+            try {
+                const response = await fetch(`${API_URL}/admin/member-invitations/batches/${invitationBatchId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal: controller.signal,
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Failed to load invitation batch.');
+                setInvitationSummary((current) => ({ ...current, latestBatch: data }));
+                if (data.status === 'completed') {
+                    setInvitationBatchId(null);
+                    await refreshInvitationSummary(token, controller.signal);
+                    await refreshAccounts(token, controller.signal);
+                }
+            } catch (batchError) {
+                if (batchError.name !== 'AbortError') setInvitationError(batchError.message || 'Failed to load invitation batch.');
+            }
+        };
+        pollBatch();
+        const interval = window.setInterval(pollBatch, 2500);
+        return () => {
+            window.clearInterval(interval);
+            controller.abort();
+        };
+    }, [invitationBatchId, refreshAccounts, refreshInvitationSummary]);
 
     const filteredAccounts = useMemo(() => accounts.filter((account) => {
         const query = searchQuery.toLowerCase();
@@ -131,8 +182,9 @@ export default function useMembersPage() {
         const ownershipMatch = !ownershipType
             || account.classification?.toLowerCase() === ownershipType.toLowerCase();
         const statusMatch = !statusType || statuses[account.accountId] === statusType;
-        return searchMatch && ownershipMatch && statusMatch;
-    }), [accounts, ownershipType, searchQuery, statusType, statuses]);
+        const invitationMatch = !invitationType || account.invitationStatus === invitationType;
+        return searchMatch && ownershipMatch && statusMatch && invitationMatch;
+    }), [accounts, invitationType, ownershipType, searchQuery, statusType, statuses]);
 
     const sortedAccounts = useMemo(() => [...filteredAccounts].sort((a, b) => (
         String(a.accountId || '').localeCompare(String(b.accountId || ''), 'en', { numeric: true, sensitivity: 'base' })
@@ -167,6 +219,36 @@ export default function useMembersPage() {
             setSyncLoading(false);
         }
         return undefined;
+    };
+
+    const sendNextInvitations = async () => {
+        if (!isSuperAdmin) return;
+        const pending = Number(invitationSummary?.pending || 0);
+        if (!pending) return;
+        const count = Math.min(50, pending);
+        if (!window.confirm(`Send credential emails to the next ${count} member${count === 1 ? '' : 's'}?`)) return;
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setInvitationError('Session expired. Please log in again.');
+            return;
+        }
+        setInvitationLoading(true);
+        setInvitationError('');
+        try {
+            const response = await fetch(`${API_URL}/admin/member-invitations/next`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ batchSize: 50 }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Failed to start invitation batch.');
+            setInvitationSummary((current) => ({ ...current, latestBatch: data, processing: data.requestedCount }));
+            setInvitationBatchId(data.id);
+        } catch (invitationFailure) {
+            setInvitationError(invitationFailure.message || 'Failed to start invitation batch.');
+        } finally {
+            setInvitationLoading(false);
+        }
     };
 
     const deleteAccount = async (accountId) => {
@@ -283,5 +365,11 @@ export default function useMembersPage() {
         viewAccount,
         viewDetails,
         itemsPerPage: ITEMS_PER_PAGE,
+        invitationError,
+        invitationLoading,
+        invitationSummary,
+        invitationType,
+        setInvitationType: updateFilter(setInvitationType),
+        sendNextInvitations,
     };
 }

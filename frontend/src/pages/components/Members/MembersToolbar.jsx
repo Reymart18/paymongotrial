@@ -4,10 +4,12 @@ export default function MembersToolbar({
     onOwnershipChange,
     onSearchChange,
     onStatusChange,
+    onInvitationChange,
     onSync,
     ownershipType,
     searchQuery,
     statusType,
+    invitationType,
     syncError,
     syncLoading,
     syncStatus,
@@ -35,6 +37,14 @@ export default function MembersToolbar({
                     <option value="">Status</option>
                     <option value="underpaid">Unpaid</option>
                     <option value="overpaid">Overpaid</option>
+                </select>
+                <select id="members-invitation-filter" name="membersInvitationFilter" aria-label="Filter members by invitation status" value={invitationType} onChange={(event) => onInvitationChange(event.target.value)} className="cursor-pointer rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58]" style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}>
+                    <option value="">Invitation status</option>
+                    <option value="pending">Ready to invite</option>
+                    <option value="processing">Sending</option>
+                    <option value="sent">Invitation sent</option>
+                    <option value="failed">Send failed</option>
+                    <option value="not_eligible">Gmail missing</option>
                 </select>
                 <button type="button" onClick={onSync} disabled={syncLoading} className="rounded-lg bg-[#E89B58] px-6 py-2 text-sm font-medium text-white transition hover:bg-[#d88a47] disabled:cursor-not-allowed disabled:opacity-70" style={{ border: '1px solid rgba(140, 65, 0, 0.58)' }}>
                     {syncLoading ? 'Syncing...' : 'Sync Members'}

@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Admin } from './admin.entity';
 import { AdminActivity } from './admin-activity.entity';
+import { MemberInvitationBatch } from './member-invitation-batch.entity';
 import { PropertyAccount } from '../property/property.entity';
 import { PropertyService } from '../property/property.service';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
@@ -19,6 +20,8 @@ export class AdminService {
         private adminRepo: Repository<Admin>,
         @InjectRepository(AdminActivity)
         private activityRepo: Repository<AdminActivity>,
+        @InjectRepository(MemberInvitationBatch)
+        private invitationBatchRepo: Repository<MemberInvitationBatch>,
         @InjectRepository(PropertyAccount)
         private propertyRepo: Repository<PropertyAccount>,
         @InjectRepository(FoxproBilling)
@@ -26,6 +29,7 @@ export class AdminService {
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
         private propertyService: PropertyService,
+        private dataSource: DataSource,
     ) { }
 
     async logActivity(input: {
@@ -224,9 +228,176 @@ export class AdminService {
         account.password = hashedPassword;
         account.passwordChanged = false;
         account.portalAccessEnabled = true;
+        account.invitationStatus = 'sent';
+        account.invitationAttemptedAt = new Date();
+        account.invitationSentAt = new Date();
+        account.invitationError = null;
+        account.invitationBatchId = null;
         await this.propertyRepo.save(account);
 
         return { success: true, emailedTo: account.gmail };
+    }
+
+    async getInvitationSummary() {
+        const rows = await this.propertyRepo
+            .createQueryBuilder('account')
+            .select('account.invitation_status', 'status')
+            .addSelect('COUNT(*)', 'count')
+            .groupBy('account.invitation_status')
+            .getRawMany<{ status: string; count: string }>();
+        const countByStatus = new Map(rows.map((row) => [row.status, Number(row.count || 0)]));
+        const [gmailMissing, active, latestBatch] = await Promise.all([
+            this.propertyRepo.createQueryBuilder('account')
+                .where("account.gmail IS NULL OR TRIM(account.gmail) = ''")
+                .getCount(),
+            this.propertyRepo.count({ where: { portalAccessEnabled: true } }),
+            this.invitationBatchRepo.findOne({ order: { id: 'DESC' } }),
+        ]);
+
+        return {
+            pending: countByStatus.get('pending') || 0,
+            processing: countByStatus.get('processing') || 0,
+            sent: countByStatus.get('sent') || 0,
+            failed: countByStatus.get('failed') || 0,
+            gmailMissing,
+            portalActive: active,
+            latestBatch: latestBatch ? this.toInvitationBatchResult(latestBatch) : null,
+        };
+    }
+
+    async createNextInvitationBatch(requestedBy: string, batchSize = 50) {
+        const resolvedSize = Math.min(Math.max(Math.floor(Number(batchSize) || 50), 1), 100);
+        const batch = await this.dataSource.transaction(async (manager) => {
+            const batchRepo = manager.getRepository(MemberInvitationBatch);
+            const accountRepo = manager.getRepository(PropertyAccount);
+            const activeBatch = await batchRepo.findOne({
+                where: { status: In(['pending', 'processing']) },
+                order: { id: 'DESC' },
+            });
+            if (activeBatch) {
+                throw new BadRequestException('An invitation batch is already running. Wait for it to finish before starting another batch.');
+            }
+
+            const accounts = await accountRepo
+                .createQueryBuilder('account')
+                .setLock('pessimistic_write')
+                .where('account.invitation_status = :status', { status: 'pending' })
+                .andWhere('account.portal_access_enabled = :access', { access: false })
+                .andWhere("account.gmail IS NOT NULL AND TRIM(account.gmail) <> ''")
+                .orderBy('account.accountId', 'ASC')
+                .take(resolvedSize)
+                .getMany();
+
+            if (!accounts.length) {
+                throw new BadRequestException('No members are ready to invite.');
+            }
+
+            const created = await batchRepo.save(batchRepo.create({
+                status: 'pending',
+                requestedBy,
+                requestedCount: accounts.length,
+                sentCount: 0,
+                failedCount: 0,
+            }));
+            for (const account of accounts) {
+                account.invitationStatus = 'processing';
+                account.invitationAttemptedAt = new Date();
+                account.invitationError = null;
+                account.invitationBatchId = created.id || null;
+            }
+            await accountRepo.save(accounts);
+            return created;
+        });
+
+        setImmediate(() => {
+            void this.processInvitationBatch(batch.id || 0);
+        });
+        return this.toInvitationBatchResult(batch);
+    }
+
+    async getInvitationBatch(id: number) {
+        const batch = await this.invitationBatchRepo.findOne({ where: { id } });
+        if (!batch) {
+            throw new NotFoundException('Invitation batch not found.');
+        }
+        return this.toInvitationBatchResult(batch);
+    }
+
+    private async processInvitationBatch(batchId: number) {
+        const batch = await this.invitationBatchRepo.findOne({ where: { id: batchId } });
+        if (!batch || batch.status === 'completed') return;
+
+        batch.status = 'processing';
+        batch.startedAt = new Date();
+        await this.invitationBatchRepo.save(batch);
+
+        const accounts = await this.propertyRepo.find({
+            where: { invitationBatchId: batchId, invitationStatus: 'processing' },
+            order: { accountId: 'ASC' },
+        });
+
+        for (const account of accounts) {
+            const gmail = account.gmail?.trim();
+            if (!gmail) {
+                account.portalAccessEnabled = false;
+                account.invitationStatus = 'not_eligible';
+                account.invitationError = 'Gmail is not set for this account.';
+                account.invitationBatchId = null;
+                await this.propertyRepo.save(account);
+                batch.failedCount = Number(batch.failedCount || 0) + 1;
+                await this.invitationBatchRepo.save(batch);
+                continue;
+            }
+
+            const temporaryPassword = randomBytes(6).toString('hex');
+            try {
+                await this.sendInvitationCredentialsEmail({
+                    accountId: account.accountId || '',
+                    memberName: account.memberName || 'Member',
+                    gmail,
+                    temporaryPassword,
+                });
+                account.password = await bcrypt.hash(temporaryPassword, 10);
+                account.passwordChanged = false;
+                account.portalAccessEnabled = true;
+                account.invitationStatus = 'sent';
+                account.invitationSentAt = new Date();
+                account.invitationError = null;
+                account.invitationBatchId = null;
+                await this.propertyRepo.save(account);
+                batch.sentCount = Number(batch.sentCount || 0) + 1;
+            } catch (error) {
+                account.portalAccessEnabled = false;
+                account.invitationStatus = 'failed';
+                account.invitationError = this.getInvitationError(error);
+                account.invitationBatchId = null;
+                await this.propertyRepo.save(account);
+                batch.failedCount = Number(batch.failedCount || 0) + 1;
+                console.error(`Member invitation email error for ${account.accountId}:`, error);
+            }
+            await this.invitationBatchRepo.save(batch);
+        }
+
+        batch.status = 'completed';
+        batch.completedAt = new Date();
+        await this.invitationBatchRepo.save(batch);
+    }
+
+    private toInvitationBatchResult(batch: MemberInvitationBatch) {
+        return {
+            id: batch.id,
+            status: batch.status,
+            requestedCount: Number(batch.requestedCount || 0),
+            sentCount: Number(batch.sentCount || 0),
+            failedCount: Number(batch.failedCount || 0),
+            startedAt: batch.startedAt || null,
+            completedAt: batch.completedAt || null,
+        };
+    }
+
+    private getInvitationError(error: unknown): string {
+        const message = error instanceof Error ? error.message : String(error);
+        return message.slice(0, 1000) || 'Invitation email could not be sent.';
     }
 
     private getMailer() {
@@ -268,6 +439,33 @@ export class AdminService {
                 `Hello ${credentials.memberName},`,
                 '',
                 'Your HOA Portal password has been reset by the HOA office.',
+                '',
+                `Portal link: ${this.getPortalUrl()}`,
+                `Username / Account ID: ${credentials.accountId}`,
+                `Temporary password: ${credentials.temporaryPassword}`,
+                '',
+                'Please log in and change your password immediately.',
+            ].join('\n'),
+        });
+    }
+
+    private async sendInvitationCredentialsEmail(credentials: {
+        accountId: string;
+        memberName: string;
+        gmail: string;
+        temporaryPassword: string;
+    }) {
+        const transporter = this.getMailer();
+        const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
+
+        await transporter.sendMail({
+            from,
+            to: credentials.gmail,
+            subject: 'Your HOA Portal Account Credentials',
+            text: [
+                `Hello ${credentials.memberName},`,
+                '',
+                'Your HOA Portal account is ready to use.',
                 '',
                 `Portal link: ${this.getPortalUrl()}`,
                 `Username / Account ID: ${credentials.accountId}`,

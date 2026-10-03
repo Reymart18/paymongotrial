@@ -6,12 +6,9 @@ import { DBFFile } from 'dbffile';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { randomBytes } from 'crypto';
 import csvParser from 'csv-parser';
 import * as XLSX from 'xlsx';
 import * as bcrypt from 'bcrypt';
-import * as nodemailer from 'nodemailer';
-import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { FoxproBilling } from './foxpro-billing.entity';
 import { FoxproPayment } from './foxpro-payment.entity';
 import { PropertyAccount } from '../property/property.entity';
@@ -244,17 +241,8 @@ export class FoxproService {
             inserted: 0,
             updated: 0,
             skipped: 0,
-            emailed: 0,
-            emailFailed: 0,
             errors: [] as string[],
         };
-        const pendingAccounts: Array<{
-            account: PropertyAccount;
-            accountId: string;
-            memberName: string;
-            gmail: string;
-            temporaryPassword: string;
-        }> = [];
 
         await this.dataSource.transaction(async (manager) => {
             const propertyRepo = manager.getRepository(PropertyAccount);
@@ -307,11 +295,20 @@ export class FoxproService {
                         existing.gmail = record.gmail || null;
                         changed = true;
 
-                        // An explicit removal of the source Gmail also removes
-                        // portal access. Adding a Gmail later still requires the
-                        // super admin to activate the account via Reset Password.
-                        if (!record.gmail && existing.portalAccessEnabled !== false) {
+                        if (!record.gmail) {
                             existing.portalAccessEnabled = false;
+                            existing.invitationStatus = 'not_eligible';
+                            existing.invitationAttemptedAt = null;
+                            existing.invitationSentAt = null;
+                            existing.invitationError = null;
+                            existing.invitationBatchId = null;
+                        } else if (existing.portalAccessEnabled === false && existing.invitationStatus !== 'processing') {
+                            // A newly supplied or corrected Gmail makes an
+                            // inactive account available to the next batch.
+                            existing.invitationStatus = 'pending';
+                            existing.invitationAttemptedAt = null;
+                            existing.invitationError = null;
+                            existing.invitationBatchId = null;
                         }
                     }
 
@@ -384,8 +381,9 @@ export class FoxproService {
                     continue;
                 }
 
-                const temporaryPassword = this.generateTemporaryPassword();
-                const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+                // Credentials are generated only by an invitation batch or a
+                // manual reset. Members sync must remain a data-only action.
+                const unavailablePassword = await bcrypt.hash(`inactive:${record.accountId}:${Date.now()}:${index}`, 10);
                 const account = propertyRepo.create({
                     accountId: record.accountId,
                     neighborhood: record.neighborhood,
@@ -401,11 +399,14 @@ export class FoxproService {
                             : undefined,
                     classification: normalizedClass,
                     username: record.accountId,
-                    password: hashedPassword,
+                    password: unavailablePassword,
                     passwordChanged: false,
-                    // New records remain unavailable to the portal until the
-                    // credentials email has been accepted by the mail server.
                     portalAccessEnabled: false,
+                    invitationStatus: record.gmail ? 'pending' : 'not_eligible',
+                    invitationAttemptedAt: null,
+                    invitationSentAt: null,
+                    invitationError: null,
+                    invitationBatchId: null,
                     principal: this.toTwoDecimalNumber(record.principal),
                     interest: this.toTwoDecimalNumber(record.interest),
                     penalty: this.toTwoDecimalNumber(record.penalty),
@@ -418,41 +419,8 @@ export class FoxproService {
 
                 await propertyRepo.save(account);
                 result.inserted += 1;
-
-                if (record.gmail) {
-                    pendingAccounts.push({
-                        account,
-                        accountId: record.accountId,
-                        memberName: record.memberName || 'Member',
-                        gmail: record.gmail,
-                        temporaryPassword,
-                    });
-                }
             }
         });
-
-        for (const credentials of pendingAccounts) {
-            try {
-                // Enable access immediately before emailing. If email sending
-                // fails, disable it again so an uninvited account cannot log in.
-                await this.propertyRepo.update(
-                    { accountId: credentials.accountId },
-                    { portalAccessEnabled: true },
-                );
-                await this.sendMemberCredentialsEmail(credentials);
-                result.emailed += 1;
-            } catch (err) {
-                await this.propertyRepo.update(
-                    { accountId: credentials.accountId },
-                    { portalAccessEnabled: false },
-                );
-                result.emailFailed += 1;
-                result.errors.push(
-                    `Account ${credentials.accountId}: Failed to email credentials to ${credentials.gmail}`,
-                );
-                console.error('Member credentials email error:', err);
-            }
-        }
 
         return result;
     }
@@ -1151,79 +1119,6 @@ export class FoxproService {
         }
 
         return new Date(Date.UTC(2025, 0, 1));
-    }
-
-    private generateTemporaryPassword(): string {
-        return randomBytes(6).toString('hex');
-    }
-
-    private getMailer() {
-        const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-        const port = Number(process.env.SMTP_PORT || 465);
-        const secure = process.env.SMTP_SECURE
-            ? process.env.SMTP_SECURE === 'true'
-            : port === 465;
-        const requireTls = process.env.SMTP_REQUIRE_TLS === 'true';
-        const forceIpv4 = process.env.SMTP_FORCE_IPV4 === 'true';
-        const user = process.env.SMTP_USER || '';
-        const pass = process.env.SMTP_PASS || '';
-
-        if (!user || !pass) {
-            throw new BadRequestException('Email service is not configured.');
-        }
-
-        const transportOptions: SMTPTransport.Options & { family?: number } = {
-            host,
-            port,
-            secure,
-            auth: { user, pass },
-        };
-
-        if (requireTls) {
-            transportOptions.requireTLS = true;
-        }
-
-        if (forceIpv4) {
-            transportOptions.family = 4;
-        }
-
-        return nodemailer.createTransport(transportOptions);
-    }
-
-    private async sendMemberCredentialsEmail(credentials: {
-        accountId: string;
-        memberName: string;
-        gmail: string;
-        temporaryPassword: string;
-    }) {
-        const transporter = this.getMailer();
-        const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
-
-        await transporter.sendMail({
-            from,
-            to: credentials.gmail,
-            subject: 'Your HOA Portal Account Credentials',
-            text: [
-                `Hello ${credentials.memberName || 'Member'},`,
-                '',
-                'Your HOA Portal account has been created.',
-                '',
-                `Portal link: ${this.getPortalUrl()}`,
-                `Username / Account ID: ${credentials.accountId}`,
-                `Temporary password: ${credentials.temporaryPassword}`,
-                '',
-                'Please log in and change your password immediately.',
-            ].join('\n'),
-        });
-    }
-
-    private getPortalUrl(): string {
-        const configured = process.env.PORTAL_URL || process.env.FRONTEND_URL;
-        if (configured?.trim()) {
-            return configured.trim().replace(/\/+$/, '');
-        }
-
-        return 'https://parkplacevillage.cloud';
     }
 
     private async snapshotQuarterlyBillings(
