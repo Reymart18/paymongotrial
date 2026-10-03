@@ -132,7 +132,42 @@ export class AuthService {
             to,
             subject: 'Your HOA Portal Verification Code',
             text: `Your verification code is ${otp}. This code expires in 5 minutes. Account: ${accountId}.`,
+            html: this.buildOtpEmailHtml(otp, accountId),
         });
+    }
+
+    private buildOtpEmailHtml(otp: string, accountId: string): string {
+        const escape = (value: string) => value.replace(/[&<>'"]/g, (character) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;',
+        }[character] || character));
+        const portalUrl = this.getPortalUrl();
+
+        return `<!doctype html>
+<html><body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#1e293b">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+      <tr><td align="center" style="padding:26px 24px 18px;background:#fff7ed"><img src="${escape(`${portalUrl}/pvhai.png`)}" alt="Parkplace Village Homeowners Association" width="96" style="display:block;max-width:96px;height:auto"></td></tr>
+      <tr><td style="padding:28px 32px">
+        <p style="margin:0 0 18px;font-size:16px">Your HOA Portal verification code is:</p>
+        <p style="margin:0 0 22px;font-size:30px;font-weight:bold;letter-spacing:5px;color:#8c4100">${escape(otp)}</p>
+        <p style="margin:0;font-size:14px;line-height:22px;color:#475569">This code expires in 5 minutes. Account: ${escape(accountId)}.</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+    }
+
+    private getPortalUrl(): string {
+        const configured = process.env.PORTAL_URL || process.env.FRONTEND_URL;
+        if (configured?.trim()) {
+            return configured.trim().replace(/\/+$/, '');
+        }
+
+        return 'https://parkplacevillage.cloud';
     }
 
     async startHomeownerLogin(accountId: string, password: string) {

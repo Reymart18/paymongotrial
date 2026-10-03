@@ -447,6 +447,10 @@ export class AdminService {
                 '',
                 'Please log in and change your password immediately.',
             ].join('\n'),
+            html: this.buildCredentialsEmailHtml(
+                credentials,
+                'Your HOA Portal password has been reset by the HOA office.',
+            ),
         });
     }
 
@@ -474,7 +478,44 @@ export class AdminService {
                 '',
                 'Please log in and change your password immediately.',
             ].join('\n'),
+            html: this.buildCredentialsEmailHtml(
+                credentials,
+                'Your HOA Portal account is ready to use.',
+            ),
         });
+    }
+
+    private buildCredentialsEmailHtml(
+        credentials: { accountId: string; memberName: string; temporaryPassword: string },
+        message: string,
+    ): string {
+        const escape = (value: string) => value.replace(/[&<>'"]/g, (character) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;',
+        }[character] || character));
+        const portalUrl = this.getPortalUrl();
+
+        return `<!doctype html>
+<html><body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#1e293b">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+      <tr><td align="center" style="padding:26px 24px 18px;background:#fff7ed"><img src="${escape(`${portalUrl}/pvhai.png`)}" alt="Parkplace Village Homeowners Association" width="96" style="display:block;max-width:96px;height:auto"></td></tr>
+      <tr><td style="padding:28px 32px">
+        <p style="margin:0 0 18px;font-size:16px">Hello ${escape(credentials.memberName || 'Member')},</p>
+        <p style="margin:0 0 22px;font-size:16px;line-height:24px">${escape(message)}</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px"><tr><td style="padding:16px;font-size:14px;line-height:23px">
+          <strong>Portal link:</strong> <a href="${escape(portalUrl)}" style="color:#8c4100">${escape(portalUrl)}</a><br>
+          <strong>Username / Account ID:</strong> ${escape(credentials.accountId)}<br>
+          <strong>Temporary password:</strong> ${escape(credentials.temporaryPassword)}
+        </td></tr></table>
+        <p style="margin:0;font-size:14px;line-height:22px;color:#475569">Please log in and change your password immediately.</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
     }
 
     private getPortalUrl(): string {
