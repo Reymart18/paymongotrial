@@ -27,14 +27,13 @@ export default function PortalAccessGuide() {
                     <section>
                         <h2 className="text-lg font-semibold">1. Submit Your Gmail Address</h2>
                         <p className="mt-2 leading-7 text-slate-600">
-                            A Google Form will be sent to the homeowners' group chat. Please provide your current Gmail
-                            address, as this will be used for your HOA Portal account and login verification.
+                            A Google Form will be sent to the homeowners’ group chat. Please provide your current Gmail address for your HOA Portal account and login verification. If you’ve already submitted it, you’re good—your registered email will be used.
                         </p>
                     </section>
 
                     <section>
                         <h2 className="text-lg font-semibold">2. Receive Your Account Credentials</h2>
-                        <p className="mt-2 text-slate-600">You will receive an email containing:</p>
+                        <p className="mt-2 text-slate-600">You will receive an email at your registered email address containing:</p>
                         <ul className="mt-3 list-disc space-y-1 pl-6 text-slate-600">
                             <li>Portal Link: <a href={portalLink} className="font-medium text-indigo-600 underline">{portalLink}</a></li>
                             <li>Username / Account ID</li>
@@ -93,8 +92,20 @@ export default function PortalAccessGuide() {
 
                     <div className="border-t border-slate-200 pt-6">
                         <p className="text-sm text-slate-600">
-                            For account concerns or login assistance, please contact the HOA Office.
+                            Need guidance? Contact us at:
                         </p>
+                        <p className="mt-2 text-md text-slate-700">
+                            (046) 484-2107 or (046) 875-4674
+                        </p>
+                        <p className="text-md text-slate-700">
+                            <a
+                                href="mailto:theparkplacevillagehoa@gmail.com"
+                                className="text-indigo-600 underline"
+                            >
+                                pvhaisystem@gmail.com
+                            </a>
+                        </p>
+
                         <Link
                             to="/login"
                             className="mt-5 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"

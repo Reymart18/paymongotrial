@@ -19,7 +19,7 @@ export default function LandingPage() {
             const targetPosition = element.getBoundingClientRect().top + window.scrollY;
             const startPosition = window.scrollY;
             const distance = targetPosition - startPosition;
-            const duration = 700; // 1.5 seconds for smooth scroll
+            const duration = 300; // 1.5 seconds for smooth scroll
             let start = null;
 
             const smoothScroll = (timestamp) => {
@@ -344,7 +344,7 @@ export default function LandingPage() {
                             <img
                                 src={phoneImage}
                                 alt="Contact Parkplace Village"
-                                className="relative z-10 w-[120%] max-w-[380px] drop-shadow-lg sm:w-full sm:max-w-md"
+                                className="relative z-10 w-[120%] max-w-95 scale-[1.4] drop-shadow-lg sm:w-full sm:max-w-md sm:scale-[1.3]"
                             />
                         </div>
                         <div className="flex w-1/2 max-w-md flex-col justify-center gap-3 p-2 text-white drop-shadow-lg sm:w-1/2 sm:gap-6 sm:p-9 lg:w-5/12">
