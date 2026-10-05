@@ -113,7 +113,7 @@ export class AuthService {
             return 0;
         }
 
-        const cooldownMs = 3 * 60 * 1000;
+        const cooldownMs = 15 * 60 * 1000;
         const elapsed = Date.now() - lastSentAt.getTime();
         const remaining = cooldownMs - elapsed;
         return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
@@ -131,7 +131,7 @@ export class AuthService {
             from,
             to,
             subject: 'Your HOA Portal Verification Code',
-            text: `Your verification code is ${otp}. This code expires in 5 minutes. Account: ${accountId}.`,
+            text: `Your verification code is ${otp}. This code expires in 15 minutes. Account: ${accountId}.`,
             html: this.buildOtpEmailHtml(otp, accountId),
         });
     }
@@ -154,7 +154,7 @@ export class AuthService {
       <tr><td style="padding:28px 32px">
         <p style="margin:0 0 18px;font-size:16px">Your HOA Portal verification code is:</p>
         <p style="margin:0 0 22px;font-size:30px;font-weight:bold;letter-spacing:5px;color:#8c4100">${escape(otp)}</p>
-        <p style="margin:0;font-size:14px;line-height:22px;color:#475569">This code expires in 5 minutes. Account: ${escape(accountId)}.</p>
+        <p style="margin:0;font-size:14px;line-height:22px;color:#475569">This code expires in 15 minutes. Account: ${escape(accountId)}.</p>
       </td></tr>
     </table>
   </td></tr></table>
@@ -195,7 +195,7 @@ export class AuthService {
 
         const otp = this.generateOtp();
         const otpHash = await bcrypt.hash(otp, 10);
-        const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
         const otpLastSentAt = new Date();
 
         await this.propertyAccountRepo.update(
@@ -208,8 +208,8 @@ export class AuthService {
         return {
             otpRequired: true,
             gmail: homeowner.gmail,
-            expiresIn: 300,
-            cooldownSeconds: 180,
+            expiresIn: 900,
+            cooldownSeconds: 900,
         };
     }
 
