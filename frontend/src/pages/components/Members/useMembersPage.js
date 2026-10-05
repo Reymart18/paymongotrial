@@ -178,7 +178,8 @@ export default function useMembersPage() {
     const filteredAccounts = useMemo(() => accounts.filter((account) => {
         const query = searchQuery.toLowerCase();
         const searchMatch = account.accountId?.toLowerCase().includes(query)
-            || account.memberName?.toLowerCase().includes(query);
+            || account.memberName?.toLowerCase().includes(query)
+            || account.gmail?.toLowerCase().includes(query);
         const ownershipMatch = !ownershipType
             || account.classification?.toLowerCase() === ownershipType.toLowerCase();
         const statusMatch = !statusType || statuses[account.accountId] === statusType;

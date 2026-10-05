@@ -22,7 +22,7 @@ export default function MembersToolbar({
                     name="membersSearch"
                     type="text"
                     aria-label="Search members"
-                    placeholder="Search members..."
+                    placeholder="Search ID, name, or email..."
                     value={searchQuery}
                     onChange={(event) => onSearchChange(event.target.value)}
                     className="w-full rounded-lg bg-white px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-0 focus:ring-[#E89B58] md:w-sm"
