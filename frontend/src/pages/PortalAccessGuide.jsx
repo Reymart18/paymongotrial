@@ -27,7 +27,11 @@ export default function PortalAccessGuide() {
                     <section>
                         <h2 className="text-lg font-semibold">1. Submit Your Gmail Address</h2>
                         <p className="mt-2 leading-7 text-slate-600">
-                            A Google Form will be sent to the homeowners’ group chat. Please provide your current Gmail address for your HOA Portal account and login verification. If you’ve already submitted it, you’re good—your registered email will be used.
+                            A Google Form has been sent to the homeowners’ group chat to collect your current Gmail address for your HOA Portal account and login verification.
+
+                            If you have already submitted the form, no further action is needed. Your registered Gmail address will be used for your HOA Portal account.
+
+                            If you have not submitted the form yet, please contact the PVHAI Office and provide your current Gmail address for registration.
                         </p>
                     </section>
 
