@@ -113,7 +113,7 @@ export class AuthService {
             return 0;
         }
 
-        const cooldownMs = 15 * 60 * 1000;
+        const cooldownMs = 3 * 60 * 1000;
         const elapsed = Date.now() - lastSentAt.getTime();
         const remaining = cooldownMs - elapsed;
         return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
@@ -209,7 +209,7 @@ export class AuthService {
             otpRequired: true,
             gmail: homeowner.gmail,
             expiresIn: 900,
-            cooldownSeconds: 900,
+            cooldownSeconds: 180,
         };
     }
 

@@ -115,7 +115,7 @@ export default function useLoginPageController() {
                 setOtpStep(true);
                 setOtpTarget(data.gmail || '');
                 setOtpCode('');
-                startOtpCooldown(data.cooldownSeconds || 900);
+                startOtpCooldown(data.cooldownSeconds || 180);
                 return;
             }
 
@@ -211,7 +211,7 @@ export default function useLoginPageController() {
                 setOtpStep(true);
                 setOtpTarget(data.gmail || '');
                 setOtpCode('');
-                startOtpCooldown(data.cooldownSeconds || 900);
+                startOtpCooldown(data.cooldownSeconds || 180);
             }
         } catch (err) {
             setError('An error occurred. Please try again.');
@@ -254,7 +254,7 @@ export default function useLoginPageController() {
                 setOtpStep(true);
                 setOtpTarget(data.gmail || '');
                 setOtpCode('');
-                startOtpCooldown(data.cooldownSeconds || 900);
+                startOtpCooldown(data.cooldownSeconds || 180);
                 return;
             }
 
