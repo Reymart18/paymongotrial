@@ -336,7 +336,7 @@ export class AdminService {
             where: { invitationBatchId: batchId, invitationStatus: 'processing' },
             order: { accountId: 'ASC' },
         });
-        const invitationIntervalMs = 2500;
+        const invitationIntervalMs = 10_000;
         let lastInvitationAttemptAt = 0;
 
         for (const account of accounts) {
