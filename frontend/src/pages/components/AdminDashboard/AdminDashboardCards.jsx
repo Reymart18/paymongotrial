@@ -56,7 +56,7 @@ export default function AdminDashboardCards({
             icon: pbIcon,
         },
         {
-            title: 'Not In Good Standing (6+ Months Overdue)',
+            title: 'Not In Good Standing (12+ Months Overdue)',
             value: Number.isFinite(notGoodStandingCount)
                 ? String(notGoodStandingCount)
                 : '0',
@@ -77,7 +77,7 @@ export default function AdminDashboardCards({
                 const isSettledCard = card.title === 'Settled Accounts (₱0)';
                 const isUnpaidCard = card.title === 'Unpaid Accounts';
                 const isOverpaidCard = card.title === 'Overpaid Accounts';
-                const isNotGoodStandingCard = card.title === 'Not In Good Standing (6+ Months Overdue)';
+                const isNotGoodStandingCard = card.title === 'Not In Good Standing (12+ Months Overdue)';
                 const isPaymentsReport = card.isPaymentsReport;
                 const cardClassName = `relative rounded-2xl p-6 pt-10 shadow-sm transition hover:shadow-md ${isCenteredBottomRow ? 'lg:col-span-3' : 'lg:col-span-2'
                     }`;

@@ -706,7 +706,7 @@ export class AdminService {
             }, null);
             const lastPaymentKey = lastPaymentDate ? lastPaymentDate.toISOString().slice(0, 10) : null;
             const noRecentPayments = !lastPaymentKey || lastPaymentKey <= cutoffKey;
-            const notGoodStandingThreshold = currentPrincipal * 2;
+            const notGoodStandingThreshold = currentPrincipal * 4;
             if (currentPrincipal > 0 && amountDueCents > 0 && amountDue >= notGoodStandingThreshold && noRecentPayments) {
                 notGoodStandingCount += 1;
             }
@@ -1710,7 +1710,7 @@ export class AdminService {
             }
 
             const amountDue = Number(accountMap.get(accountId)?.balance ?? 0);
-            const threshold = currentPrincipal * 2;
+            const threshold = currentPrincipal * 4;
             const accountPayments = paymentsByAccount.get(accountId) || [];
             const lastMembershipPaymentDate = accountPayments.reduce<Date | null>((latest, payment) => {
                 const paycat = String(payment.paycat || '').trim().toLowerCase();

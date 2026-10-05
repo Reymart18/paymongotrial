@@ -1065,7 +1065,7 @@ export default function useAdminDashboardController() {
             </head>
             <body>
                 <h1>Not In Good Standing</h1>
-                <p>Amount Due / Excess as of ${formattedAsOf}. Rule: Amount Due / Excess ≥ (Principal x 2). Filter: ${notGoodStandingFilter}.</p>
+                <p>Amount Due / Excess as of ${formattedAsOf}. Rule: Amount Due / Excess ≥ (Principal x 4). Filter: ${notGoodStandingFilter}.</p>
                 <table>
                     <thead>
                         <tr>

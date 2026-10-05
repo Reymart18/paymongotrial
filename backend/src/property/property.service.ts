@@ -176,7 +176,7 @@ export class PropertyService {
             return PropertyService.GOOD_STANDING;
         }
 
-        return amountDue >= currentCharges * 2
+        return amountDue >= currentCharges * 4
             ? PropertyService.NOT_GOOD_STANDING
             : PropertyService.GOOD_STANDING;
     }
