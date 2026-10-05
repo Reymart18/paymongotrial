@@ -56,7 +56,7 @@ function ProtectedRoute({ children, requiredRole }) {
     }
   }
 
-  if (userRole === 'homeowner' && mustAcceptMemberAgreement && currentPath !== '/homeowner/member-agreement') {
+  if (userRole === 'homeowner' && !mustChangePassword && mustAcceptMemberAgreement && currentPath !== '/homeowner/member-agreement') {
     return <Navigate to="/homeowner/member-agreement" replace />;
   }
 
