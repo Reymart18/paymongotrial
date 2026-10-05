@@ -336,6 +336,8 @@ export class AdminService {
             where: { invitationBatchId: batchId, invitationStatus: 'processing' },
             order: { accountId: 'ASC' },
         });
+        const invitationIntervalMs = 2500;
+        let lastInvitationAttemptAt = 0;
 
         for (const account of accounts) {
             const gmail = account.gmail?.trim();
@@ -352,6 +354,12 @@ export class AdminService {
 
             const temporaryPassword = randomBytes(6).toString('hex');
             try {
+                const elapsedSinceLastAttempt = Date.now() - lastInvitationAttemptAt;
+                const waitMs = Math.max(0, invitationIntervalMs - elapsedSinceLastAttempt);
+                if (lastInvitationAttemptAt > 0 && waitMs > 0) {
+                    await new Promise((resolve) => setTimeout(resolve, waitMs));
+                }
+                lastInvitationAttemptAt = Date.now();
                 await this.sendInvitationCredentialsEmail({
                     accountId: account.accountId || '',
                     memberName: account.memberName || 'Member',
