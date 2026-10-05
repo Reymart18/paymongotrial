@@ -251,6 +251,36 @@ export default function useMembersPage() {
         }
     };
 
+    const retryFailedInvitations = async () => {
+        if (!isSuperAdmin) return;
+        const failed = Number(invitationSummary?.failed || 0);
+        if (!failed) return;
+        const count = Math.min(100, failed);
+        if (!window.confirm(`Retry credential emails for up to ${count} failed member${count === 1 ? '' : 's'}?`)) return;
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setInvitationError('Session expired. Please log in again.');
+            return;
+        }
+        setInvitationLoading(true);
+        setInvitationError('');
+        try {
+            const response = await fetch(`${API_URL}/admin/member-invitations/retry-failed`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ batchSize: 100 }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Failed to retry invitations.');
+            setInvitationSummary((current) => ({ ...current, latestBatch: data, processing: data.requestedCount }));
+            setInvitationBatchId(data.id);
+        } catch (retryError) {
+            setInvitationError(retryError.message || 'Failed to retry invitations.');
+        } finally {
+            setInvitationLoading(false);
+        }
+    };
+
     const deleteAccount = async (accountId) => {
         if (!isSuperAdmin) return;
         const token = localStorage.getItem('token');
@@ -370,6 +400,7 @@ export default function useMembersPage() {
         invitationSummary,
         invitationType,
         setInvitationType: updateFilter(setInvitationType),
+        retryFailedInvitations,
         sendNextInvitations,
     };
 }

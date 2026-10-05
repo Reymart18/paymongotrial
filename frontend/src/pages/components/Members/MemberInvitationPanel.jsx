@@ -4,6 +4,7 @@ export default function MemberInvitationPanel({
     error,
     isSuperAdmin,
     onSendNext,
+    onRetryFailed,
 }) {
     if (!isSuperAdmin) return null;
 
@@ -20,14 +21,24 @@ export default function MemberInvitationPanel({
                         Members sync only imports data. Send credentials in controlled batches of 50.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={onSendNext}
-                    disabled={loading || isRunning || pending === 0}
-                    className="rounded-lg bg-[#8C4100] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#733600] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {isRunning ? 'Invitation batch in progress...' : 'Send next 50 invitations'}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        onClick={onSendNext}
+                        disabled={loading || isRunning || pending === 0}
+                        className="rounded-lg bg-[#8C4100] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#733600] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isRunning ? 'Invitation batch in progress...' : 'Send next 50 invitations'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onRetryFailed}
+                        disabled={loading || isRunning || Number(summary?.failed || 0) === 0}
+                        className="rounded-lg border border-[#8C4100] bg-white px-5 py-2.5 text-sm font-bold text-[#8C4100] transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        Retry failed ({Number(summary?.failed || 0)})
+                    </button>
+                </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">

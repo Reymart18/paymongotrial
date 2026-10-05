@@ -364,6 +364,31 @@ export class AdminController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Post('member-invitations/retry-failed')
+    async retryFailedMemberInvitations(
+        @Body() body: { batchSize?: number },
+        @Request() req: AuthenticatedRequest,
+    ) {
+        if (req.user.role !== 'super_admin') {
+            throw new ForbiddenException('Only super admins can retry invitations');
+        }
+
+        const batch = await this.adminService.createFailedInvitationBatch(
+            req.user.username || `admin:${req.user.id}`,
+            body?.batchSize,
+        );
+        await this.adminService.logActivity({
+            actorId: req.user.id,
+            actorUsername: req.user.username,
+            action: 'retry_failed_member_invitations',
+            targetType: 'member_invitation_batch',
+            targetId: String(batch.id || ''),
+            details: `Retried failed invitations for ${batch.requestedCount} member(s).`,
+        });
+        return batch;
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Get('member-invitations/batches/:id')
     async getInvitationBatch(
         @Param('id') id: string,

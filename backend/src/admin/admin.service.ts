@@ -267,6 +267,18 @@ export class AdminService {
     }
 
     async createNextInvitationBatch(requestedBy: string, batchSize = 50) {
+        return this.createInvitationBatch(requestedBy, batchSize, 'pending');
+    }
+
+    async createFailedInvitationBatch(requestedBy: string, batchSize = 100) {
+        return this.createInvitationBatch(requestedBy, batchSize, 'failed');
+    }
+
+    private async createInvitationBatch(
+        requestedBy: string,
+        batchSize: number,
+        invitationStatus: 'pending' | 'failed',
+    ) {
         const resolvedSize = Math.min(Math.max(Math.floor(Number(batchSize) || 50), 1), 100);
         const batch = await this.dataSource.transaction(async (manager) => {
             const batchRepo = manager.getRepository(MemberInvitationBatch);
@@ -282,7 +294,8 @@ export class AdminService {
             const accounts = await accountRepo
                 .createQueryBuilder('account')
                 .setLock('pessimistic_write')
-                .where('account.invitation_status = :status', { status: 'pending' })
+                .where('account.invitation_status = :status', { status: invitationStatus })
+                .setParameter('status', invitationStatus)
                 .andWhere('account.portal_access_enabled = :access', { access: false })
                 .andWhere("account.gmail IS NOT NULL AND TRIM(account.gmail) <> ''")
                 .orderBy('account.accountId', 'ASC')

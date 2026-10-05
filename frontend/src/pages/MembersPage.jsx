@@ -92,6 +92,7 @@ export default function MembersPage() {
                                 error={members.invitationError}
                                 isSuperAdmin={members.isSuperAdmin}
                                 onSendNext={members.sendNextInvitations}
+                                onRetryFailed={members.retryFailedInvitations}
                             />
                             <MembersTable
                                 accounts={members.paginatedAccounts}
