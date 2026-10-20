@@ -45,7 +45,14 @@ export default function PaymentsTable({ paymentRows, formatDate, formatMoney }) 
                             <td className="px-2 md:px-3 py-2 text-xs md:text-sm">{row.referenceNumber || '-'}</td>
                             <td className="px-2 md:px-3 py-2 text-xs md:text-sm">{formatDate(row.date)}</td>
                             <td className="px-2 md:px-3 py-2 text-xs md:text-sm">{row.paycat || '-'}</td>
-                            <td className="px-2 md:px-3 py-2 text-xs md:text-sm">{row.description || '-'}</td>
+                            <td className="px-2 md:px-3 py-2 text-xs md:text-sm">
+                                {row.description || '-'}
+                                {row.isOnlinePayment && row.paymentStatus && (
+                                    <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                                        {row.paymentStatus.replaceAll('_', ' ')}
+                                    </span>
+                                )}
+                            </td>
                             <td className="px-2 md:px-3 py-2 text-right font-semibold text-xs md:text-sm">
                                 {formatMoney(row.amountPaid || 0)}
                             </td>

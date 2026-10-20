@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { FoxproBilling } from '../foxpro/foxpro-billing.entity';
 import { FoxproPayment } from '../foxpro/foxpro-payment.entity';
+import { OnlinePayment } from '../paymongo/online-payment.entity';
 
 export interface StatementRow {
     date: string;
@@ -28,6 +29,8 @@ export interface StatementRow {
     amountPaid: number;
     totalBalance: number;
     description: string;
+    isOnlinePayment?: boolean;
+    paymentStatus?: string | null;
 }
 
 @Injectable()
@@ -37,11 +40,13 @@ export class StatementsService {
         private billingRepo: Repository<FoxproBilling>,
         @InjectRepository(FoxproPayment)
         private paymentRepo: Repository<FoxproPayment>,
+        @InjectRepository(OnlinePayment)
+        private onlinePaymentRepo: Repository<OnlinePayment>,
     ) { }
 
     async getStatement(accountId: string): Promise<StatementRow[]> {
         const paymentCutoff = this.getPaymentsCutoffDate();
-        const [billings, payments] = await Promise.all([
+        const [billings, payments, onlinePayments] = await Promise.all([
             this.billingRepo.find({
                 where: { accountId },
                 order: { dueDate: 'ASC' },
@@ -53,6 +58,10 @@ export class StatementsService {
                     isDeletedFromFoxpro: false,
                 },
                 order: { paymentDate: 'ASC' },
+            }),
+            this.onlinePaymentRepo.find({
+                where: { accountId, status: In(['PENDING', 'UNDER_REVIEW']) },
+                order: { paidAt: 'ASC' },
             }),
         ]);
 
@@ -78,6 +87,8 @@ export class StatementsService {
             penalty: number;
             amountPaid: number;
             description: string;
+            isOnlinePayment?: boolean;
+            paymentStatus?: string | null;
         }> = [];
 
         for (const billing of billings) {
@@ -128,6 +139,30 @@ export class StatementsService {
                 penalty: 0,
                 amountPaid: Number(payment.amountPaid || 0),
                 description: payment.description || 'Payment',
+                isOnlinePayment: false,
+                paymentStatus: null,
+            });
+        }
+
+        for (const payment of onlinePayments) {
+            const paymentDate = payment.paidAt || payment.createdAt;
+            if (!paymentDate) {
+                continue;
+            }
+            rows.push({
+                dateValue: new Date(paymentDate),
+                type: 'payment',
+                referenceNumber: 'Online Payment',
+                paycat: 'Membership dues',
+                amountDue: 0,
+                interest: 0,
+                penalty: 0,
+                amountPaid: Number(payment.amount || 0),
+                description: payment.paymongoReference
+                    ? `${payment.status || 'PENDING'} · ${payment.paymongoReference}`
+                    : payment.status || 'PENDING',
+                isOnlinePayment: true,
+                paymentStatus: payment.status,
             });
         }
 
@@ -141,8 +176,9 @@ export class StatementsService {
                 row.type === 'billing' && row.previousBalance !== undefined
                     ? row.previousBalance
                     : runningBalance;
+            const amountPaidForBalance = row.isOnlinePayment ? 0 : row.amountPaid;
             const totalBalance =
-                previousBalance + row.amountDue + row.interest + row.penalty - row.amountPaid;
+                previousBalance + row.amountDue + row.interest + row.penalty - amountPaidForBalance;
             runningBalance = totalBalance;
 
             statement.push({
@@ -178,6 +214,8 @@ export class StatementsService {
                 amountPaid: row.amountPaid,
                 totalBalance,
                 description: row.description,
+                isOnlinePayment: row.isOnlinePayment || false,
+                paymentStatus: row.paymentStatus || null,
             });
         }
 

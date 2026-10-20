@@ -10,7 +10,9 @@ async function bootstrap() {
     // Prefer IPv4 to avoid IPv6 SMTP timeouts in some networks.
     dns.setDefaultResultOrder('ipv4first');
   }
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   app.enableCors({
     origin: corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean),

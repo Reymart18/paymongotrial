@@ -19,14 +19,6 @@ const getRowYear = (row) => {
     return parsed.getFullYear();
 };
 
-const isMembershipDues = (row) => {
-    if (!row?.paycat) {
-        return false;
-    }
-
-    return String(row.paycat).trim().toLowerCase() === 'membership dues';
-};
-
 const formatDate = (value) => {
     if (!value) {
         return '-';
@@ -71,6 +63,8 @@ export default function useSOAPreviewController() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isExporting, setIsExporting] = useState(false);
+    const [isPaying, setIsPaying] = useState(false);
+    const [paymentError, setPaymentError] = useState('');
     const navigate = useNavigate();
     const pdfRef = useRef(null);
 
@@ -240,7 +234,9 @@ export default function useSOAPreviewController() {
     );
 
     const totalPayments = useMemo(
-        () => paymentRowsForYear.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
+        () => paymentRowsForYear
+            .filter((row) => !row.isOnlinePayment)
+            .reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
         [paymentRowsForYear],
     );
 
@@ -446,6 +442,37 @@ export default function useSOAPreviewController() {
         }
     };
 
+    const handlePayOnline = async () => {
+        if (isPaying || amountDue <= 0) {
+            return;
+        }
+
+        setIsPaying(true);
+        setPaymentError('');
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/paymongo/checkout/${accountId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.checkoutUrl) {
+                throw new Error(data.message || 'Unable to start PayMongo checkout.');
+            }
+
+            window.location.assign(data.checkoutUrl);
+        } catch (err) {
+            console.error('PayMongo checkout error:', err);
+            setPaymentError(err.message || 'Unable to start PayMongo checkout.');
+            setIsPaying(false);
+        }
+    };
+
     return {
         account,
         accountId,
@@ -463,10 +490,13 @@ export default function useSOAPreviewController() {
         formatSignedMoney,
         handleBack: () => navigate(-1),
         handleExportPdf,
+        handlePayOnline,
         isExporting,
+        isPaying,
         latestBillDate,
         loading,
         lotSizeLabel,
+        paymentError,
         paymentRows,
         pdfRef,
         selectedBillingYear,

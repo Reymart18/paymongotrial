@@ -26,6 +26,8 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { WaterBillsModule } from './water-bills/water-bills.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
 import { SyncModule } from './sync/sync.module';
+import { PaymongoModule } from './paymongo/paymongo.module';
+import { OnlinePayment } from './paymongo/online-payment.entity';
 
 function shouldSynchronizeDatabase(): boolean {
   const configured = String(process.env.TYPEORM_SYNCHRONIZE || '').trim().toLowerCase();
@@ -64,6 +66,7 @@ function shouldSynchronizeDatabase(): boolean {
         ServiceRequest,
         ServiceComplaint,
         SyncRequest,
+        OnlinePayment,
       ],
       synchronize: shouldSynchronizeDatabase(),
     }),
@@ -82,6 +85,7 @@ function shouldSynchronizeDatabase(): boolean {
       ServiceRequest,
       ServiceComplaint,
       SyncRequest,
+      OnlinePayment,
     ]),
     AuthModule,
     AdminModule,
@@ -94,6 +98,7 @@ function shouldSynchronizeDatabase(): boolean {
     WaterBillsModule,
     ServiceRequestsModule,
     SyncModule,
+    PaymongoModule,
   ],
 })
 export class AppModule {}

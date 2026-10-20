@@ -25,11 +25,14 @@ export default function SOAPreview() {
         formatSignedMoney,
         handleBack,
         handleExportPdf,
+        handlePayOnline,
         isExporting,
+        isPaying,
         latestBillDate,
         loading,
         lotSizeLabel,
         paymentRows,
+        paymentError,
         pdfRef,
         selectedBillingYear,
         soaPrefix,
@@ -107,6 +110,9 @@ export default function SOAPreview() {
                             amountDue={amountDue}
                             amountDueAsOfLabel={amountDueAsOfLabel}
                             formatSignedMoney={formatSignedMoney}
+                            onPayOnline={handlePayOnline}
+                            isPaying={isPaying}
+                            paymentError={paymentError}
                         />
 
                         <PaymentInstructions />
